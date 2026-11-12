@@ -580,7 +580,7 @@ static void cfx_phaser(cfx_dsp_t *dsp, int32_t *l, int32_t *r, uint32_t n)
 }
 
 /* ------------------------------------------------------ the power-on sound --- */
-/* CORD: a short Dm7 electric-key signature, matching the piano-key logo.
+/* RAKT: a rising Dm7 electric-key strum with a snare in a live room.
  * Six rising notes, a brief second harmonic and a finite 2.2 s tail.
  * Independent of the chosen patches/FX, after the effects and before MASTER.
  * This audio-owned voice never emits MIDI, changes a part or writes a recording.
@@ -592,6 +592,9 @@ static const struct { uint16_t ms; uint8_t note, vel; int8_t pan; } CF_BOOT[] = 
 #define CF_BOOT_N ((uint32_t)(sizeof CF_BOOT / sizeof CF_BOOT[0]))
 #define CF_BOOT_SAMPLES (FS * 2200u / 1000u)
 #define CF_BOOT_FADE (FS * 500u / 1000u)
+#define CF_BOOT_SNARE_AT (FS * 320u / 1000u)
+#define CF_BOOT_ROOM_MASK 511u
+#define CF_BOOT_ROOM_TAP(ms) (FS * (ms) / 4000u)
 static const uint32_t CF_BOOT_INC[12] = {796254u,843601u,893765u,946911u,1003217u,1062871u,
     1126073u,1193033u,1263974u,1339134u,1418763u,1503127u}; /* MIDI 0..11, per sample */
 static volatile uint8_t cf_boot_pending; /* delayed power-on request; notes cancel it */
@@ -603,12 +606,59 @@ static struct {
     uint32_t t,pa[CF_BOOT_N];
     int32_t e[CF_BOOT_N],ei[CF_BOOT_N]; /* Q30 body and short hammer brightness */
 } cfb;
+
+static struct {
+    int16_t delay[CF_BOOT_ROOM_MASK+1u];
+    uint32_t cursor, noise, phase;
+    int32_t wires, head, low, damped, l, r;
+} cf_boot_snare __attribute__((section(".pool"), aligned(4)));
+
+/* The room runs at a quarter sample rate. Uneven taps give the hit a wide
+ * early reflection, and a damped feedback path lets it ring under the keys. */
+static void cf_boot_snare_tick(unsigned age)
+{
+    uint32_t at=cf_boot_snare.cursor++;
+    uint32_t noise=cf_boot_snare.noise*1664525u+1013904223u;
+    cf_boot_snare.noise=noise;
+    int32_t white=(int32_t)(noise>>16)-32768;
+    cf_boot_snare.low+=(white-cf_boot_snare.low)>>2;
+    int32_t dry=((white-cf_boot_snare.low)*(cf_boot_snare.wires>>16))>>15;
+    uint32_t phase=cf_boot_snare.phase;
+    int32_t body=(osc_sine(phase)*3+osc_sine(phase*2u))/4;
+    dry+=(body*(cf_boot_snare.head>>16))>>15;
+    cf_boot_snare.phase+=((1ull<<32)*185u*4u)/FS;
+    cf_boot_snare.wires-=cf_boot_snare.wires>>8;
+    cf_boot_snare.head-=cf_boot_snare.head>>7;
+    if(age<16u)dry=dry*(int32_t)age/16;
+    int32_t early_l=cf_boot_snare.delay[(at-CF_BOOT_ROOM_TAP(17))&CF_BOOT_ROOM_MASK];
+    int32_t early_r=cf_boot_snare.delay[(at-CF_BOOT_ROOM_TAP(27))&CF_BOOT_ROOM_MASK];
+    int32_t late_l=cf_boot_snare.delay[(at-CF_BOOT_ROOM_TAP(37))&CF_BOOT_ROOM_MASK];
+    int32_t late_r=cf_boot_snare.delay[(at-CF_BOOT_ROOM_TAP(43))&CF_BOOT_ROOM_MASK];
+    cf_boot_snare.damped+=((late_l+late_r)/2-cf_boot_snare.damped)>>2;
+    cf_boot_snare.delay[at&CF_BOOT_ROOM_MASK]=(int16_t)(dry+cf_boot_snare.damped*29/32);
+    cf_boot_snare.l=dry+(early_l+late_r)/2;
+    cf_boot_snare.r=dry+(early_r+late_l)/2;
+}
+
+/* Preserve headroom for the snare transient while lifting the whole cue. */
+static int32_t cf_boot_level(int32_t sample)
+{
+    sample+=sample/2;
+    if(sample>20000)return 20000+(sample-20000)/4;
+    if(sample<-20000)return -20000+(sample+20000)/4;
+    return sample;
+}
+
 static void cf_boot_mix(int32_t *l,int32_t *r,uint32_t n)
 {
     unsigned request=cf_boot_go;
     if(request) {
         cf_boot_go=0;
-        if(request==1){memset(&cfb,0,sizeof cfb);cfb.on=1;cfb.gain=32768;}
+        if(request==1){
+            memset(&cfb,0,sizeof cfb);cfb.on=1;cfb.gain=32768;
+            memset(&cf_boot_snare,0,sizeof cf_boot_snare);
+            cf_boot_snare.wires=7200<<16;cf_boot_snare.head=3200<<16;
+        }
         else cfb.yield=1;
     }
     if(!cfb.on)return;
@@ -638,11 +688,18 @@ static void cf_boot_mix(int32_t *l,int32_t *r,uint32_t n)
         }
     }
     for(unsigned i=0;i<count;i++) {
-        unsigned remain=CF_BOOT_SAMPLES-(cfb.t+i);
+        unsigned at=cfb.t+i;
+        if(at>=CF_BOOT_SNARE_AT){
+            unsigned age=at-CF_BOOT_SNARE_AT;
+            if(!(age&3u))cf_boot_snare_tick(age);
+            boot_l[i]+=cf_boot_snare.l;boot_r[i]+=cf_boot_snare.r;
+        }
+        unsigned remain=CF_BOOT_SAMPLES-at;
         int32_t fade=remain<CF_BOOT_FADE?remain*32768u/CF_BOOT_FADE:32768u;
         int32_t level=cfb.yield?cfb.gain-(int32_t)(128u*(i+1u)):cfb.gain;
         int32_t gain=(level*fade)>>15;
-        l[i]+=(boot_l[i]*gain)>>15;r[i]+=(boot_r[i]*gain)>>15;
+        l[i]+=(cf_boot_level(boot_l[i])*gain)>>15;
+        r[i]+=(cf_boot_level(boot_r[i])*gain)>>15;
     }
     cfb.t+=count;
     if(cfb.yield)cfb.gain-=(int32_t)(128u*count);

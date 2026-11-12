@@ -6,7 +6,8 @@ The FM-1 opens on a graphite faceplate with a cream RAKT wordmark. The mixer and
 main output slide into the cabinet from opposite sides. Chords, Bass, Drums and Layer
 run through a short lamp sweep, then MAIN OUT displays READY. The visual intro takes
 1.68 seconds after initialization. A key, button or encoder skips it. Motion Off
-shows the finished rack during startup. The optional Dm7 boot strum is controlled by the Boot Snd setting.
+shows the finished rack during startup. The Boot Snd setting controls the optional
+Dm7 strum and room snare. [Listen to the boot sound](audio/rakt-boot-chime.wav).
 
 The 240 × 240 intro uses the indexed framebuffer and integer drawing primitives.
 The settled frame is cached during the hold. The host test exercises animation,

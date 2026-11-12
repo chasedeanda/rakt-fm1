@@ -1,8 +1,9 @@
-# Current Cord boot sound (0.6-chase13)
+# RAKT boot sound
 
-The warm signature now strums D3, F3, A3, C4, F4 and A4 over 620 ms and decays to silence
-by 2.2 seconds. Its measured full-level output peak is -11.28 dBFS, about 6.6 dB louder than
-the earlier four-note signature. It uses the existing MASTER and saved BOOT SND controls.
+The electric-key signature strums D3, F3, A3, C4, F4 and A4 over 620 ms. A sharp
+snare lands 320 ms in, just ahead of C4, and rings into a wide stereo room. The
+cue fades to silence by 2.2 seconds and uses the existing MASTER and BOOT SND controls.
+The complete cue gets a 50% gain boost before MASTER, with compression on the loudest transients.
 
 [Listen to the current firmware render](audio/rakt-boot-chime.wav).
 
@@ -13,7 +14,6 @@ The selected notes' timing, pitch and velocity setup happen outside the sample l
 
 `tools/test_boot_sound.sh` checks finite duration, headroom, chunk-independent rendering,
 clean muted output/stems and first-key physical/USB/MIDI isolation at both sample rates.
-The old four-note first-pass WAV checksum is deliberately retired for this requested new sound.
 
 Physical loudness and timing of the current revision remain device checks. Earlier release
 behavior is recorded in docs/releases/0.6-chase10.md.
