@@ -801,7 +801,7 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
     const char *hint=m->pending[0]?m->pending:
         m->section&CGS_FORM_FILL?"Band turnaround":m->section&CGS_FORM_LAYER_REST?"Band breather":
         studio?(m->live && !m->bank?"EDIT New part":"EDIT New take"):
-        tab==CGU_SOUND?(mix?"K1-4 Levels":!m->live || m->bank?"EDIT Reroll sounds":m->sound_page==CGU_TONE?"EDIT Reroll part":""):
+        tab==CGU_SOUND?(!m->live?"EDIT Reroll sounds":mix?"K1-4 Levels":m->bank?"EDIT Reroll sounds":m->sound_page==CGU_TONE?"EDIT Reroll part":""):
         tab==CGU_RECORD?(m->rec?"REC Finish take":"REC Manual take"):"";
     if(fx_presets)hint="EDIT FX controls";
     int footer=overview?227:207;
@@ -812,8 +812,7 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
         cfn_text(&CFN_11,10,238,"ALGO Browse",FL_INK);
         if(studio)cfn_fit(&CFN_11,82,238,"SEQ Units",66,FL_INK2);
     } else if(tab==CGU_SOUND && !m->bank){
-        const char *sound_hint=m->sound_page==CGU_PRESETS?"K1 Browse   SAVE Manage":
-            m->sound_page==CGU_SENDS?"FX Presets":"FX Sends";
+        const char *sound_hint=m->sound_page==CGU_PRESETS?"K1 Browse   SAVE Manage":"FX Presets";
         cfn_text(&CFN_11,10,221,sound_hint,FL_INK2);
         if(m->focus!=CGS_DRUMS)cfn_text(&CFN_11,158,221,"LFO Voice",FL_INK2);
         char page[12];

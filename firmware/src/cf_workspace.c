@@ -40,6 +40,8 @@ static struct {
 
 static void cf_arp_controls_info(int k,cf_knob_t *o,int timing,int studio);
 static void cf_arp_controls_turn(int k,int d,int timing,int studio);
+static void cgu_focus_part(unsigned part);
+static void cgu_tab_turn(int d);
 static void ui_open(uint32_t scr);
 
 static int cgu_play_part(void)
@@ -54,10 +56,13 @@ static unsigned cgu_arp_mode(void)
     unsigned bit=1u<<cgs.focus;
     return cgs.arp&bit?CGU_ARP_BAND:cgu.key_arp&bit?CGU_ARP_KEYS:CGU_ARP_OFF;
 }
+static int cgu_arp_available(void)
+{ return cgs.focus==CGS_CHORDS || cgs.focus==CGS_LAYER; }
+
 static void cgu_arp_turn(int d)
 {
+    if(!cgu_arp_available())return;
     unsigned p=cgs.focus;
-    if(p!=CGS_CHORDS && p!=CGS_LAYER)return;
     unsigned bit=1u<<p;
     unsigned mode=(unsigned)clampi((int)cgu_arp_mode()+d,0,CGU_ARP_BAND);
     cgu.key_arp=(uint8_t)((cgu.key_arp&~bit)|(mode==CGU_ARP_KEYS?bit:0));
@@ -131,13 +136,14 @@ static void cgu_set_zoom(int detail)
     cgu.zoom_from=(uint8_t)cgu_zoom();
     cgu.zoom_ms=cf_motion?cu.now:0;
     cgs.zoom=(uint8_t)detail;
+    if(detail && cgu.tab==CGU_STUDIO && cgu.band_panel==CGU_BAND_ARP && !cgu_arp_available())
+        cgu_focus_part(CGS_CHORDS);
 }
 
 static void cgu_open_arp(void)
 {
     if(cgu.tab==CGU_STUDIO && cgu.band_panel==CGU_BAND_ARP && cgs.zoom){cgu_set_zoom(0);return;}
-    cgu.tab=CGU_STUDIO;
-    cgu.rack_controls=0;
+    if(cgu.tab!=CGU_STUDIO)cgu_tab_turn(CGU_STUDIO-cgu.tab);
     cgu.band_panel=CGU_BAND_ARP;
     cgu.rack_ms=0;
     cgu.arp_timing=0;
@@ -268,7 +274,10 @@ static void cgu_band_focus(unsigned panel)
     cgu.zoom_ms=0;
     cgu.turn_ms=0;
     if(panel==CGU_BAND_PROGRESSION)cgu.progression_pick=cgs.custom;
-    if(panel==CGU_BAND_ARP)cgu.arp_timing=0;
+    if(panel==CGU_BAND_ARP){
+        cgu.arp_timing=0;
+        if(cgs.zoom && !cgu_arp_available())cgu_focus_part(CGS_CHORDS);
+    }
 }
 
 static void cgu_studio_page_turn(int d)
@@ -354,9 +363,7 @@ static void cgu_focus(int d)
     cgu.turn_ms=cgu.page_ms=0;
     if(!cgs.zoom)cgu.zoom_ms=0;
     if(cgs.zoom && cgu.tab==CGU_STUDIO && cgu.band_panel==CGU_BAND_ARP){
-        /* This unit routes its pattern to the part played by the keys. */
-        int current=(int)cgu_part(cgs.focus);
-        cgu_focus_part(cgu_part((unsigned)wrapi(current+d%CGS_NPART,CGS_NPART)));
+        if(d%2)cgu_focus_part(cgs.focus==CGS_CHORDS?CGS_LAYER:CGS_CHORDS);
         return;
     }
     int scroll=cgu_rack_scroll(), count=(int)cgu_rack_tiles(cgu.tab);
@@ -725,7 +732,7 @@ static void cgu_edit(void)
         }
         cgu.action_ms=cu.now;
     } else if(cgu.tab==CGU_SOUND){
-        if(cgu.rack_controls==CGU_RACK_MIX)return;
+        if(cgs.zoom && cgu.rack_controls==CGU_RACK_MIX)return;
         int one_part=cgs.zoom && !cgu.rack_controls;
         if(one_part && cgu.sound_page!=CGU_TONE)return;
         unsigned first=one_part?cgs.focus:0;

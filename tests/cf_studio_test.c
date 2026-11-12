@@ -1372,6 +1372,78 @@ static void play_and_mixer_studio(void)
     cgu_home();
 }
 
+static void quick_start_shortcuts(void)
+{
+    studio_start(102);
+    blocks(2);
+
+    ui_algo(1);
+    CHECK(cgs.focus==CGS_BASS);
+    ui_button(B_ARP);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_CHORDS);
+    ui_algo(1);
+    CHECK(cgs.focus==CGS_LAYER);
+    ui_algo(2);
+    CHECK(cgs.focus==CGS_LAYER);
+    ui_algo(-1);
+    CHECK(cgs.focus==CGS_CHORDS);
+
+    ui_button(B_HOME);
+    ui_button(B_HOME);
+    ui_algo(2);
+    CHECK(cgs.focus==CGS_DRUMS);
+    ui_algo(CGU_BAND_ARP+1);
+    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
+    ui_button(B_SCL);
+    CHECK(cgs.zoom && cgs.focus==CGS_CHORDS);
+
+    ui_button(B_FX);
+    CHECK(cgu.tab==CGU_SOUND && cgs.zoom && cgu.sound_page==CGU_PRESETS);
+    cf_fx_t fx=cs.fx;
+    ui_knob_turn(0,1);
+    unsigned pick=fxpu.pick;
+    ui_button(B_FX);
+    CHECK(cu.scr==SCR_HOME && cgu.tab==CGU_SOUND && cgu.sound_page==CGU_PRESETS &&
+        fxpu.pick==pick && cfx_equal(&cs.fx,&fx));
+    ui_select(-1);
+    CHECK(cgu.sound_page==CGU_SENDS);
+    ui_button(B_FX);
+    CHECK(cgu.sound_page==CGU_PRESETS);
+    ui_button(B_EDIT);
+    CHECK(cu.scr==SCR_FX && fxpu.mode==FXP_EDIT);
+    ui_button(B_HOME);
+    CHECK(cu.scr==SCR_HOME && cgu.sound_page==CGU_PRESETS);
+    ui_button(B_HOME);
+    ui_select(1);
+    CHECK(cgu.tab==CGU_RECORD && !cgs.zoom);
+    ui_button(B_FX);
+    CHECK(cu.scr==SCR_HOME && cgu.tab==CGU_SOUND && cgs.zoom && cgu.sound_page==CGU_PRESETS);
+    ui_button(B_HOME);
+    ui_select(2);
+    CHECK(cgu.tab==CGU_HELP && !cgs.zoom);
+    ui_button(B_FX);
+    CHECK(cu.scr==SCR_HOME && cgu.tab==CGU_SOUND && cgs.zoom && cgu.sound_page==CGU_PRESETS);
+
+    ui_button(B_HOME);
+    ui_algo(-1);
+    CHECK(cgu.rack_controls==CGU_RACK_MIX && !cgs.zoom);
+    unsigned patch=cf_snd_pos(CGS_CHORDS), level=cgs.level[CGS_CHORDS];
+    ui_button(B_EDIT);
+    CHECK(cf_snd_pos(CGS_CHORDS)!=patch && cgs.level[CGS_CHORDS]==level);
+    patch=cf_snd_pos(CGS_CHORDS);
+    ui_button(B_SCL);
+    ui_button(B_EDIT);
+    CHECK(cgs.zoom && cf_snd_pos(CGS_CHORDS)==patch);
+    ui_button(B_ARP);
+    CHECK(cgu.tab==CGU_STUDIO && cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
+    ui_button(B_HOME);
+    ui_select(1);
+    CHECK(cgu.tab==CGU_SOUND && !cgs.zoom && cgu.rack_controls==CGU_RACK_MIX);
+
+    cpa_stop();
+    cgu_home();
+}
+
 static unsigned studio_led(unsigned key)
 {
     unsigned pin=cu_led_pos[14u+key], bit=1u<<(pin&7u), column=pin>>3;
@@ -2301,6 +2373,7 @@ int main(int argc,char **argv)
         rack_units_studio();
         rack_navigation();
         native_controls_studio();
+        quick_start_shortcuts();
     }
     printf("RAKT Studio: %u checks, %u failures\n",checks,failures);
     return failures!=0;

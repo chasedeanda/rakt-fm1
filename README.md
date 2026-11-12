@@ -5,6 +5,12 @@
 Play chords over a generated band of Chords, Bass, Drums and Layer. Choose a genre, give each musician its own sound and playing style, and write progressions for the whole band.
 
 <p align="center">
+  <a href="docs/RAKT-FM1-Quick-Start.pdf"><img src="docs/images/rakt-quick-start.png" width="760" alt="RAKT FM-1 quick start with first jam steps, rack navigation, sound and arp shortcuts, and the GLO keyboard map"></a>
+</p>
+
+[Download the one-page quick start (PDF)](docs/RAKT-FM1-Quick-Start.pdf)
+
+<p align="center">
   <img src="docs/images/rakt-boot/boot.gif" width="360" alt="RAKT power-on rack with a mixer lamp sweep and a READY output">
 </p>
 
@@ -22,7 +28,7 @@ Play chords over a generated band of Chords, Bass, Drums and Layer. Choose a gen
 | Control | In Studio |
 | --- | --- |
 | **SELECT** | Switch between Studio, Sound, Record and Help from an overview. In a detail panel with multiple pages, turn SELECT to change pages. |
-| **ALGORITHM** | Move between rack units. |
+| **ALGORITHM** | Move between rack units. In the ARP panel, switch between Chords and Layer. |
 | **SEL** | Open the highlighted unit or perform the action shown on screen. |
 | **K1–K4** | Adjust the controls shown along the bottom of the display. |
 | **HOME** | Back out to the overview. From an overview, return to Studio. |
@@ -32,7 +38,7 @@ Play chords over a generated band of Chords, Bass, Drums and Layer. Choose a gen
 - **Write a progression.** Open **Studio → Progression** and press **EDIT**. Turn **ALGORITHM** to choose a chord slot and **SELECT** to turn editor pages. Press **PLAY** from the editor to use the draft with the band. [Progression controls](docs/RAKT-STUDIO-CONTROLS.md#custom-progression)
 - **Shape the arrangement.** Use **Energy** for activity across the band and **Evolve** for changes over time. Use **Hold** on a musician's Evolve page to keep its phrase. [Harmony and Shaping](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
 - **Arpeggiate keys or the band.** Press **ARP** to open the panel for Chords or Layer. Choose **Keys** for held notes or **Band** for generated chords. [Arpeggiator controls](docs/RAKT-STUDIO-CONTROLS.md#arpeggiator)
-- **Choose and mix sounds.** Apply a genre palette from **Sound → Sound Library**, or browse presets and kits for each musician. Use **FX** for shared presets and **Sends** for individual parts. [Sound controls](docs/RAKT-STUDIO-CONTROLS.md#sound) · [Studio Originals listening pack](docs/RAKT-STUDIO-ORIGINALS.md)
+- **Choose and mix sounds.** Press **EDIT** on the Sound overview to reroll all four sounds, or apply a genre palette from **Sound → Sound Library**. Press **FX** from any rack tab for shared presets. Turn **SELECT** to reach the part's **Sends** page. [Sound controls](docs/RAKT-STUDIO-CONTROLS.md#sound) · [Studio Originals listening pack](docs/RAKT-STUDIO-ORIGINALS.md)
 - **Record a take.** Press **REC** to capture manual playing over drums for up to eight bars. The **Record** rack shows the band's phrases and gives access to the latest three saved takes. Use USB audio to capture the full generated performance. [Record controls](docs/RAKT-STUDIO-CONTROLS.md#record-and-help) · [Recording and backup guide](docs/RECORDINGS.md)
 
 ## Play without an FM-1

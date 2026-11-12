@@ -2,7 +2,7 @@
 
 Turn **SELECT** on an overview to switch between Studio, Sound, Record and Help. Turn **ALGORITHM** to move between units. Each tab keeps two neighboring full-width units in view and scrolls when the selection moves past an edge. Switching tabs recalls the rack position. **SEQ** jumps to the outboard gear in Studio and steps through its units.
 
-The arrow and the light strip on the right show the selected unit and its position in the rack. The control strip below the bay shows K1–K4. Press **SEL** to zoom in. In detail, **SELECT** turns pages when a unit has them and switches tabs when it has one page. **ALGORITHM** moves between units, with the ARP panel using it to choose the keyboard part. **HOME** backs out to the same unit. Press **HOME** again from the overview to return to Studio. **SEL** applies the shown choice on panels that say **SEL Apply**.
+The arrow and the light strip on the right show the selected unit and its position in the rack. The control strip below the bay shows K1–K4. Press **SEL** to zoom in. In detail, **SELECT** turns pages when a unit has them and switches tabs when it has one page. **ALGORITHM** moves between units. In the zoomed ARP panel, it switches between Chords and Layer. **HOME** backs out to the same unit. Press **HOME** again from the overview to return to Studio. **SEL** applies the shown choice on panels that say **SEL Apply**.
 
 ## Studio
 
@@ -122,11 +122,11 @@ A highlighted Sound musician shows the Tone controls. Zoom in and turn **SELECT*
 | Sends | Drive amount | Chorus send | Delay send | Reverb send |
 | FX Presets | Browse shared FX presets | | | |
 
-Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit. Sends shows a preview of the selected musician’s drive curve, chorus sweep, delay taps and reverb tail. Each graph responds to that musician’s knob. From the Sound overview, press **FX** to jump to FX Presets. Turn **K1** or **PRESETS** to highlight a preset and press **SEL** to apply it to the band. Use **SELECT** to turn to another Sound page. **SAVE** opens preset management, and pressing **EDIT** or **FX** opens the EQ and effects editor for the loaded preset. **LFO** from a zoomed pitched musician opens its detailed synth editor.
+Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit. Sends shows a preview of the selected musician’s drive curve, chorus sweep, delay taps and reverb tail. Each graph responds to that musician’s knob. Press **FX** from any rack tab to open FX Presets. Turn **K1** or **PRESETS** to highlight a preset and press **SEL** to apply it to the band. Use **SELECT** to turn to Sends or another Sound page. **SAVE** opens preset management. Press **EDIT** on FX Presets to open the EQ and effects editor for the loaded preset. **LFO** from a zoomed pitched musician opens its detailed synth editor.
 
 ## Arpeggiator
 
-Select Chords or Layer, highlight the ARP unit with **SEQ**, and press **SEL** to zoom in. The **ARP** button opens the same panel directly. On the Pattern page, **K1 Arp For** chooses Off, Keys or Band. Keys arpeggiates the notes you hold. Band arpeggiates that musician’s generated chord tones with the transport running. **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
+Press **ARP** to open the Pattern page directly, or find the ARP unit with **SEQ** and open it with **SEL**. The panel starts on Chords when Bass or Drums was selected. Turn **ALGORITHM** to switch between Chords and Layer. **K1 Arp For** chooses Off, Keys or Band. Keys arpeggiates the notes you hold. Band arpeggiates that musician’s generated chord tones with the transport running. **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
 
 Turn **SELECT** to the timing page. **K1 Gate** sets how much of each step a note occupies, **K2 Swing** shifts alternating steps, **K3 Latch** keeps the arpeggio going after key release, and **K4 Glide** sets the Chords glide time.
 

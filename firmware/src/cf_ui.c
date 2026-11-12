@@ -345,7 +345,7 @@ static void cf_arp_controls_info(int k,cf_knob_t *o,int timing,int studio)
             kfmt(o->name,12,"ARP FOR");
             kfmt(o->val,14,CGU_ARP_NAMES[cgu_arp_mode()]);
             o->bar=cgu_arp_mode()*255/CGU_ARP_BAND;
-            o->dis=cgs.focus!=CGS_CHORDS && cgs.focus!=CGS_LAYER;
+            o->dis=!cgu_arp_available();
         } else {
             kfmt(o->name,12,cge_selected()?(cu.page[SCR_ARP]==0?"PLAY IT":"LIVE KEYS"):"ON/OFF");
             kfmt(o->val,14,cge_selected() && cu.page[SCR_ARP]==0?CGE_ARP_NAMES[cge.arp_request]:cu.arp_on?"On":"Off");
@@ -1283,6 +1283,15 @@ static void ui_button(uint32_t b)
         if(b==B_ARP){
             cgu_open_arp();return;
         }
+        if(b==B_FX){
+            if(cgu.tab!=CGU_SOUND)cgu_tab_turn(CGU_SOUND-cgu.tab);
+            if(!cgs.zoom || cgu.rack_controls || cgu.sound_page!=CGU_PRESETS){
+                cgu.rack_controls=0;
+                cgu_set_zoom(1);
+                cgu_sound_page(CGU_PRESETS);
+            }
+            return;
+        }
         if(b==B_SEQ && cgu.tab==CGU_SOUND){
             if(cgu.rack_controls==CGU_RACK_MIX)return;
             if(cgs.zoom && !cgu.rack_controls)cgu_sound_page_turn(1);
@@ -1290,15 +1299,14 @@ static void ui_button(uint32_t b)
             return;
         }
         if(cgu.tab==CGU_STUDIO || cgu.tab==CGU_SOUND){
-            if((b==B_FX || b==B_EDIT) && cgs.zoom && cgu.tab==CGU_SOUND && !cgu.rack_controls && cgu.sound_page==CGU_PRESETS){
+            if(b==B_EDIT && cgs.zoom && cgu.tab==CGU_SOUND && !cgu.rack_controls && cgu.sound_page==CGU_PRESETS){
                 cfx_sync();fxpu.mode=FXP_EDIT;cfxu.view=CFX_INDIVIDUAL;
                 cu.fx_pos=0;
                 for(unsigned i=0;i<CFX_N;i++)if(cs.fx.order[i]==CFX_FILTER)cu.fx_pos=(uint8_t)i;
                 cgu.return_screen=SCR_FX;ui_open(SCR_FX);return;
             }
-            if(b==B_FX || (b==B_ENV && cgs.zoom)){
-                unsigned page=b==B_ENV?(cgu.sound_page==CGU_ENVELOPE?CGU_TONE:CGU_ENVELOPE):
-                    (!cgs.zoom || cgu.rack_controls || cgu.sound_page==CGU_SENDS?CGU_PRESETS:CGU_SENDS);
+            if(b==B_ENV && cgs.zoom){
+                unsigned page=cgu.sound_page==CGU_ENVELOPE?CGU_TONE:CGU_ENVELOPE;
                 if(cgu.tab!=CGU_SOUND)cgu_tab_turn(CGU_SOUND-cgu.tab);
                 cgu.band_panel=cgu.rack_controls=0;cgu_set_zoom(1);cgu_sound_page(page);
                 return;
