@@ -258,7 +258,7 @@ static int cgu_rack_scroll(void)
     return top+cf_rack_arrival(cgu.rack_ms,cgu.rack_from);
 }
 
-static void cgu_rack_arrive(int previous,int direction)
+static void cgu_rack_arrive(int previous)
 {
     unsigned first=cgu_rack_first(cgu.tab,cgu_active_rack_tile());
     int delta=previous-cgu_rack_offset(cgu.tab,first);
@@ -266,7 +266,6 @@ static void cgu_rack_arrive(int previous,int direction)
     cgu.rack_from=(int16_t)delta;
     int jump=cgs.zoom || delta>CGU_BAY_H || delta<-CGU_BAY_H;
     cgu.rack_ms=cf_motion && !jump && delta?(cu.now?cu.now:1u):0;
-    if(jump)cgu_slide_view(direction);
 }
 
 static void cgu_band_focus(unsigned panel)
@@ -301,7 +300,7 @@ static void cgu_studio_seq(void)
     int previous=cgu_rack_scroll();
     unsigned next=cgu.band_panel+1u;
     cgu_band_focus(next==CGU_BAND_PANELS?CGU_BAND_HARMONY:next);
-    cgu_rack_arrive(previous,1);
+    cgu_rack_arrive(previous);
 }
 
 static unsigned cgu_band_knob_panel(unsigned band)
@@ -384,7 +383,7 @@ static void cgu_focus(int d)
         }
         if(!panel)cgu_focus_part(cgu_part(tile));
     }
-    cgu_rack_arrive(scroll,d);
+    cgu_rack_arrive(scroll);
 }
 
 static int cgu_recording_here(void)

@@ -2074,6 +2074,11 @@ static void rack_navigation(void)
         }
     }
     CHECK(cgu_rack_scroll()==0 && cgs.focus==CGS_CHORDS);
+    ui_algo(-1); /* Wrap to the far end of the same rack without sliding the page in. */
+    CHECK(cgu.band_panel==CGU_BAND_PROGRESSION && !cgu.tab_ms);
+    CHECK(cgu_rack_scroll()==cgu_rack_top(CGU_STUDIO,cgu_active_rack_tile()));
+    ui_algo(1);
+    CHECK(cgs.focus==CGS_CHORDS && !cgu.tab_ms && !cgu_rack_scroll());
     ui_capture("walk-00");
     ui_algo(1);
     CHECK(cgs.focus==CGS_BASS && !cgu_rack_scroll());
@@ -2109,8 +2114,11 @@ static void rack_navigation(void)
     CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_HARMONY && cgu_rack_scroll()==before);
     ui_select(1);
     CHECK(cgu.tab==CGU_SOUND && !cgs.zoom);
+    CHECK(cf_rack_arrival(cgu.tab_ms,RAKT_W*cgu.tab_dir)==RAKT_W);
+    unsigned slide=cgu.tab_ms;
+    cu.now+=RAKT_SLIDE_STEP_MS;
     ui_algo(2);
-    CHECK(cgu.rack_controls==CGU_RACK_MIX);
+    CHECK(cgu.rack_controls==CGU_RACK_MIX && cgu.tab_ms==slide);
     ui_button(B_SCL);
     cu.now+=CGU_RACK_SCROLL_MS;
     ui_capture("walk-mix");
