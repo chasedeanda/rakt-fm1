@@ -11,7 +11,7 @@
  * the saved image into web_flash_stage() before web_boot (emu_flash_open "reads" it from there), and saves
  * web_flash() back when web_flash_dirty() moves.
  *
- *   sh tools/emu/web/build_web.sh  ->  build/emu-web/coralflower.wasm (+ the page)
+ *   sh tools/emu/web/build_web.sh  ->  build/emu-web/rakt.wasm (+ the page)
  * tools/emu/cf_headless.c runs this same unit natively, from a script (tools/emu/cf_headless.sh). */
 #include <stdint.h>
 #include <stdio.h>

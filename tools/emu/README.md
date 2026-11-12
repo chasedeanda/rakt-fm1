@@ -11,7 +11,7 @@ hooks of `emu_hooks.h`. Three programs run it:
 | the window app | `emu.c` and the files below, `build.sh` | ChoralRoot's, inherited (below); needs SDL2 |
 
 ```sh
-sh tools/emu/web/build_web.sh                 # -> build/emu-web/{index.html, emu.js, keymap.js, worklet.js, coralflower.wasm}
+sh tools/emu/web/build_web.sh                 # -> build/emu-web/{index.html, emu.js, keymap.js, worklet.js, rakt.wasm}
 node tools/emu/web/test_web_emu.mjs           # the browser build's checks, against cf_headless.sh: PASS / FAIL
 sh tools/emu/cf_headless.sh SCRIPT [OUTDIR]   # a script natively: OUTDIR/*.ppm (and .png with Pillow), out.wav
 node tools/emu/web/cf_run.mjs SCRIPT [OUTDIR] # a script on the wasm
@@ -24,7 +24,7 @@ the browser's unit, so the same input at the same millisecond gives the same sam
 grammar: `wait`, `key` / `keyq`, `btn`, `hold`, `turn`, `clock`, `midi`, `shot`, `dump`, `wav on|off`. `CF_BOOT_MS`
 (default 1600) runs before the script (0: the script sees the intro); `CF_FLASH=PATH` reads a flash image before
 power-on and writes it back after the script, so a second run sees what the first one saved. `cf_headless.sh`
-builds it each time, as "CoralFlower dev" (a few seconds).
+builds it each time, as "RAKT dev" (a few seconds).
 
 ## Browser build
 
@@ -33,7 +33,7 @@ module played from a web page (no Emscripten JS runtime, no COOP/COEP headers: i
 `tools/make_site.sh` puts the page in the site's `/play/`, and the page takes its look from the site's `../site.css`.
 
 Needs `emcc` (the Emscripten SDK; `~/emsdk/emsdk_env.sh` is sourced when it is not on the PATH); `CR_VERSION=1.0`
-sets the version shown (else the newest release in `web/releases.json`). `emu_web.c` runs the device clock exactly
+sets the version shown (otherwise it comes from the firmware source). `emu_web.c` runs the device clock exactly
 as the headless loop (tick, frame / idle, the audio blocks due, per millisecond) inside an AudioWorklet
 (`worklet.js`), so a script's input gives `cf_headless`'s samples bit for bit. The CPU lock is a no-op
 (`web/compat/os/lock.h`: one thread); the flash file is the page's IndexedDB copy (loaded before power-on, saved a

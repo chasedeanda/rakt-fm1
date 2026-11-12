@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Headless checks of CoralFlower's browser emulator (node >= 20, no browser needed for the functional part):
 //   node tools/emu/web/test_web_emu.mjs [--no-native] [--no-page]        (sh tools/emu/web/build_web.sh first)
-// 1. build/emu-web/coralflower.wasm instantiated with the worklet's stub imports: boots, draws, plays SCRIPT below
+// 1. build/emu-web/rakt.wasm instantiated with the worklet's stub imports: boots, draws, plays SCRIPT below
 //    (Top + Lock, the default layout: M latched + C4, then M7 latched + C4) through the same exports the worklet uses,
 //    checks its LED and sound expectations, the chords in the dump, the MIDI out, the settings saved to the flash by
 //    themselves and read back by a second module booted from that image, the speed.
@@ -71,7 +71,7 @@ dump
 // ---------------------------------------------------------------- the module, as worklet.js loads it ---
 let stdout = "";
 async function load() {
-  const bytes = fs.readFileSync(path.join(OUT, "coralflower.wasm"));
+  const bytes = fs.readFileSync(path.join(OUT, "rakt.wasm"));
   let mem;
   const wasi = {
     clock_time_get: (id, prec, out) => { new DataView(mem.buffer).setBigUint64(out, 0n, true); return 0; },
@@ -176,7 +176,7 @@ const rms = (pcm) => Math.sqrt(pcm.reduce((s, v) => s + (v / 32768) ** 2, 0) / M
 const dumpField = (text, re) => [...text.matchAll(re)].map((m) => m.slice(1));
 
 // ===================================================================================================== 1 ===
-console.log("browser emulator: build/emu-web/coralflower.wasm");
+console.log("browser emulator: build/emu-web/rakt.wasm");
 {   // the page's tables: web_buttons takes the labels in EMU_B_* order (tools/emu/emu_hooks.h), web_enc the EMU_E_* roles
   const h = fs.readFileSync(path.join(ROOT, "tools/emu/emu_hooks.h"), "utf8");
   const eb = /enum\s*{\s*(EMU_B_[^}]*)}/.exec(h)[1].split(",").map((s) => s.trim().replace(/^EMU_B_/, ""))
@@ -292,7 +292,7 @@ if (!args.has("--no-native")) {
       ok(Math.abs(rms(nat) - rms(run.pcm)) < 0.25 * rms(nat), `loosely: rms native ${rms(nat).toFixed(4)}, web ${rms(run.pcm).toFixed(4)}`);
     }
     // the dumps: the native one adds its MIDI count, and the boot line comes before the first; the screen tiles sent
-    // are left out (cf_headless.sh builds "CoralFlower dev", and the splash draws the version: a tile or two more)
+    // are left out (cf_headless.sh builds "RAKT dev", and the splash draws the version: a tile or two more)
     const tiles = (d) => d.replace(/tiles sent \d+/, "tiles sent -");
     const nd = text.split(/^(?=fm1_in: )/m).slice(1).map((d) => tiles(d.replace(/^  midi out: .*\n/m, "")));
     const same = nd.length === dumps.length && nd.every((d, i) => d === tiles(dumps[i]));

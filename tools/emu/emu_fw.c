@@ -109,7 +109,7 @@ void emu_fw_init(int demo)
     emu_t0_ns = (uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec;
     if (emu_hal.ready == 2u)                      /* --bench: simulated time (set before init) */
         emu_sim = 1;
-    /* power-on (coralflower.c's main.c path): the flash (persist_boot), the panel, the splash, the sounds */
+    /* power-on (rakt.c's main.c path): the flash (persist_boot), the panel, the splash, the sounds */
     emu_boot_guard();
     panel_init();                                 /* main.c: the printed labels -> matrix ids (panel.c) */
     emu_flash_open();
@@ -205,7 +205,7 @@ static uint32_t real_us(void)
     return (uint32_t)(((uint64_t)ts.tv_sec * 1000000000u + (uint64_t)ts.tv_nsec) / 1000u);
 }
 
-void emu_fw_frame(void)                           /* main.c's loop body (coralflower.c: the same calls) */
+void emu_fw_frame(void)                           /* main.c's loop body (rakt.c: the same calls) */
 {
     uint32_t t0, d;
     fm1_irq_off();

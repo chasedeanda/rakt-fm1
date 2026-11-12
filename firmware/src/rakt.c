@@ -2,13 +2,13 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 CoralFlower contributors; ChoralRoot FM-1 contributors; Felucca by Leo Kuroshita, Hügelton
  * Instruments */
-/* CORALFLOWER: one compilation unit (the HAL is header-only), after ChoralRoot's choralroot.c: Felucca's platform and
- * sound engines, ChoralRoot's FX, sound pools and MIDI-in logic, and CoralFlower's own instrument: the chord model
+/* RAKT: one compilation unit (the HAL is header-only), after ChoralRoot's choralroot.c: Felucca's platform and
+ * sound engines, ChoralRoot's FX, sound pools and MIDI-in logic, and RAKT's instrument: the chord model
  * (cf_theory.c, cf_chord.c), the player (cf_play.c, cf_out.c), the plant (flora/), the screens (cf_fb.c, cf_draw.c,
  * cf_screens.c) and the UI (cf_ui.c), with the names main.c calls (cf_shim.c).
  *
  * Host check (no device toolchain): cc -fsyntax-only -w -Ibuild/gen -Ifirmware/src -Ifirmware/hal
- * firmware/src/coralflower.c. The device build is tools/build.py with this file as the unit. */
+ * firmware/src/rakt.c. The device build is tools/build.py with this file as the unit. */
 
 /* ---------------------------------------------------- build options --- */
 #ifndef FELUCCA_FLASH
@@ -24,7 +24,7 @@
 #define FELUCCA_CDC 1
 #endif
 #ifndef FELUCCA_UAC
-#define FELUCCA_UAC 1            /* ChaseFlower: six-channel UAC1 capture, MIDI remains available */
+#define FELUCCA_UAC 1            /* RAKT: six-channel UAC1 capture, MIDI remains available */
 #endif
 #ifndef FELUCCA_UART
 #define FELUCCA_UART 1

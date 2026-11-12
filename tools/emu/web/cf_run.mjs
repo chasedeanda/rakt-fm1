@@ -34,7 +34,7 @@ const wasi = {
 };
 const stub = new Proxy(wasi, { get: (t, k) => (k in t ? t[k] : () => 0) });
 const env = new Proxy({}, { get: () => () => 0 });
-const bytes = fs.readFileSync(path.join(ROOT, "build/emu-web/coralflower.wasm"));
+const bytes = fs.readFileSync(path.join(ROOT, "build/emu-web/rakt.wasm"));
 const { instance } = await WebAssembly.instantiate(bytes, { wasi_snapshot_preview1: stub, env });
 const ex = instance.exports;
 mem = ex.memory;

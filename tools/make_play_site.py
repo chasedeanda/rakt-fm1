@@ -6,7 +6,7 @@ import hashlib, json, re, shutil, subprocess
 root=Path(__file__).resolve().parents[1]
 out=root/'build/play-site'; out.mkdir(parents=True,exist_ok=True)
 play=out/'play';play.mkdir(exist_ok=True)
-for name in ('index.html','emu.js','keymap.js','worklet.js','coralflower.wasm'):
+for name in ('index.html','emu.js','keymap.js','worklet.js','rakt.wasm'):
     shutil.copyfile(root/'build/emu-web'/name,play/name)
 shutil.copyfile(root/'web/site.css',out/'site.css')
 shutil.copytree(root/'web/fonts',out/'fonts',dirs_exist_ok=True)
@@ -18,17 +18,17 @@ shutil.copytree(root/'LICENSES',out/'LICENSES',dirs_exist_ok=True)
 sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
 source=f'https://github.com/chasedeanda/rakt-fm1/tree/{sha}'
 text=(play/'index.html').read_text()
-head=text[:text.index('<body>')].replace('Play CoralFlower in your browser','Play RAKT in your browser').replace('CoralFlower','RAKT').replace('../images/home.png','../images/rakt-boot.gif')
+head=text[:text.index('<body>')]
 head=head.replace('<title>Play RAKT in your browser</title>', '<title>RAKT · Your studio on the FM-1</title>')
 head=re.sub(r'(<meta (?:name="description"|property="og:description") content=")[^"]*(">)', r'\1A rack-style chord instrument and groovebox for the M-VAVE FM-1.\2', head)
 head=head.replace('content="Play RAKT in your browser"', 'content="RAKT · Your studio on the FM-1"')
 main=text[text.index('<main id="main">'):text.index('  <section class="section scope-accent final"')]
-main=main.replace('Play it in your browser','RAKT, your studio on the FM-1').replace('This is the real CoralFlower firmware, running in your browser with sound.','Your custom FM-1 firmware, running in your browser with sound.')
+main=main.replace('Play it in your browser','RAKT, your studio on the FM-1').replace('This is the real RAKT firmware, running in your browser with sound.','Your custom FM-1 firmware, running in your browser with sound.')
 main=main.replace('<p class="lead">Your custom FM-1 firmware, running in your browser with sound. Tap or click the keys, or use your computer keyboard.</p>', '<p class="lead">Play a progression with a four-part band. Shape the sounds and mix from the Studio racks.</p><div class="actions"><a class="btn btn--secondary btn--sm" href="#quick-start">Quick start ↓</a><a class="btn btn--secondary btn--sm" href="#keys-title">Computer controls</a><a class="btn btn--secondary btn--sm" href="../install/">Install on your FM-1</a></div>')
 assert '  <section class="section" aria-labelledby="keys-title">' in main, 'Player controls section missing'
 main=main.replace('  <section class="section" aria-labelledby="keys-title">', (root/'web/rakt-play-guide.html').read_text() + '\n  <section class="section" aria-labelledby="keys-title">')
 
-header=f'''<body class="cord-player"><header class="site-header"><div class="container site-header__row"><a class="brand" href="#play-title">RAKT · FM-1</a><nav class="site-nav" aria-label="Play page"><a href="#quick-start">Quick start</a><a href="#explore">Features</a><a href="#keys-title">Controls</a><a href="https://github.com/chasedeanda/rakt-fm1#readme">Full guide ↗</a><a href="{source}">Source</a></nav></div></header>'''
+header=f'''<body class="rakt-player"><header class="site-header"><div class="container site-header__row"><a class="brand" href="#play-title">RAKT · FM-1</a><nav class="site-nav" aria-label="Play page"><a href="#quick-start">Quick start</a><a href="#explore">Features</a><a href="#keys-title">Controls</a><a href="https://github.com/chasedeanda/rakt-fm1#readme">Full guide ↗</a><a href="{source}">Source</a></nav></div></header>'''
 footer=f'''</main><footer class="site-footer"><div class="container"><p>Development preview · <a href="{source}">{sha[:7]}</a>. Browser performance does not measure device CPU headroom.</p><p>Built on CoralFlower, ChoralRoot FM-1, Felucca and Melodee. <a href="../LICENSE">GPL-3.0</a> · <a href="../LICENSING.md">Credits and licences</a>.</p></div></footer><script src="keymap.js"></script><script src="emu.js"></script></body></html>'''
 # Keep the build script's cache-busting query strings.
 for filename in ('keymap.js','emu.js'):
@@ -40,6 +40,6 @@ head=head.replace('href="../site.css"', f'href="../site.css?v={css_hash}"')
 (play/'index.html').write_text(head+header+main+footer)
 (out/'index.html').write_text('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=play/"><title>Play RAKT</title><a href="play/">Play RAKT</a>')
 (out/'.nojekyll').touch()
-(out/'build.json').write_text(json.dumps({'revision':sha,'wasm_sha256':hashlib.sha256((play/'coralflower.wasm').read_bytes()).hexdigest()},indent=2)+'\n')
+(out/'build.json').write_text(json.dumps({'revision':sha,'wasm_sha256':hashlib.sha256((play/'rakt.wasm').read_bytes()).hexdigest()},indent=2)+'\n')
 print(f'Browser site: {out} · source {sha[:7]}')
 subprocess.run(['python3', str(root/'tools/make_rakt_installer.py')], check=True)

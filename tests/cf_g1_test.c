@@ -239,5 +239,5 @@ int main(int argc,char **argv)
   screenshot("jam-ready");CHECK(cf_stage_last.engine_page && !strcmp(cf_stage_last.next_setup,"Press PLAY to start"));
   catalog();memory_and_vibe();pins_and_seed();bounded_evolution();play_from_flow();ui_images();manual_progression_ui();
  }
- printf("CORD G1: %u checks, %u failures\n",checks,failures);return failures!=0;
+ printf("RAKT G1: %u checks, %u failures\n",checks,failures);return failures!=0;
 }

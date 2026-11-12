@@ -51,7 +51,7 @@ def main():
         subprocess.run([str(binary),'--render',row['name'],row['fx'],str(repeat)],cwd=ROOT,check=True,capture_output=True)
         assert hashlib.sha256(repeat.read_bytes()).hexdigest()==row['sha256']
     repeat.unlink()
-    page=['<!doctype html><meta charset="utf-8"><title>CORD Signature 8</title><style>body{font:16px system-ui;max-width:900px;margin:40px auto;background:#101719;color:#eef4ed}article{padding:20px;border-bottom:1px solid #456}audio{width:100%}</style><h1>CORD Signature 8</h1><p>Exact supplied recipes · real firmware DSP · no normalization. Technical validation, not an artist-similarity claim.</p>']
+    page=['<!doctype html><meta charset="utf-8"><title>RAKT Signature 8</title><style>body{font:16px system-ui;max-width:900px;margin:40px auto;background:#101719;color:#eef4ed}article{padding:20px;border-bottom:1px solid #456}audio{width:100%}</style><h1>CORD Signature 8</h1><p>Exact supplied recipes · real firmware DSP · no normalization. Technical validation, not an artist-similarity claim.</p>']
     for kind in ('signature','comparison'):
         page.append('<h2>'+kind.title()+'</h2>')
         for row in rows:

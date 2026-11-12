@@ -6,13 +6,13 @@
   tools/build.py [--release X.Y[-suffix]]
   tools/build.py --gen-only        (the generated headers alone, into build/gen: no toolchain, no SDK)
 
-The unit is firmware/src/coralflower.c (CoralFlower's single compilation unit, after ChoralRoot's choralroot.c, a
-fork of Felucca's felucca.c). Outputs in build/: coralflower.bin (app.bin: the boot stub's 0xEE0 bytes, then the app),
-coralflower.elf, coralflower.dis (the app), stub/stub.{bin,elf,dis} (the boot stub, firmware/stub), loader/ota.bin
+The unit is firmware/src/rakt.c (CoralFlower's single compilation unit, after ChoralRoot's choralroot.c, a
+fork of Felucca's felucca.c). Outputs in build/: rakt.bin (app.bin: the boot stub's 0xEE0 bytes, then the app),
+rakt.elf, rakt.dis (the app), stub/stub.{bin,elf,dis} (the boot stub, firmware/stub), loader/ota.bin
 (update loader), rakt.fwsc (package, identity FM-1_57258001). Tagged builds use rakt-X.Y.fwsc.
 A production release (--release X.Y) keeps the staging convention used by CI,
-sets the version string to "CoralFlower X.Y" and writes coralflower-X.Y.fwsc and a folder release-X.Y/ with the
-package, the app (coralflower-X.Y-app.bin), SHA256SUMS and the licence files (LICENSE, LICENSING.md, LICENSES/).
+sets the version string to "RAKT X.Y" and writes rakt-X.Y.fwsc and a folder release-X.Y/ with the
+package, the app (rakt-X.Y-app.bin), SHA256SUMS and the licence files (LICENSE, LICENSING.md, LICENSES/).
 After the checks it prints the section sizes against the XIP slot and the RAM / POOL / NOINIT regions.
 README.md ("Build it yourself") and build.sh have the toolchain and the SDK.
 
@@ -63,9 +63,9 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
-UNIT = "coralflower"                # firmware/src/UNIT.c; outputs build/UNIT.{bin,elf,dis,fwsc}
+UNIT = "rakt"                # firmware/src/UNIT.c; outputs build/UNIT.{bin,elf,dis,fwsc}
 PRODUCT = "FM-1_57258001"                # RAKT identity; constant across releases
-VERSION = None                      # FELUCCA_VERSION for release builds (default: firmware/src/coralflower.c)
+VERSION = None                      # FELUCCA_VERSION for release builds (default: firmware/src/rakt.c)
 XIP_LEN, RAM_LEN, POOL_LEN, NOINIT_LEN = fm1pkg_make.BODY_MAX, 96 * 1024, 0x54000, 0x3D30   # firmware/app.ld
 
 
@@ -266,7 +266,7 @@ def app_flags():
                  "FELUCCA_SLICER", "FELUCCA_FM4", "FELUCCA_SAMPLE", "FELUCCA_GRAIN", "FELUCCA_DRUM", "FELUCCA_SEQ",
                  "FELUCCA_CZ", "FELUCCA_QUAD", "FELUCCA_ANALOG", "FELUCCA_PHASE", "FELUCCA_LOFI", "FELUCCA_VOICE",
                  "FELUCCA_TRIO", "FELUCCA_NOISE", "FELUCCA_PHYS"):
-        v = os.environ.get(flag)    # unset: the default in firmware/src/coralflower.c
+        v = os.environ.get(flag)    # unset: the default in firmware/src/rakt.c
         if v in ("0", "1"):
             flags.append(f"-D{flag}={v}")
     # the delay's and the reverb's rate (1 full, 2 half) and their loops in RAM (docs/FX.md "Half rate or full"): for

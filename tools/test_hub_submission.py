@@ -29,7 +29,7 @@ loader = read('firmware/loader/loader.c')
 assert '#define FELUCCA_ID "ota-FM-1_57258001"' in loader
 assert 'f\'-DFELUCCA_ID="ota-{PRODUCT}"\'' in read('tools/build.py')
 assert 'PRODUCT = "FM-1_57258001"' in read('tools/build.py')
-assert '#define FELUCCA_ID "FM-1_57258001"' in read('firmware/src/coralflower.c')
+assert '#define FELUCCA_ID "FM-1_57258001"' in read('firmware/src/rakt.c')
 assert 'ldr_flash_known = FL_JEDEC_OK(fl_jedec_ram());' in loader
 for path in ['firmware/src/cf_shim.c','firmware/src/cr_shim.c','firmware/src/project.c']:
     assert 'flash_ok = FL_JEDEC_OK(FL_FAR(fl_jedec_ram)());' in read(path)
@@ -54,7 +54,7 @@ int main(void) {
  uint32_t once=0x856014u;assert(FL_JEDEC_OK(once++));assert(once==0x856015u);
 }
 '''
-with tempfile.TemporaryDirectory(prefix='cord-flash-') as directory:
+with tempfile.TemporaryDirectory(prefix='rakt-flash-') as directory:
     p=Path(directory);(p/'test.c').write_text(source)
     subprocess.run(['cc','-std=c99','-Wall','-Wextra','-Werror','-I'+str(root/'firmware/hal'),str(p/'test.c'),'-o',str(p/'test')],check=True)
     subprocess.run([str(p/'test')],check=True)

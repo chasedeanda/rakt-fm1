@@ -9,7 +9,7 @@
 ## Starting point
 
 - Confirmed project: ChaseFlower, Chase's customized CoralFlower firmware for the M-VAVE FM-1.
-- User repository: https://github.com/chasedeanda/chaseflower-fm1 (main).
+- User repository: https://github.com/chasedeanda/rakt-fm1 (main).
 - Source is available locally on `codex/bonfire-bass-visuals`. Approved scenes and boot are implemented; see [the feature and validation guide](docs/VISUALS.md).
 - Upstream source: https://github.com/FicusFicusov/CoralFlower
 - Repository inspected on 2026-11-06. Current rendering selects flower versus coral from the chord algorithm. Algorithm cycles Top Lock, Top, Side Lock, Side.

@@ -6,7 +6,7 @@
  *   part 1 BASS   <- the bass of the chord: the bass sound (SELECT)
  *
  * Everything here runs in the audio ISR: cf_audio_block() is called at the top of every CTL-sample block, before
- * fx.c renders it (the mix_block shim in coralflower.c / emu_firmware.h). It drains the events the UI posted
+ * fx.c renders it (the mix_block shim in rakt.c / emu_firmware.h). It drains the events the UI posted
  * (cf_post: a lock-free single-producer ring), runs the chord player and the metronome, and reads MIDI in.
  * Felucca's sequencer (seq.c and its satellites) is not in the unit: what the kept files call of it is below, as
  * ChoralRoot's cr_out.c provided it (events_block, midi_event, panic_req, motion_guard ...). */

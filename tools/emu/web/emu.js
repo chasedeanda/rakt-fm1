@@ -279,7 +279,7 @@
         x.send();
       })
     : fetch(url, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(url + ": " + r.status); return r.arrayBuffer(); });
-  const wasmP = getBytes("coralflower.wasm");
+  const wasmP = getBytes("rakt.wasm");
 
   // before Start: the device boots here, silently, to show its screen (?demo: keys 5 and 9 held, for screenshots:
   // Top + Lock's M9 button and D4)
@@ -320,7 +320,7 @@
       if (!window.AudioWorkletNode) throw new Error("this browser has no AudioWorklet (try a current Chrome, Firefox or Safari)");
       const ctx = new AudioContext({ sampleRate: 44100, latencyHint: "playback" });
       await ctx.audioWorklet.addModule("worklet.js");
-      node = new AudioWorkletNode(ctx, "coralflower-fm1", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+      node = new AudioWorkletNode(ctx, "rakt-fm1", { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
       node.connect(ctx.destination);
       node.port.onmessage = (e) => onWorklet(e.data);
       const [bytes, flash] = await Promise.all([wasmP, flashLoad()]);

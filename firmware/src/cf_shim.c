@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only
  * Copyright (C) 2026 ChoralRoot FM-1 contributors (a fork of Felucca); CoralFlower contributors */
 /* CoralFlower: the names main.c (kept as Felucca / ChoralRoot left it) and the kept files call of the dropped UI,
- * with CoralFlower's meaning (after ChoralRoot's cr_shim.c). Device unit only (coralflower.c); the emulator calls
+ * with CoralFlower's meaning (after ChoralRoot's cr_shim.c). Device unit only (rakt.c); the emulator calls
  * cf_ui_* itself (tools/emu/emu_fw.c).
  *
  *   felucca_init (main.c's power-on) -> track_defaults / set_engine_of / apply_preset_to: the parts get a sound

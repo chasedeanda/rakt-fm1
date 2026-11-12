@@ -13,7 +13,7 @@
  * (the tones it adds start); Strike (Notes on the screen): the notes that change strike (with a Glide time: out of
  * the old ones); Chord: the whole new chord strikes, the shared tones too,
  * each note gliding from the last chord's.
- * Included after voice.c, fx.c, usb.c, cf_theory.c, cf_chord.c (coralflower.c, the emulator's unit). */
+ * Included after voice.c, fx.c, usb.c, cf_theory.c, cf_chord.c (rakt.c, the emulator's unit). */
 
 enum { CF_RT_WAIT = 0, CF_RT_STRIKE = 1, CF_RT_MOVE = 2, CF_RT_CHORD = 3, CF_NRT };   /* RETRIG (stored: 0 and 1
                                                                                     * were Off and On) */

@@ -24,17 +24,17 @@ CC=${CC:-clang}
 OUT=build/host
 OBJ=build/host/emu_obj
 mkdir -p "$OUT" "$OBJ" build/emu
-# the version the firmware shows, the same rule as tools/emu/web/build_web.sh: CR_VERSION=X.Y ("CoralFlower X.Y"), else
+# the version the firmware shows, the same rule as tools/emu/web/build_web.sh: CR_VERSION=X.Y ("RAKT X.Y"), else
 # the current source version (never the inherited upstream releases.json)
 if [ -n "${CR_VERSION:-}" ]; then
     case "$CR_VERSION" in
-        CoralFlower*) VER=$CR_VERSION ;;
-        *) VER="CoralFlower $(printf %s "$CR_VERSION" | tr A-Z a-z)" ;;
+        RAKT*) VER=$CR_VERSION ;;
+        *) VER="RAKT $(printf %s "$CR_VERSION" | tr A-Z a-z)" ;;
     esac
 else
-    VER=$(sed -n 's/^#define FELUCCA_VERSION "\(.*\)".*/\1/p' firmware/src/coralflower.c | head -1)
+    VER=$(sed -n 's/^#define FELUCCA_VERSION "\(.*\)".*/\1/p' firmware/src/rakt.c | head -1)
 fi
-[ -n "$VER" ] || { echo "build.sh: no source version (firmware/src/coralflower.c)"; exit 1; }
+[ -n "$VER" ] || { echo "build.sh: no source version (firmware/src/rakt.c)"; exit 1; }
 # The five units side by side, each through tests/hostcc.sh: compiled again only when its command (the version and
 # every flag are in it) or a file it was compiled from has changed (hashes, not dates; build/gen's headers and the
 # system's are among them); their diagnostics in the order below. HOSTCC_FORCE=1: everything again.

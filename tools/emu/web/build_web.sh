@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # RAKT in the browser: the emulator's firmware side as a standalone WebAssembly module, and its page.
 #   [CR_VERSION=1.0] sh tools/emu/web/build_web.sh
-#   -> build/emu-web/{index.html, emu.js, keymap.js, worklet.js, coralflower.wasm}
+#   -> build/emu-web/{index.html, emu.js, keymap.js, worklet.js, rakt.wasm}
 # The page takes its look from the site around it (../site.css): tools/make_site.sh OUT puts it in OUT/play/.
 # Needs emcc (the Emscripten SDK: ~/emsdk/emsdk_env.sh is sourced when emcc is not on the PATH) and the firmware's
 # generated headers (build/gen: the generate step of tools/build.py runs when they are missing, as build.sh does).
@@ -30,7 +30,7 @@ if [ -n "${CR_VERSION:-}" ]; then
         *) VER="RAKT $(printf %s "$CR_VERSION" | tr A-Z a-z)" ;;
     esac
 else
-    VER=$(sed -n 's/^#define FELUCCA_VERSION "\(.*\)".*/\1/p' firmware/src/coralflower.c | head -1)
+    VER=$(sed -n 's/^#define FELUCCA_VERSION "\(.*\)".*/\1/p' firmware/src/rakt.c | head -1)
 fi
 OUT=build/emu-web
 W=tools/emu/web
@@ -40,16 +40,16 @@ mkdir -p "$OUT"
 # has changed (hashes, not dates; HOSTCC_FORCE=1: always)
 sh tests/hostcc.sh emcc -O2 -w -std=gnu11 -I$W/compat -Ibuild/gen -Ifirmware/src -DEMU_WEB "-DFELUCCA_VERSION=\"$VER\"" \
     --no-entry -sSTANDALONE_WASM -sFILESYSTEM=0 -sSTACK_SIZE=1048576 -sINITIAL_MEMORY=33554432 \
-    -o "$OUT/coralflower.wasm" $W/emu_web.c
+    -o "$OUT/rakt.wasm" $W/emu_web.c
 cp $W/index.html $W/emu.js $W/keymap.js $W/worklet.js "$OUT/"
 # a new build is a new address: the browser cannot run a cached wasm or script after a rebuild (a plain reload did)
-STAMP=$(cat "$OUT/coralflower.wasm" $W/emu.js $W/keymap.js $W/worklet.js | shasum | cut -c1-10)
+STAMP=$(cat "$OUT/rakt.wasm" $W/emu.js $W/keymap.js $W/worklet.js | shasum | cut -c1-10)
 # (sed -i.bak, then the .bak removed: the one form both BSD sed on macOS and GNU sed on the CI runner take)
 sed -i.bak -e "s/src=\"keymap.js\"/src=\"keymap.js?v=$STAMP\"/" -e "s/src=\"emu.js\"/src=\"emu.js?v=$STAMP\"/" "$OUT/index.html"
-sed -i.bak -e "s/getBytes(\"coralflower.wasm\")/getBytes(\"coralflower.wasm?v=$STAMP\")/" \
+sed -i.bak -e "s/getBytes(\"rakt.wasm\")/getBytes(\"rakt.wasm?v=$STAMP\")/" \
     -e "s/addModule(\"worklet.js\")/addModule(\"worklet.js?v=$STAMP\")/" "$OUT/emu.js"
 rm -f "$OUT/index.html.bak" "$OUT/emu.js.bak"
 echo "emu-web: $OUT ($VER)"
-for f in coralflower.wasm index.html emu.js keymap.js worklet.js; do
+for f in rakt.wasm index.html emu.js keymap.js worklet.js; do
     printf '  %-16s %8d B\n' "$f" "$(wc -c < "$OUT/$f")"
 done

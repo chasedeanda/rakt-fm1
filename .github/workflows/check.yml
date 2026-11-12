@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # A fresh clone builds: on every push and pull request, without the JieLi toolchain. Nothing generated is in git:
 # tools/build.py --gen-only writes build/gen (fonts, icons, keycaps, palettes, tables, samples), then the single unit
-# firmware/src/coralflower.c compiles for an ARM target (every include there), the headless emulator builds from it
+# firmware/src/rakt.c compiles for an ARM target (every include there), the headless emulator builds from it
 # and plays a short script, the host tests run, and the tree git tracks is left as it was. What anyone building from
 # source needs first, and the firmware hub's converter (thefirmwarehub.com/convert) with them.
 name: check
@@ -55,7 +55,7 @@ jobs:
       - name: The unit compiles (an ARM target, every include present)
         run: |
           clang -target armv7m-none-eabi -Os -fno-builtin -w -Ifirmware/hal -Ifirmware/src -Ibuild/gen \
-                -fsyntax-only firmware/src/coralflower.c
+                -fsyntax-only firmware/src/rakt.c
 
       - name: The headless emulator builds and plays
         run: |
@@ -88,7 +88,7 @@ jobs:
       - name: USB audio protocol and real-render regression tests (host HAL)
         run: sh tools/test_usb.sh
 
-      - name: CORD library, saved sounds, HOME views and 6/8 timing (host HAL)
+      - name: RAKT library, saved sounds, HOME views and 6/8 timing (host HAL)
         run: sh tools/test_chase3.sh
 
       - name: Built-in drum bank, stable IDs, sequencer copies and real audio (host HAL)
@@ -115,7 +115,7 @@ jobs:
       - name: Signature 8 exact patches, stable IDs, filters and real-engine fixtures
         run: sh tools/test_signature8.sh
 
-      - name: CORD Engine arrangement, regeneration and four-cycle real audio trace
+      - name: RAKT Engine arrangement, regeneration and four-cycle real audio trace
         run: sh tools/test_engine.sh
 
       - name: G0 scheduled ARP, Feel boundaries, Space and level-matched patch audition
@@ -160,7 +160,7 @@ jobs:
       - name: RAKT boot, rack and meter animation, startup timing and sparse font fallback
         run: sh tools/test_rakt_boot.sh
 
-      - name: CORD chime, finite fade, preference and first-key physical/USB/MIDI priority
+      - name: RAKT chime, finite fade, preference and first-key physical/USB/MIDI priority
         run: sh tools/test_boot_sound.sh
 
       - name: Visual ARP, all patterns, ownership and physical/USB/MIDI isolation

@@ -88,7 +88,7 @@ def capture(output):
     # Import the existing builder; it owns flags, toolchain selection and Docker.
     import build
     flags = build.app_flags()
-    unit = ROOT / 'firmware/src/coralflower.c'
+    unit = ROOT / 'firmware/src/rakt.c'
     dependencies = build.tc('cc', *flags, '-MM', unit)
     macros = build.tc('cc', *flags, '-dM', '-E', unit)
     (output / 'dependencies.d').write_text(dependencies)
@@ -185,7 +185,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--build', action='store_true', help='Fresh normal firmware build and target dependency/macro capture')
     ap.add_argument('--release', help='Pass a version to the normal builder and capture the same versioned compiler flags')
-    ap.add_argument('--elf', type=Path, default=ROOT / 'build/coralflower.elf')
+    ap.add_argument('--elf', type=Path, default=ROOT / 'build/rakt.elf')
     ap.add_argument('--inputs', type=Path, help='Existing capture directory (required without --build)')
     ap.add_argument('--output', type=Path, default=ROOT / 'build/resource-audit/main')
     ap.add_argument('--compare', type=Path, help='Prior report.json; no speed claim is inferred from deltas')
@@ -195,8 +195,8 @@ def main():
     if args.release and not args.build:
         ap.error('--release requires --build')
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
-    if args.build and args.elf.resolve() != ROOT / 'build/coralflower.elf':
-        ap.error('--build produces build/coralflower.elf; use --inputs to inspect another captured ELF')
+    if args.build and args.elf.resolve() != ROOT / 'build/rakt.elf':
+        ap.error('--build produces build/rakt.elf; use --inputs to inspect another captured ELF')
     if args.build:
         import build
         revision = git('rev-parse', 'HEAD')

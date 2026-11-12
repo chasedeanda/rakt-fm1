@@ -2302,6 +2302,6 @@ int main(int argc,char **argv)
         rack_navigation();
         native_controls_studio();
     }
-    printf("CORD Studio: %u checks, %u failures\n",checks,failures);
+    printf("RAKT Studio: %u checks, %u failures\n",checks,failures);
     return failures!=0;
 }

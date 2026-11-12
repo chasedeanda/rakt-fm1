@@ -28,13 +28,13 @@ check('NAME[] = "RAKT"' in read('firmware/src/cf_boot.c'), 'Legacy scene profile
 check('indexedDB.open("rakt-fm1"' in read('tools/emu/web/emu.js'), 'RAKT has its own browser save namespace')
 check('file.format !== "felucca-backup"' in read('web/fm1backup.js'), 'Legacy backup envelope is retained')
 check('PRODUCT = "FM-1_57258001"' in read('tools/build.py'), 'RAKT has its own update package identity')
-check('#define FELUCCA_VERSION "RAKT ' in read('firmware/src/coralflower.c') and
+check('#define FELUCCA_VERSION "RAKT ' in read('firmware/src/rakt.c') and
       'VERSION = f"RAKT ' in read('tools/build.py'),
       'RAKT uses its own INFO prefix in development and release builds')
 for path in ['web/fm1backup.js', 'tools/fm1_install.py']:
     check('rakt' in read(path) and '-backup-' in read(path), path + ': RAKT backup filename is present')
     check(not re.search(r'(?:return |return f)["\`](?:ChaseFlower|CoralFlower) (?:settings|saved Song|working draft|recording|favorites|FX|Auto|loop|patterns|unsaved|pattern)', read(path)), path + ': owned backup labels use the public product name')
-check('CoralFlower contributors' in read('firmware/src/coralflower.c'), 'Upstream copyright notice retained')
+check('CoralFlower contributors' in read('firmware/src/rakt.c'), 'Upstream copyright notice retained')
 check('RAKT is a fork of **CORD**' in read('LICENSING.md'), 'Fork and upstream origin disclosed')
 for path in ['LICENSE', 'LICENSES/GPL-3.0-only.txt', 'LICENSES/Apache-2.0.txt', 'assets/fonts/OFL.txt', 'web/fonts/OFL-InterTight.txt', 'web/fonts/OFL-DepartureMono.txt', 'assets/sounds/candidates/aquanode/LICENSE-CC0.txt']:
     # The canonical GPL text is LICENSE; some trees do not duplicate it in LICENSES.

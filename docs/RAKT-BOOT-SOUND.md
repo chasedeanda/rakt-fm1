@@ -4,7 +4,7 @@ The warm signature now strums D3, F3, A3, C4, F4 and A4 over 620 ms and decays t
 by 2.2 seconds. Its measured full-level output peak is -11.28 dBFS, about 6.6 dB louder than
 the earlier four-note signature. It uses the existing MASTER and saved BOOT SND controls.
 
-[Listen to the current firmware render](audio/cord-boot-chime.wav).
+[Listen to the current firmware render](audio/rakt-boot-chime.wav).
 
 Startup waits 180 ms after UI initialization before requesting the sound. Early note input
 cancels that request. An active chime fades for note/overload priority in at most 256 samples.

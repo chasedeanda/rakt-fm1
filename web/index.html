@@ -3,25 +3,25 @@
      Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
      Copyright (C) 2026 ChoralRoot FM-1 contributors (a fork of Felucca)
      Copyright (C) 2026 CoralFlower contributors -->
-<!-- CoralFlower's site, its first page (/): what CoralFlower is, and its installer. The page's sections and the
+<!-- RAKT's site, its first page (/): what RAKT is, and its installer. The page's sections and the
      question each one answers: docs/site/STRUCTURE.md; the tokens and components: site.css (docs/site/DESIGN.md).
      The installer is ChoralRoot FM-1's (its web/index_pkg.html): the same update protocol (fm1ota.js), package checks
      (fm1pkg.js) and backup (fm1backup.js), loaded from this folder as modules. Its button is in the first screen, where
      its progress shows; every other "Install on your FM-1" button presses that one. The firmware to install: the newest
      version firmware/releases.json lists (fetched from this site and checked against its SHA-256), another version, or
-     a .fwsc file the user picks (checked here before Install is enabled: CoralFlower's identity FM-1_930, Felucca's
-     update loader, every checksum of the package). The Support dialog and its script are the same on every page.
+     a .fwsc file the user picks (checked here before Install is enabled: RAKT and supported legacy identities, Felucca's
+     update loader, every checksum of the package).
      web/test_installer.mjs runs this page against a simulated FM-1; tools/make_site.sh puts the site together. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CoralFlower: chord firmware for the M-VAVE FM-1</title>
-<meta name="description" content="CoralFlower makes the M-VAVE FM-1 an instrument for chords, and a pixel flower grows while you play. It’s free and open source, and it installs from your browser in about a minute.">
+<title>RAKT: chord firmware for the M-VAVE FM-1</title>
+<meta name="description" content="RAKT makes the M-VAVE FM-1 an instrument for chords, with live chord guides, drums and editable progressions. It’s free and open source, and it installs from your browser in about a minute.">
 <meta name="theme-color" content="#110A02">
-<meta property="og:title" content="CoralFlower: chord firmware for the M-VAVE FM-1">
-<meta property="og:description" content="Your M-VAVE FM-1, made for chords. A pixel flower grows while you play. Free and open source.">
-<meta property="og:image" content="images/home.png">
+<meta property="og:title" content="RAKT: chord firmware for the M-VAVE FM-1">
+<meta property="og:description" content="Your M-VAVE FM-1, made for chords. Explore chords, drums and your own phrases. Free and open source.">
+<meta property="og:image" content="images/rakt-boot/boot.gif">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -33,7 +33,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="container site-header__row">
-    <a class="brand" href="./" aria-label="CoralFlower, home"><img src="favicon.svg" width="28" height="28" alt=""><span><span class="brand-a">Coral</span><span class="brand-b">Flower</span></span></a>
+    <a class="brand" href="./" aria-label="RAKT, home"><img src="favicon.svg" width="28" height="28" alt=""><span><span class="brand-a">RAKT</span></span></a>
     <nav class="site-nav" aria-label="Sections">
       <a href="#features">Features</a>
       <a href="#garden">Garden</a>
@@ -41,7 +41,6 @@
       <a href="#faq">FAQ</a>
       <a href="play/">Play</a>
     </nav>
-    <button id="supportBtn" class="btn btn--support btn--sm" type="button" aria-haspopup="dialog" aria-label="Support CoralFlower"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.35 20.13c-.76.69-1.93.69-2.69-.01l-.11-.1C5.3 15.27 1.87 12.16 2 8.28c.06-1.7.93-3.33 2.34-4.29 2.64-1.8 5.9-.96 7.66 1.1 1.76-2.06 5.02-2.91 7.66-1.1 1.41.96 2.28 2.59 2.34 4.29.14 3.88-3.3 6.99-8.55 11.76z"/></svg><span>Support</span></button>
     <a class="btn btn--primary btn--sm site-header__cta" href="#install" data-header-cta>Install</a>
   </div>
   <div class="ramp" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -52,12 +51,12 @@
   <section class="hero" id="install" aria-labelledby="hero-title">
     <div class="container hero__grid">
       <div class="hero__pitch">
-        <h1 class="display-1" id="hero-title" tabindex="-1"><span class="brand-a">Coral</span><span class="brand-b">Flower</span></h1>
+        <h1 class="display-1" id="hero-title" tabindex="-1"><span class="brand-a">RAKT</span></h1>
         <p class="hero__lead">Your M-VAVE&nbsp;FM-1, made for chords.</p>
         <div class="installer">
           <button class="btn btn--primary btn--lg" id="go" type="button" disabled>Install on your FM-1</button>
           <p class="installer__ver" id="ver"></p>
-          <p class="note" id="nomidi" hidden>Installing needs <b>Chrome or Edge on a computer</b>. On this device, you can still <a href="play/">try CoralFlower with sound</a>.</p>
+          <p class="note" id="nomidi" hidden>Installing needs <b>Chrome or Edge on a computer</b>. On this device, you can still <a href="play/">try RAKT with sound</a>.</p>
           <noscript><p class="note note--warn">The installer needs JavaScript to talk to the FM-1.</p></noscript>
           <progress id="bar" max="100" value="0" aria-label="Install progress"></progress>
           <p class="installer__status" id="status" role="status"></p>
@@ -65,14 +64,14 @@
           <label class="check" id="force-box" hidden><input id="force-risk" type="checkbox"><span><b>I understand the risk.</b> Install over this firmware anyway.</span></label>
           <div class="panel panel--ok" id="done" role="status" hidden>
             <p class="title" id="done-line"></p>
-            <p>The FM-1 restarted with CoralFlower. You can unplug it now.</p>
+            <p>The FM-1 restarted with RAKT. You can unplug it now.</p>
             <p id="done-backup">To keep a copy of your sounds and patterns, use “<a href="#backup">Back up and restore</a>” below while the FM-1 is plugged in.</p>
           </div>
           <div class="panel panel--bad" id="interrupted" role="alert" hidden>
             <h3>The install stopped. In most cases, you can start it again.</h3>
             <p><b>Stopped before “Switching to update mode”?</b> Nothing was written. Plug the cable back in and press Install again.</p>
             <p><b>Stopped while writing, with the FM-1 still on?</b> It waits in update mode, with a black screen. Plug the cable back in and press Install again. Writing starts again from the beginning.</p>
-            <p><b>Did it switch off, or did the battery die?</b> Switch it on. Three short flashes of the key lights and a black screen mean update mode: press Install again. This only works if the FM-1 already ran CoralFlower, or ChoralRoot 0.16 or later.</p>
+            <p><b>Did it switch off, or did the battery die?</b> Switch it on. Three short flashes of the key lights and a black screen mean update mode: press Install again. This only works if the FM-1 already ran RAKT, or ChoralRoot 0.16 or later.</p>
             <p><b>One long flash, no flash, or a USB disk called WL82 UBOOT1.00?</b> See “<a href="#dark">Device not found</a>” below.</p>
           </div>
         </div>
@@ -80,7 +79,7 @@
       </div>
       <div class="hero__visual">
         <div class="device">
-          <div class="device__bezel"><img src="images/grow.gif" width="480" height="280" alt="A pink pixel flower grows on the FM-1's screen as chords are played" fetchpriority="high"></div>
+          <div class="device__bezel"><img src="images/rakt-boot/boot.gif" width="240" height="240" alt="RAKT power-on rack with its mixer and main output" fetchpriority="high"></div>
         </div>
       </div>
     </div>
@@ -104,7 +103,7 @@
       <div class="section-head">
         <p class="eyebrow"><span class="ramp ramp--dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>Features</p>
         <h2 class="display-2" id="features-title">Chords without the theory</h2>
-        <p class="lead">The lower keys play the notes of a scale you choose. Press an upper key, and every note becomes a chord: major, minor and sus, plus major and minor 6, 7 and add9. The chord stays on until you choose another one. CoralFlower is inspired by the Telepathic Instruments Orchid. Its controls are redesigned for the FM-1’s keys and buttons, because every instrument is played differently.</p>
+        <p class="lead">The lower keys play the notes of a scale you choose. Press an upper key, and every note becomes a chord: major, minor and sus, plus major and minor 6, 7 and add9. The chord stays on until you choose another one. RAKT is inspired by the Telepathic Instruments Orchid. Its controls are redesigned for the FM-1’s keys and buttons, because every instrument is played differently.</p>
       </div>
       <!-- the newest feature: a stage of its own on the cream, its screen playing, one action -->
       <article class="feature-new scope-stage" aria-labelledby="new-title">
@@ -148,8 +147,8 @@
     <div class="container garden__grid">
       <div class="section-head garden__head">
         <p class="eyebrow"><span class="ramp ramp--dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>The garden</p>
-        <h2 class="display-2" id="garden-title">A flower grows from your chords</h2>
-        <p class="lead">While you play, a flower grows on the FM-1 screen. Each note of the chord adds a part: a flower, a bud, a cluster of berries. In the Side key layout, a coral grows instead.</p>
+        <h2 class="display-2" id="garden-title">Legacy Garden view</h2>
+        <p class="lead">The inherited Garden view draws a flower on the FM-1 screen as you play. Each note of the chord adds a part: a flower, a bud, a cluster of berries. In the Side key layout, a coral grows instead.</p>
         <p class="caption">The plant’s structure follows PlantStudio, a program that models real plants.</p>
       </div>
       <div class="garden__screens">
@@ -174,7 +173,7 @@
               <li>Quit other apps that use MIDI, such as a DAW or a synth editor.</li>
               <li><b>Keep this page open</b> and the computer awake.</li>
             </ol>
-            <p class="note note--warn"><b>Installing firmware is at your own risk.</b> CoralFlower is free software with no warranty. You can go back: the official firmware is on <a href="https://www.m-vave.com/download" target="_blank" rel="noopener">m-vave.com</a>.</p>
+            <p class="note note--warn"><b>Installing firmware is at your own risk.</b> RAKT is free software with no warranty. You can go back: the official firmware is on <a href="https://www.m-vave.com/download" target="_blank" rel="noopener">m-vave.com</a>.</p>
           </div>
       </details>
       <ol class="grid grid--3 steps">
@@ -214,7 +213,7 @@
         <div class="card card--icon">
           <svg class="pixel-icon" viewBox="0 0 12 12" width="48" height="48" aria-hidden="true"><path class="px-sea" d="M5 0h2v1h-2zM5 1h2v1h-2zM5 2h2v1h-2zM5 3h2v1h-2zM3 4h6v1h-6zM4 5h4v1h-4zM5 6h2v1h-2z"/><path class="px-ash" d="M1 8h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM10 9h1v1h-1zM1 10h10v1h-10z"/><path class="px-lime" d="M3 9h6v1h-6z"/></svg>
           <h3 class="card__title">Sounds backed up before updates</h3>
-          <p class="card__text">If the FM-1 runs CoralFlower, ChoralRoot or Felucca, the installer first saves its sounds, patterns and settings to a file. The official firmware can’t be backed up.</p>
+          <p class="card__text">If the FM-1 runs RAKT, ChoralRoot or Felucca, the installer first saves its sounds, patterns and settings to a file. The official firmware can’t be backed up.</p>
         </div>
         <div class="card card--icon">
           <svg class="pixel-icon" viewBox="0 0 12 12" width="48" height="48" aria-hidden="true"><path class="px-fire" d="M3 1h1v1h-1zM2 2h2v1h-2zM1 3h9v1h-9zM2 4h2v1h-2zM10 4h1v1h-1zM3 5h1v1h-1zM11 5h1v1h-1zM11 6h1v1h-1zM11 7h1v1h-1zM10 8h1v1h-1zM2 9h8v1h-8z"/></svg>
@@ -224,7 +223,7 @@
         <div class="card card--icon">
           <svg class="pixel-icon" viewBox="0 0 12 12" width="48" height="48" aria-hidden="true"><path class="px-rose" d="M7 2h1v1h-1zM7 3h1v1h-1zM6 4h1v1h-1zM6 5h1v1h-1zM5 6h1v1h-1zM5 7h1v1h-1zM4 8h1v1h-1zM4 9h1v1h-1z"/><path class="px-sea" d="M2 3h1v1h-1zM9 3h1v1h-1zM1 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM11 5h1v1h-1zM1 6h1v1h-1zM10 6h1v1h-1zM2 7h1v1h-1zM9 7h1v1h-1z"/></svg>
           <h3 class="card__title">Open source</h3>
-          <p class="card__text">The source code is public, under the GPL-3.0. <a href="https://github.com/FicusFicusov/CoralFlower" target="_blank" rel="noopener">Read the code</a></p>
+          <p class="card__text">The source code is public, under the GPL-3.0. <a href="https://github.com/chasedeanda/rakt-fm1" target="_blank" rel="noopener">Read the code</a></p>
         </div>
       </div>
 
@@ -239,7 +238,7 @@
               <div>
                 <p>A backup is one .json file. It holds everything saved on the FM-1: your settings, the sequencer’s patterns and song, sound banks and 32 user sounds.</p>
                 <p>Restore copies a backup onto the FM-1. It checks every part before it writes, then restarts the FM-1.</p>
-                <p>Backup and restore work with CoralFlower, ChoralRoot and Felucca. The official firmware can’t make backups.</p>
+                <p>Backup and restore work with RAKT, ChoralRoot and Felucca. The official firmware can’t make backups.</p>
               </div>
               <div>
                 <div class="actions"><button class="btn btn--secondary" id="backup-go" type="button" disabled>Back up</button></div>
@@ -259,7 +258,7 @@
           <div class="fold__body">
             <div class="fold__cols">
               <div>
-                <p class="note note--warn">The official firmware can’t use CoralFlower’s sounds, patterns or settings, so this page saves them to a backup file first.</p>
+                <p class="note note--warn">The official firmware can’t use RAKT’s sounds, patterns or settings, so this page saves them to a backup file first.</p>
                 <p>Download the official FM-1 V15 from <a href="https://www.m-vave.com/download" target="_blank" rel="noopener">M-VAVE Downloads</a>. Then choose its FM-1.fwsc file here, exactly as downloaded. Your browser checks the file, and nothing is uploaded.</p>
               </div>
               <div>
@@ -277,7 +276,7 @@
             <div class="panel panel--ok" id="stock-done" role="status" hidden>
               <p class="title" id="stock-done-line"></p>
               <p id="stock-done-data"></p>
-              <p>To come back, install CoralFlower with the Install button at the top. Then press Restore and choose that backup file.</p>
+              <p>To come back, install RAKT with the Install button at the top. Then press Restore and choose that backup file.</p>
             </div>
             <div class="panel panel--bad" id="stock-interrupted" role="alert" hidden>
               <h3>The return to the official firmware stopped.</h3>
@@ -294,9 +293,9 @@
             <div class="fold__cols">
               <div>
                 <p><b>Check the cable first.</b> Use a data cable, straight to the computer, not through a hub. Quit other apps that use MIDI. Switch the FM-1 on and press Install again.</p>
-                <p><b>Start update mode by hand.</b> In update mode, the screen stays black and the FM-1 waits for new firmware. Switch the FM-1 off. Hold OCT&minus; and switch it on. When the key lights flash three times and the screen stays black, it is in update mode: press Install. To leave without installing, switch the FM-1 off and on. This works with CoralFlower, or ChoralRoot 0.16 or later.</p>
+                <p><b>Start update mode by hand.</b> In update mode, the screen stays black and the FM-1 waits for new firmware. Switch the FM-1 off. Hold OCT&minus; and switch it on. When the key lights flash three times and the screen stays black, it is in update mode: press Install. To leave without installing, switch the FM-1 off and on. This works with RAKT, or ChoralRoot 0.16 or later.</p>
                 <p><b>One long flash instead of three?</b> Switch off for 10 seconds and try once more. A second long flash means the FM-1 can’t start update mode by itself. Until you switch it off, it appears as the USB disk described below.</p>
-                <p><b>While CoralFlower runs,</b> you can also hold OCT&minus;, OCT+ and HOME for five seconds. A countdown appears; let go to cancel. When it ends, the FM-1 is in update mode.</p>
+                <p><b>While RAKT runs,</b> you can also hold OCT&minus;, OCT+ and HOME for five seconds. A countdown appears; let go to cancel. When it ends, the FM-1 is in update mode.</p>
               </div>
               <div>
                 <p><b>A screen that says SAFE MODE?</b> The firmware crashed twice while starting, so it now starts without your saved data. That data stays untouched. Back up and Install both work in safe mode. To try your saved data again, switch the FM-1 off and on.</p>
@@ -350,7 +349,7 @@
       </details>
       <details class="fold">
         <summary>Will I lose my sounds?</summary>
-        <div class="fold__body"><p>From CoralFlower, ChoralRoot or Felucca: no. An update keeps CoralFlower’s sounds, and the installer saves the others to a file first. From the official firmware: CoralFlower can’t use its sounds, and this page can’t save them.</p></div>
+        <div class="fold__body"><p>From RAKT, ChoralRoot or Felucca: no. An update keeps RAKT’s sounds, and the installer saves the others to a file first. From the official firmware: RAKT can’t use its sounds, and this page can’t save them.</p></div>
       </details>
       <details class="fold">
         <summary>Which firmware can I install over?</summary>
@@ -370,7 +369,7 @@
       </details>
       <details class="fold">
         <summary>What does it cost?</summary>
-        <div class="fold__body"><p>Nothing. There are no ads and no paid version. If you enjoy it, you can <a href="#support">support it</a>.</p></div>
+        <div class="fold__body"><p>Nothing. There are no ads and no paid version.</p></div>
       </details>
     </div>
   </section>
@@ -391,51 +390,33 @@
 
 <footer class="site-footer">
   <div class="container">
-    <section class="supportcard" id="support" aria-label="Support CoralFlower">
-      <div>
-        <b>Support CoralFlower</b>
-        <span>CoralFlower has no ads and no paid version. Donations pay for new features and more free tools for musicians.</span>
-      </div>
-      <button id="supportBtn2" class="btn btn--support" type="button" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.35 20.13c-.76.69-1.93.69-2.69-.01l-.11-.1C5.3 15.27 1.87 12.16 2 8.28c.06-1.7.93-3.33 2.34-4.29 2.64-1.8 5.9-.96 7.66 1.1 1.76-2.06 5.02-2.91 7.66-1.1 1.41.96 2.28 2.59 2.34 4.29.14 3.88-3.3 6.99-8.55 11.76z"/></svg>Support</button>
-    </section>
     <div class="site-footer__grid">
       <div>
-        <p><a class="brand" href="./"><img src="favicon.svg" width="28" height="28" alt=""><span><span class="brand-a">Coral</span><span class="brand-b">Flower</span></span></a></p>
-        <p>CoralFlower is built on ChoralRoot FM-1 by its contributors, <a href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener">Felucca</a> by Leo Kuroshita (Hügelton Instruments) and the FM engine of Melodee. It is free software under the <a href="firmware/LICENSE">GPL-3.0</a>, with no warranty. Each firmware file also contains three JieLi AC79 SDK files under Apache-2.0. Fonts: Departure Mono and Inter Tight, under the SIL OFL 1.1.</p>
-        <p>M-VAVE and FM-1 are trademarks of their respective owners. Orchid is a product of Telepathic Instruments. CoralFlower is not affiliated with M-VAVE, Cuvave or Telepathic Instruments.</p>
+        <p><a class="brand" href="./"><img src="favicon.svg" width="28" height="28" alt=""><span><span class="brand-a">RAKT</span></span></a></p>
+        <p>RAKT is built on CoralFlower and ChoralRoot FM-1 by its contributors, <a href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener">Felucca</a> by Leo Kuroshita (Hügelton Instruments) and the FM engine of Melodee. It is free software under the <a href="firmware/LICENSE">GPL-3.0</a>, with no warranty. Each firmware file also contains three JieLi AC79 SDK files under Apache-2.0. Fonts: Departure Mono and Inter Tight, under the SIL OFL 1.1.</p>
+        <p>M-VAVE and FM-1 are trademarks of their respective owners. Orchid is a product of Telepathic Instruments. RAKT is not affiliated with M-VAVE, Cuvave or Telepathic Instruments.</p>
       </div>
       <nav aria-labelledby="foot-site">
         <h2 id="foot-site">Site</h2>
         <ul>
           <li><a href="play/">Play in the browser</a></li>
           <li><a href="#install">Install</a></li>
-          <li><a href="https://github.com/FicusFicusov/CoralFlower/releases" target="_blank" rel="noopener">Releases</a></li>
-          <li><a href="https://github.com/FicusFicusov/CoralFlower" target="_blank" rel="noopener">Source code</a></li>
-          <li><a href="https://github.com/FicusFicusov/CoralFlower/blob/main/LICENSING.md" target="_blank" rel="noopener">All licences</a></li>
+          <li><a href="https://github.com/chasedeanda/rakt-fm1/releases" target="_blank" rel="noopener">Releases</a></li>
+          <li><a href="https://github.com/chasedeanda/rakt-fm1" target="_blank" rel="noopener">Source code</a></li>
+          <li><a href="https://github.com/chasedeanda/rakt-fm1/blob/main/LICENSING.md" target="_blank" rel="noopener">All licences</a></li>
         </ul>
       </nav>
       <nav aria-labelledby="foot-contact">
         <h2 id="foot-contact">Contact</h2>
         <ul>
           <li><a href="https://t.me/ficusficusov" target="_blank" rel="noopener">Telegram channel</a></li>
-          <li><a href="mailto:iambemoli@gmail.com">iambemoli@gmail.com</a></li>
-          <li><a href="https://github.com/FicusFicusov/CoralFlower/issues" target="_blank" rel="noopener">GitHub issues</a></li>
+          <li><a href="https://github.com/chasedeanda/rakt-fm1/issues" target="_blank" rel="noopener">GitHub issues</a></li>
         </ul>
       </nav>
     </div>
   </div>
 </footer>
 
-<dialog id="donate" class="donate" aria-labelledby="donateTitle">
-  <form method="dialog"><button class="x" aria-label="Close">&times;</button></form>
-  <h2 id="donateTitle">Support CoralFlower</h2>
-  <p>CoralFlower is free, open source and ad-free. A donation is not a payment: it funds new features and more free tools for musicians. Thank you for helping it grow.</p>
-  <div id="wallets"></div>
-  <p class="fine">Send only the coin shown, on the network shown; anything else will be lost. A crypto transfer is a voluntary gift: nothing is sold in return.</p>
-  <h3>Contact</h3>
-  <a class="opt" href="https://t.me/ficusficusov" target="_blank" rel="noopener"><span class="glyph" aria-hidden="true">&#10148;</span><span class="tx"><span class="nm">Telegram channel</span><span class="ad">t.me/ficusficusov</span></span><span class="go">&#8599;</span></a>
-  <a class="opt" href="mailto:iambemoli@gmail.com"><span class="glyph" aria-hidden="true">@</span><span class="tx"><span class="nm">Email</span><span class="ad">iambemoli@gmail.com</span></span><span class="go">&#8599;</span></a>
-</dialog>
 <script type="module">
 import { Package, productOf, logicalImage, sha256hex, crc16, validateStockPackage, STOCK_V15_SIZE, STOCK_APP_SIZE } from "./fm1pkg.js";
 import { Updater, classifyFirmware, refusalText } from "./fm1ota.js";
@@ -443,14 +424,14 @@ import { BackupConnection, captureBackup, restoreBackup, deviceInfo, restartDevi
 
 const $ = (id) => document.getElementById(id);
 const PRODUCT = "FM-1_57258001";                      // RAKT (tools/build.py)
-const LEGACY_PRODUCTS = ["FM-1_26730001", "FM-1_936", "FM-1_930"]; // explicit local CORD/CoralFlower packages
+const LEGACY_PRODUCTS = ["FM-1_26730001", "FM-1_936", "FM-1_930"]; // explicit local legacy firmware packages
 const MODEL = PRODUCT.split("_")[0];
 const LOADER_MARK = "FELUCCA-LOADER-1";          // Felucca's update loader (tools/fm1pkg_make.py ota.bin): never a vendor one
 const PKG_FLASH = 0x93000, PKG_APP_BASE = 0x4000; // the FM-1 flash layout of every fm1pkg_make.py package
 const PKG_MAX = 4 << 20;                          // (a package is about 640 KB: anything far larger is not one)
 const RELEASES = "firmware/releases.json";        // the versions hosted on this site; missing: only a file is offered
 const FIRMWARE_DIR = "firmware/";
-// the families whose data stays usable in the flash after CoralFlower is installed (no restore offered afterwards)
+// the families whose data stays usable in the flash after RAKT is installed (no restore offered afterwards)
 const KEEPS_DATA = ["coralflower", "choralroot"];
 
 const TEXT = {
@@ -481,25 +462,25 @@ const TEXT = {
     newest: "Newest",
     noRelease: "No release yet: the first one is still being tested.",
     pkgChecking: "Checking {name} …",
-    pkgOk: "Ready to install {name}. Your browser checked it: a complete, undamaged CoralFlower build.",
-    pkgRelOk: "Ready to install CoralFlower {version}. The file matches the released one.",
+    pkgOk: "Ready to install {name}. Your browser checked it: a complete, undamaged RAKT build.",
+    pkgRelOk: "Ready to install RAKT {version}. The file matches the released one.",
     pkgSum: "SHA-256 {sum}",
     pkgNotFm1: "{name} isn’t an FM-1 firmware file (.fwsc). Choose another file.",
-    pkgStock: "{name} is the official M-VAVE firmware ({id}), not CoralFlower. To go back to it, use “Return to the official firmware” below.",
-    pkgIdentity: "{name} isn’t a CoralFlower package: it’s made for {id}. Choose a CoralFlower build.",
-    pkgNoLoader: "{name} isn’t a complete CoralFlower build. Choose another file.",
-    pkgLayout: "{name} isn’t a complete CoralFlower build. Choose another file.",
+    pkgStock: "{name} is the official M-VAVE firmware ({id}), not RAKT. To go back to it, use “Return to the official firmware” below.",
+    pkgIdentity: "{name} isn’t a RAKT package: it’s made for {id}. Choose a RAKT build.",
+    pkgNoLoader: "{name} isn’t a complete RAKT build. Choose another file.",
+    pkgLayout: "{name} isn’t a complete RAKT build. Choose another file.",
     pkgDamaged: "{name} is damaged ({detail}). Download it again.",
-    pkgBadHash: "The file for CoralFlower {version} doesn’t match the released one. Reload the page.",
+    pkgBadHash: "The file for RAKT {version} doesn’t match the released one. Reload the page.",
     pkgRead: "Couldn’t read {name}: {detail}",
     download: "Download {file}",
     // the backup
     backup: "Saving a backup ",
     backupSaved: "Backup saved: ",
     noBackup: "This FM-1 can’t be backed up from here (it runs the official firmware or an older Felucca).",
-    noBackupCf: "This CoralFlower build can’t make a backup, so the installer skips the backup. Your sounds and settings stay safe: the update only rewrites the firmware.",
+    noBackupCf: "The currently installed firmware can’t make a backup, so the installer skips the backup. Your sounds and settings stay safe: the update only rewrites the firmware.",
     noBackupConfirm: "The FM-1 couldn’t be backed up. Install anyway, without a backup? Its saved sounds, patterns and settings may be lost.",
-    restoreOffer: "CoralFlower is installed. Restore the backup you just saved (settings, user sounds, FM6 patches)?",
+    restoreOffer: "RAKT is installed. Restore the backup you just saved (settings, user sounds, FM6 patches)?",
     restoreConfirm: "Restore this backup onto the FM-1? It replaces what the FM-1 has saved, and the FM-1 restarts afterwards.",
     restoring: "Restoring ",
     restoreBusy: "Stop the loop on the FM-1 to continue the restore",
@@ -507,23 +488,23 @@ const TEXT = {
     restoreSkipped: " (not used by this firmware, kept in the file: ",
     badBackup: "Not a usable backup file: ",
     // the firmware that runs
-    forceConfirm: "Install CoralFlower over {name} anyway? This isn’t supported. An install like this has already left one FM-1 unable to start (recovery: github.com/Quixotic7/MvaveFM1Unbricker). Continue only if you can recover the FM-1 yourself.",
+    forceConfirm: "Install RAKT over {name} anyway? This isn’t supported. An install like this has already left one FM-1 unable to start (recovery: github.com/Quixotic7/MvaveFM1Unbricker). Continue only if you can recover the FM-1 yourself.",
     cnTesting: "Looking for the FM-1. Nothing gets written.",
-    cnCf: "Your FM-1 runs {name}. Installing CoralFlower keeps your saved sounds and settings.",
-    cnOther: "Your FM-1 runs {name}. You can install CoralFlower over it.",
+    cnCf: "Your FM-1 runs {name}. Installing RAKT keeps your saved sounds and settings.",
+    cnOther: "Your FM-1 runs {name}. You can install RAKT over it.",
     cnLoader: "Your FM-1 is in update mode ({identity}). Either an update was cut off or someone started it by hand. Press Install to finish writing.",
     dnRuns: "Done. Your FM-1 now runs {name}.",
-    dnPlain: "Done. CoralFlower is installed.",
+    dnPlain: "Done. RAKT is installed.",
     dnOther: "Written, but the FM-1 now says it runs {name}.",
     // the return to the official V15
     stockNeedBackup: "An FM-1 in update mode can’t be backed up. Tick “I’m finishing an update that was cut off” only if you already saved a backup.",
     stockValid: "The official V15 file is valid. Ready.",
-    stockConfirm: "Is the backup file saved on this computer? Then continue to install the official V15. The official firmware can’t open CoralFlower’s data.",
+    stockConfirm: "Is the backup file saved on this computer? Then continue to install the official V15. The official firmware can’t open RAKT’s data.",
     stockError: "Not the official firmware file: ",
     stockWrongFile: "Choose the unmodified official FM-1 V15 file (FM-1.fwsc).",
     stockDnLine: "The FM-1 now runs the official V15 ({identity}).",
-    stockDnSaved: "CoralFlower’s sounds, patterns and settings are in the backup saved before the write: {file}.",
-    stockDnEarlier: "No backup was saved this time. CoralFlower’s sounds, patterns and settings are in the backup you saved earlier.",
+    stockDnSaved: "RAKT’s sounds, patterns and settings are in the backup saved before the write: {file}.",
+    stockDnEarlier: "No backup was saved this time. RAKT’s sounds, patterns and settings are in the backup you saved earlier.",
   },
 };
 const lang = "en";
@@ -567,7 +548,7 @@ const lockInstaller = (on) => {
 };
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
 
-// ---- backup / restore (fm1backup.js: Felucca's protocol, answered by ChoralRoot and CoralFlower on their objects) ----
+// ---- backup / restore (fm1backup.js: Felucca's protocol, answered by ChoralRoot and RAKT on their objects) ----
 const coded = (code, detail = "") => Object.assign(new Error(code + (detail ? ": " + detail : "")), { code, detail });
 const pct = (d, total) => `${Math.round(d / Math.max(1, total) * 100)}%`;
 function saveJson(obj, name) {                  // -> the file name (the browser's download)
@@ -626,7 +607,7 @@ const failSay = (e) => {
   log(String(e && e.stack || e));
 };
 
-// ---- the package: CoralFlower's identity, then the package's own structure (every CRC: a damaged download fails
+// ---- the package: RAKT's identity, then the package's own structure (every CRC: a damaged download fails
 // here), Felucca's flash layout, and Felucca's update loader in its ota.bin (the loader the FM-1 stages and runs).
 // -> { product, image }, or a coded error that pkgFail() words
 const hasText = (bytes, text) => {
@@ -670,7 +651,7 @@ function pkgFail(e, name) {
 }
 
 // ---- the choice: a version of firmware/releases.json (chips), or a file from this computer ----
-const pkgFileName = (version) => `coralflower-${String(version).replace(/[^A-Za-z0-9.-]/g, "-")}.fwsc`;
+const pkgFileName = (version) => `rakt-${String(version).replace(/[^A-Za-z0-9.-]/g, "-")}.fwsc`;
 async function loadReleases() {                  // -> the usable entries, newest first; [] when there is no list
   let data;
   try {
@@ -696,7 +677,7 @@ function renderPick() {
   $("versions").hidden = !any; $("rel-some").hidden = !any; $("rel-none").hidden = any;
   $("versions").innerHTML = releases.map((r, i) =>
     `<button type="button" class="chip" data-ver="${esc(r.version)}" aria-pressed="${!!(pick && pick.rel === r)}"${writing ? " disabled" : ""}>` +
-    `<b>CoralFlower ${esc(r.version)}</b><span>${[i === 0 ? t("newest") : "", dateText(r.date)].filter(Boolean).map(esc).join(" · ")}</span></button>`).join("");
+    `<b>RAKT ${esc(r.version)}</b><span>${[i === 0 ? t("newest") : "", dateText(r.date)].filter(Boolean).map(esc).join(" · ")}</span></button>`).join("");
   $("go").textContent = pick && image ? tv("installV", { name: pick.label }) : t("installNone");
   // no version to install yet (no release, nothing chosen): the line under the button says why it is off
   $("ver").textContent = pick ? [pick.label, pick.rel ? dateText(pick.rel.date) : ""].filter(Boolean).join(" · ") : any ? "" : t("noRelease");
@@ -710,7 +691,7 @@ function newChoice(p) {                          // a new choice: nothing checke
   return pkgEpoch;
 }
 async function loadRelease(r) {
-  const epoch = newChoice({ rel: r, label: `CoralFlower ${r.version}`, file: r.file });
+  const epoch = newChoice({ rel: r, label: `RAKT ${r.version}`, file: r.file });
   $("pkg-name").textContent = t("noFile"); $("pkg-file").value = "";
   pkgSay(tv("pkgChecking", { name: r.file }));
   try {
@@ -803,7 +784,7 @@ async function readBack(up) {                    // -> the INFO version of what 
 }
 function finishInstall(runs) {
   unit = null; unitAsked = false; $("unit").hidden = true;
-  $("done-line").textContent = !runs ? t("dnPlain") : /^coralflower\b/i.test(runs) ? tv("dnRuns", { name: runs }) : tv("dnOther", { name: runs });
+  $("done-line").textContent = !runs ? t("dnPlain") : /^(?:rakt|coralflower|cord)\b/i.test(runs) ? tv("dnRuns", { name: runs }) : tv("dnOther", { name: runs });
   $("done").hidden = false;
 }
 $("go").addEventListener("click", async () => {
@@ -850,13 +831,13 @@ $("go").addEventListener("click", async () => {
         }
       }
       let saved = null;
-      // no INFO answer: no backup protocol, so no backup is tried. An early CoralFlower build: skipped with a note
-      // (the update writes only the app area and the loader's staging area; CoralFlower's saved data lives elsewhere
+      // no INFO answer: no backup protocol, so no backup is tried. An early RAKT build: skipped with a note
+      // (the update writes only the app area and the loader's staging area; RAKT's saved data lives elsewhere
       // in the flash, storage.c). Any other firmware without INFO (the stock one): the question, as before.
       const noInfo = fw && !fw.version;
       if ($("backup-first").checked && noInfo && fw.kind === "coralflower") {
         $("backup-note").textContent = t("noBackupCf"); $("backup-note").hidden = false;
-        log("backup: skipped (no INFO answer: a CoralFlower build without the backup protocol)");
+        log("backup: skipped (no INFO answer: a legacy build without the backup protocol)");
       } else if ($("backup-first").checked && noInfo) {
         log(`backup: ${fw.identity} gives no INFO answer: no backup protocol`);
         if (!confirm(t("noBackupConfirm"))) { sayK("cancelled"); lockInstaller(false); return; }
@@ -873,7 +854,7 @@ $("go").addEventListener("click", async () => {
       await up.install(pkgImage, selectedProduct, step);
       okDone = true;
       runs = await readBack(up);
-      // over another firmware: offer its data back (CoralFlower and ChoralRoot data stay in the flash, and are used)
+      // over another firmware: offer its data back (RAKT and ChoralRoot data stay in the flash, and are used)
       if (saved && !KEEPS_DATA.includes(backupFamily(saved.firmware)) && confirm(t("restoreOffer"))) await restoreArchive(up, saved);
     }
   } catch (e) { failSay(e); halted = began && !okDone && e.code !== "mismatch"; }
@@ -953,7 +934,7 @@ $("stock-file").addEventListener("change", async () => {
     stock = verified; sayAt(OUT_STOCK, () => sayK("stockValid")); stockShow(false); lockInstaller(writing);
   } catch (e) { if (epoch === stockFileEpoch) { sayAt(OUT_STOCK, () => sayK("stockError", e.message)); stockShow(false); } }
 });
-// a backup first (the stock firmware cannot use CoralFlower's data); then the same two steps as an install. The bar:
+// a backup first (the stock firmware cannot use RAKT's data); then the same two steps as an install. The bar:
 // the first 6 % for the check by the running firmware, the rest for the write. M-VAVE's own loader decides how many
 // reads it makes, so the write is measured against the whole image in 512-byte reads: an estimate, held under 100
 // until the FM-1 has answered again, and it never runs backwards.
@@ -1020,63 +1001,9 @@ const ready = loadReleases().then((list) => {
   if (!releases.length || pick) return;
   // no Web MIDI (a phone, Safari, Firefox): the newest version is named, but its 600 KB package is not downloaded
   if (canMidi) return loadRelease(releases[0]);
-  pick = { rel: releases[0], label: `CoralFlower ${releases[0].version}`, file: releases[0].file }; renderPick();
+  pick = { rel: releases[0], label: `RAKT ${releases[0].version}`, file: releases[0].file }; renderPick();
 });
 window.installerReady = ready;                    // (the tests wait for it)
-</script>
-<script>
-/* Support: the owner's wallets and contacts in a dialog (the "Support" buttons). The coin badges and the addresses
- * are the owner's (their ear-training page's donation dialog). A row copies its address. */
-(() => {
-const _coin=(bg,g)=>`<svg viewBox="0 0 24 24" width="34" height="34"><circle cx="12" cy="12" r="12" fill="${bg}"/>${g}</svg>`;
-const ICO={
-  btc:_coin('#F7931A','<path fill="#fff" d="M15.5 10.4c.2-1.36-.84-2.1-2.26-2.58l.46-1.85-1.13-.28-.45 1.8c-.3-.07-.6-.14-.9-.2l.45-1.82-1.12-.28-.46 1.85c-.24-.05-.48-.11-.71-.17l-1.56-.39-.3 1.2s.84.2.82.2c.46.12.54.42.53.66l-.53 2.12c.03.01.07.02.12.04l-.12-.03-.74 2.96c-.06.14-.2.35-.52.27.01.02-.82-.2-.82-.2l-.56 1.29 1.47.36c.27.07.54.14.8.21l-.46 1.87 1.12.28.46-1.85c.31.08.6.16.9.23l-.46 1.84 1.13.28.46-1.86c1.92.36 3.37.22 3.98-1.52.49-1.4-.02-2.2-1.03-2.73.73-.17 1.29-.65 1.44-1.65zm-2.57 3.6c-.35 1.4-2.7.64-3.46.45l.62-2.48c.76.19 3.2.56 2.84 2.03zm.35-3.62c-.32 1.27-2.27.63-2.9.47l.56-2.25c.63.16 2.67.45 2.34 1.78z"/>'),
-  eth:_coin('#627EEA','<path fill="#fff" fill-opacity=".9" d="M12 4 7.5 12l4.5-2.15z"/><path fill="#fff" d="M12 4v5.85L16.5 12z"/><path fill="#fff" fill-opacity=".9" d="M12 15.4 7.5 12.9 12 20z"/><path fill="#fff" d="M12 20v-4.6L16.5 12.9z"/><path fill="#fff" fill-opacity=".55" d="M12 14.5 16.5 12 12 9.85z"/><path fill="#fff" fill-opacity=".8" d="M7.5 12 12 14.5V9.85z"/>'),
-  ltc:_coin('#345D9D','<g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 6.8 11 16.8h5"/><path d="M8.8 12.6 15 10.7"/></g>'),
-  doge:_coin('#C2A633','<g fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.2 6.8h3c2.7 0 4.5 2 4.5 5.2s-1.8 5.2-4.5 5.2h-3z"/><path d="M7.4 12h4.2"/></g>'),
-  pol:_coin('#8247E5','<path fill="#fff" d="M15.4 9.9a1.1 1.1 0 0 0-1.1 0l-2.5 1.46-1.7.96-2.5 1.46a1.1 1.1 0 0 1-1.1 0l-1.98-1.15a1.1 1.1 0 0 1-.55-.95V9.36c0-.4.2-.77.55-.96l1.95-1.13a1.1 1.1 0 0 1 1.1 0l1.95 1.13c.34.19.55.56.55.96v1.46l1.7-.99V8.37c0-.39-.2-.76-.55-.95l-3.6-2.1a1.1 1.1 0 0 0-1.1 0L2.8 7.42a1.1 1.1 0 0 0-.55.95v4.22c0 .39.2.76.55.95l3.66 2.12a1.1 1.1 0 0 0 1.1 0l2.5-1.44 1.7-.99 2.5-1.44a1.1 1.1 0 0 1 1.1 0l1.96 1.13c.34.2.55.56.55.96v2.26c0 .39-.2.76-.55.95l-1.95 1.14a1.1 1.1 0 0 1-1.1 0l-1.95-1.13a1.1 1.1 0 0 1-.55-.96v-1.44l-1.7.99v1.46c0 .39.2.76.55.95l3.66 2.12a1.1 1.1 0 0 0 1.1 0l3.66-2.12c.34-.19.55-.56.55-.95v-4.23c0-.39-.2-.76-.55-.95L15.4 9.9z"/>'),
-  ada:_coin('#0033AD','<g fill="#fff"><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="6.6" r=".95"/><circle cx="12" cy="17.4" r=".95"/><circle cx="7.3" cy="9.3" r=".95"/><circle cx="16.7" cy="9.3" r=".95"/><circle cx="7.3" cy="14.7" r=".95"/><circle cx="16.7" cy="14.7" r=".95"/><circle cx="6" cy="12" r=".65"/><circle cx="18" cy="12" r=".65"/><circle cx="9.7" cy="7.9" r=".55"/><circle cx="14.3" cy="7.9" r=".55"/><circle cx="9.7" cy="16.1" r=".55"/><circle cx="14.3" cy="16.1" r=".55"/></g>'),
-  xlm:_coin('#000000','<circle cx="12" cy="12" r="11.2" fill="none" stroke="rgba(255,255,255,.28)"/><g fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"><path d="M5.7 9.4a7.4 7.4 0 0 1 12.6 3.3"/><path d="M18.3 14.6A7.4 7.4 0 0 1 5.7 11.3"/></g><circle cx="12" cy="12" r="1.7" fill="#fff"/>'),
-  avax:_coin('#E84142','<path fill="#fff" d="M12.75 7.3c.5-.87 1.45-.87 1.95 0l3.8 6.6c.5.87.05 1.6-1 1.6h-1.75c-.55 0-.98-.27-1.2-.68l-2.6-4.55c-.3-.53-.3-1.15 0-1.7l.8-1.27z"/><path fill="#fff" d="M9 12.85c.5-.87 1.45-.87 1.9 0l1.65 2.85c.48.87.03 1.6-1 1.6H8.05c-1.02 0-1.47-.73-.98-1.6L9 12.85z"/>'),
-};
-const WALLETS = [
-  { name:'Bitcoin',   net:'BTC',     icon:ICO.btc,  addr:'bc1qvzuw988uzyh8k3pzy8gzduhc3cn4g6lvusj9w0' },
-  { name:'Ethereum',  net:'ERC-20',  icon:ICO.eth,  addr:'0x1727c960db92Dc4711ff1a7e8f082D89A3e2D4dA' },
-  { name:'Litecoin',  net:'LTC',     icon:ICO.ltc,  addr:'ltc1qpjymg8hzftjrv6z3ymy5puv9e2t5ljwnqlv72l' },
-  { name:'Dogecoin',  net:'DOGE',    icon:ICO.doge, addr:'D8TyowZszSJiYEKKGuiFLCW3UtcYKvCZuZ' },
-  { name:'Polygon',   net:'PoS',     icon:ICO.pol,  addr:'0x1727c960db92Dc4711ff1a7e8f082D89A3e2D4dA' },
-  { name:'Cardano',   net:'ADA',     icon:ICO.ada,  addr:'addr1qxp55k3knqydjkqpt888j8hq4j5mypfsxj68h4qh57fhqcttfhmc443yydmfmze045tqn9zel5psad4rk669rjy3syxsya00ml' },
-  { name:'Stellar',   net:'XLM',     icon:ICO.xlm,  addr:'GDFPGXJIN3RU2CKZGHMVM23L4NKSFY5BEIO23SOJVTIOTNYBIZDUDJ4L' },
-  { name:'Avalanche', net:'C-Chain', icon:ICO.avax, addr:'0x1727c960db92Dc4711ff1a7e8f082D89A3e2D4dA' },
-];
-const $ = (id) => document.getElementById(id), dlg = $("donate"), box = $("wallets");
-/* the clipboard API where it is allowed; else (refused: an embedded browser, a page not over https) a selected
- * textarea inside the dialog (outside it, the open modal makes the page inert: nothing there can be selected) */
-const copyOld = (t) => {
-  const a = document.createElement("textarea"); a.value = t; a.setAttribute("readonly", ""); a.style.cssText = "position:fixed;opacity:0";
-  dlg.appendChild(a); a.select();
-  try { document.execCommand("copy"); } catch (_) {}
-  a.remove();
-};
-const copy = (t) => {
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(() => copyOld(t));
-  else copyOld(t);
-};
-for (const w of WALLETS) {
-  const b = document.createElement("button"), short = w.addr.length > 20 ? w.addr.slice(0, 10) + "\u2026" + w.addr.slice(-6) : w.addr;
-  b.type = "button"; b.className = "opt"; b.title = w.addr;
-  b.innerHTML = `<span class="coin">${w.icon}</span><span class="tx"><span class="nm">${w.name} <i>${w.net}</i></span>` +
-                `<span class="ad">${short}</span></span><span class="go">copy</span>`;
-  b.onclick = () => {
-    copy(w.addr); b.classList.add("copied"); b.querySelector(".go").textContent = "copied \u2713";
-    setTimeout(() => { b.classList.remove("copied"); b.querySelector(".go").textContent = "copy"; }, 1600);
-  };
-  box.appendChild(b);
-}
-const open = () => dlg.showModal ? dlg.showModal() : dlg.setAttribute("open", "");
-for (const id of ["supportBtn", "supportBtn2"]) $(id).addEventListener("click", open);
-dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   /* a click on the backdrop */
-})();
 </script>
 <script>
 /* The page: every "Install on your FM-1" button below the first screen presses the first one (the installer is there,

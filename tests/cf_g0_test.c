@@ -156,5 +156,5 @@ int main(int argc,char **argv)
     emu_fw_options(NULL,1,0,1);emu_hal.ready=2;emu_fw_init(0);
     if(argc==6 && !strcmp(argv[1],"--capture"))capture(argv[2],atoi(argv[3]),argv[4],argv[5]);
     else {arp_controls();control_boundaries();pending_takes();ui_images();}
-    printf("CORD G0: %u checks, %u failures\n",checks,failures);return failures!=0;
+    printf("RAKT G0: %u checks, %u failures\n",checks,failures);return failures!=0;
 }

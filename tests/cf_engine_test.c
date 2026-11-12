@@ -82,6 +82,6 @@ int main(int argc,char **argv)
  emu_fw_options(NULL,1,0,1);emu_hal.ready=2;emu_fw_init(0);
  if(argc==5 && !strcmp(argv[1],"--usb")){ua_reset();ua.cap_alt=atoi(argv[2]);ua.cap_hold=0;ua_rate_set(atoi(argv[3]));engine_raw=fopen(argv[4],"wb");CHECK(engine_raw);if(engine_raw){actual_trace("build/engine/usb-trace.csv",1);fclose(engine_raw);}}
  else {plan();controls();live_and_clock();if(argc>4){actual_trace(argv[3],0);actual_trace(argv[4],1);}}
- printf("CORD Engine: %u checks, %u failures\n",checks,failures);return failures!=0;
+ printf("RAKT Engine: %u checks, %u failures\n",checks,failures);return failures!=0;
 }
 #endif

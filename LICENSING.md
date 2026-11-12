@@ -57,6 +57,16 @@ Their author credit is retained in `firmware/src/melodee_drum_rows.h`. These are
 CoralFlower drum renderer, not ports of Melodee's engines. No Sequential factory programs or recorded sample
 libraries are included. See `docs/MELODEE-DRUMS.md`.
 
+## RAKT design acknowledgements
+
+Studio's generative design draws on Juan Jiant's seeded parts, genre profiles and bass-to-kick phrasing, as
+well as the GLO layer for the live keyboard map. Rastapopolix's work informed per-track behavior and
+longer-term phrase development. deamonSLINKY's performance workflow informed keeping the band's controls
+available while it plays. [JIANT FM](https://github.com/juanjiant-bit/JIANT) · [Tessera](https://github.com/Rastapopolix/tessera) · [PERF-1](https://github.com/deamonSLINKY/PERF-1)
+
+imijes's panel zoom was a visual reference for the Studio rack. Telepathic Instruments' Orchid informed
+the chord controls and strum in the upstream firmware. [Bass Something 2](https://github.com/imijes/bass-something-2) · [Orchid ORC-1](https://telepathicinstruments.com/products/orchid-orc-1)
+
 ## JieLi SDK files in the packages (Apache-2.0)
 
 A `.fwsc` package made by `tools/build.py` holds three unmodified files from the JieLi AC79 SDK:
@@ -75,11 +85,11 @@ hold only CoralFlower and the three SDK files above.
 CoralFlower is independent firmware that runs on FM-1 hardware. It is not affiliated with, endorsed by or supported
 by any of them.
 
-## CORD contributions and upstream contact
+## RAKT contributions and upstream contact
 
-CORD issues and contributions: <https://github.com/chasedeanda/cord-fm1/issues>.
+RAKT issues and contributions: <https://github.com/chasedeanda/rakt-fm1/issues>.
 
-The following contact information belongs to the **upstream CoralFlower project**, not CORD.
+The following contact information belongs to the upstream CoralFlower project.
 
 Contributions are welcome under GPL-3.0-only. Contact: iambemoli@gmail.com, Telegram channel
 <https://t.me/ficusficusov>.

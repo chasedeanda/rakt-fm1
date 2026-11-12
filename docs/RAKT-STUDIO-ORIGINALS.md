@@ -1,4 +1,4 @@
-# CORD Studio Originals
+# RAKT Studio Originals
 
 Eighteen original VA patches give each Studio genre a new Chords, Bass and Layer trio. Find them in **Sound → Tone** with **Genre** selected. They follow the genre’s earlier featured sounds in the part’s K1 browse order and enter the same **EDIT** shuffle. **Sound Library → SEL Apply** continues to recall the featured set.
 
@@ -24,7 +24,7 @@ Eighteen original VA patches give each Studio genre a new Chords, Bass and Layer
 
 These measurements describe the first release of the originals pack. The revised featured tones and Clean Octave are included when the pack is regenerated.
 
-The solo pairs use the CORD firmware audio engine with the shared FX bypassed and fixed levels, pan, pitches and velocity. The nine-second fixture holds a four-note chord or one role-specific note for 2.5 seconds, then plays three short notes at increasing velocities. “Attack” measures RMS at 25–125 ms relative to the 1.6–2.4 s hold. “Tail” measures 100–500 ms after key-up against the hold. “Upper energy” is the first-order high-pass (1 kHz for Chords and Layer, 200 Hz for Bass) energy ratio on the same early window. The bass harmonic figures compare power in harmonics 2–8 to the fundamental of MIDI note 36 with a Hann window and bins within 4% of each harmonic.
+The solo pairs use the RAKT firmware audio engine with the shared FX bypassed and fixed levels, pan, pitches and velocity. The nine-second fixture holds a four-note chord or one role-specific note for 2.5 seconds, then plays three short notes at increasing velocities. “Attack” measures RMS at 25–125 ms relative to the 1.6–2.4 s hold. “Tail” measures 100–500 ms after key-up against the hold. “Upper energy” is the first-order high-pass (1 kHz for Chords and Layer, 200 Hz for Bass) energy ratio on the same early window. The bass harmonic figures compare power in harmonics 2–8 to the fundamental of MIDI note 36 with a Hann window and bins within 4% of each harmonic.
 
 | Original | Featured comparison | Measured difference in the solo pair |
 | --- | --- | --- |

@@ -26,10 +26,10 @@
 #define FELUCCA_VA 1                                  /* as choralroot.c: the VA engine, its patch store */
 #endif
 #ifndef FELUCCA_CZ
-#define FELUCCA_CZ 0                                  /* as coralflower.c: no CZ-1 */
+#define FELUCCA_CZ 0                                  /* as rakt.c: no CZ-1 */
 #endif
 #ifndef FELUCCA_QUAD
-#define FELUCCA_QUAD 0                                /* as coralflower.c: no QUAD (yet) */
+#define FELUCCA_QUAD 0                                /* as rakt.c: no QUAD (yet) */
 #endif
 #ifndef FELUCCA_SAMPLE
 #define FELUCCA_SAMPLE 0                              /* as choralroot.c: SAMPLE, GRAIN, DRUM retired */
@@ -38,20 +38,20 @@
 #define FELUCCA_GRAIN 0
 #endif
 #ifndef FELUCCA_DRUM
-#define FELUCCA_DRUM 1                                /* as coralflower.c: the sequencer's DRUMS on part 2 */
+#define FELUCCA_DRUM 1                                /* as rakt.c: the sequencer's DRUMS on part 2 */
 #endif
-#define DRUM_PART0 3u              /* as coralflower.c: the drums on part 3, the LAYER on part 2 */
+#define DRUM_PART0 3u              /* as rakt.c: the drums on part 3, the LAYER on part 2 */
 #define DRUM_NPART 1u
-#define DRUM_LANE_KNOBS 1          /* as coralflower.c: each drum its own kit */
+#define DRUM_LANE_KNOBS 1          /* as rakt.c: each drum its own kit */
 #define ENG_STATE_NPART 3u
 #define VA_NPART 3u
-#define CF_NTAIL 1u                /* as coralflower.c: the tail */
+#define CF_NTAIL 1u                /* as rakt.c: the tail */
 #define TRK_GLIDE(t) ((t) == &trk[2] ? (t)->p[P_GLIDE] : 0)   /* voice.c: only the LAYER's sound glides itself; the
                                     * chords glide by their player (cf_play.c), the bass with them */
-#define CF_VLOAD 1                 /* as coralflower.c: voices by the measured load (voice.c); the clock is the HAL's */
+#define CF_VLOAD 1                 /* as rakt.c: voices by the measured load (voice.c); the clock is the HAL's */
 static uint32_t fm1_ticks(void);   /* (emu_hal_fw.h, after the firmware's first part) */
 #define VL_NOW() fm1_ticks()
-static void cf_boot_note(void);    /* as coralflower.c */
+static void cf_boot_note(void);    /* as rakt.c */
 #define VOICE_NEW_NOTE() cf_boot_note()
 #ifndef MIX_NPART
 #define MIX_NPART 4u
@@ -78,7 +78,7 @@ static void cf_boot_note(void);    /* as coralflower.c */
 #define FELUCCA_PHYS 0                                /* as choralroot.c: PHYS retired (0.18) */
 #endif
 #ifndef FELUCCA_SLICER
-#define FELUCCA_SLICER 0                              /* as coralflower.c */
+#define FELUCCA_SLICER 0                              /* as rakt.c */
 #endif
 #ifndef FELUCCA_PERFORM
 #define FELUCCA_PERFORM 0                             /* as choralroot.c: no FX hold layer (perform.c; fx.c) */
@@ -98,11 +98,11 @@ static void cf_boot_note(void);    /* as coralflower.c */
 #ifndef FM6_POLY
 #define FM6_POLY 8                                    /* as choralroot.c: FM6 capped at 8 voices (docs/FM6.md) */
 #endif
-#define CF_FX_OWN 1                                   /* as coralflower.c: CoralFlower's effects chain (cf_fx.c) */
-#define FM6_PLAIN_NAMES 1                             /* as coralflower.c: "PAD", not "FM PAD" (eng_fm6.c) */
-#define CF_LOOP_STORE 1                               /* as coralflower.c: the looper's flash object */
-#define ST_LOG_OBJ (OBJ_PROJECT0 + 3u)                /* as coralflower.c: the settings' object keeps a log */
-#define CLN_TRIM 4096                                 /* as coralflower.c */
+#define CF_FX_OWN 1                                   /* as rakt.c: CoralFlower's effects chain (cf_fx.c) */
+#define FM6_PLAIN_NAMES 1                             /* as rakt.c: "PAD", not "FM PAD" (eng_fm6.c) */
+#define CF_LOOP_STORE 1                               /* as rakt.c: the looper's flash object */
+#define ST_LOG_OBJ (OBJ_PROJECT0 + 3u)                /* as rakt.c: the settings' object keeps a log */
+#define CLN_TRIM 4096                                 /* as rakt.c */
 static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n);
 #define FX_MIX_HOOK cf_fx_chain
 #include "../../tests/hostsim.c"
@@ -142,7 +142,7 @@ static void mix_block(int32_t *out, uint32_t n)        /* the audio ISR's block:
 #define CV_ROWS 120u                                  /* gfx.c's canvas: CoralFlower's framebuffer (cf_fb.c) */
 #endif
 #ifndef FELUCCA_VERSION
-#define FELUCCA_VERSION "CoralFlower EMU"
+#define FELUCCA_VERSION "RAKT EMU"
 #endif
 #include "../../firmware/src/gfx.c"
 #include "../../firmware/src/panel.c"

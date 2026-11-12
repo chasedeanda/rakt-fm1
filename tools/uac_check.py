@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
-"""Measure ChaseFlower In (the FM-1's USB recording) on a Mac: record it with ffmpeg while MIDI chords play the FM-1,
+"""Measure RAKT In (the FM-1's USB recording) on a Mac: record it with ffmpeg while MIDI chords play the FM-1,
 and report what the FM-1 itself sent during the capture (docs/USB-AUDIO.md, "Measuring the recording on a Mac").
 
 usage: tools/uac_check.py OUT.wav [SECONDS] [--nonotes] [--debug] [--device NAME] [--rate 44100|48000]
@@ -8,7 +8,7 @@ usage: tools/uac_check.py OUT.wav [SECONDS] [--nonotes] [--debug] [--device NAME
   SECONDS     the capture's wall time (default 14)
   --nonotes   no chords: the stream's behaviour in silence
   --debug     also print the counters as read, before and after (fm1_install.py --debug's names)
-  --device    the capture device's name (default "ChaseFlower In"; use "ChoralRoot In" for legacy firmware)
+  --device    the capture device's name (default "RAKT In"; use "ChoralRoot In" for legacy firmware)
   --rate      the rate ChoralRoot In is expected to run at, 44100 or 48000 (0.19: 48 kHz is offered when Options >
               USB Rate is 44.1 + 48 kHz, else the tool says "the unit does not offer 48 kHz" and records nothing;
               then the host chooses; on a Mac it is
@@ -87,7 +87,7 @@ def counters(up):
                           (f" ({up.gave_up} did not return in time)" if up.gave_up else ""))
         try:
             usb = fi.usb_values(dev.link)                # (0.19: the rate, the 48 kHz counters; {} before)
-            # ChaseFlower exposes all capture counters through read-only command 79; it has no legacy 73 DEBUG.
+            # RAKT exposes all capture counters through read-only command 79; it has no legacy 73 DEBUG.
             vals = [] if "ua_opens" in usb else fi.debug_values(dev.link, 3.0)
         finally:
             dev.link.close()
@@ -277,7 +277,7 @@ def main():
     ap.add_argument("seconds", nargs="?", type=float, default=14.0)
     ap.add_argument("--nonotes", action="store_true")
     ap.add_argument("--debug", action="store_true")
-    ap.add_argument("--device", default="ChaseFlower In")
+    ap.add_argument("--device", default="RAKT In")
     ap.add_argument("--rate", type=int, choices=RATES, default=None)
     a = ap.parse_args()
     secs = a.seconds
@@ -288,9 +288,9 @@ def main():
     no48 = rate_offered(before, a.rate)
     if no48:                                             # (nothing is recorded: the WAV would be the host's resampling)
         sys.exit(no48)
-    port_name = next((n for n in up.names(outs=True) if any(brand in n for brand in ("ChaseFlower", "CoralFlower", "ChoralRoot"))), None)
+    port_name = next((n for n in up.names(outs=True) if any(brand in n for brand in ("RAKT", "CORD", "ChaseFlower", "CoralFlower", "ChoralRoot"))), None)
     if port_name is None and not a.nonotes:
-        sys.exit("no ChaseFlower/CoralFlower/ChoralRoot MIDI output (use --nonotes to record without notes)" +
+        sys.exit("no compatible FM-1 MIDI output (use --nonotes to record without notes)" +
                  (f": {up.gave_up} did not return in time" if up.gave_up else ""))
     try:
         rec = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "avfoundation", "-i", f":{a.device}",

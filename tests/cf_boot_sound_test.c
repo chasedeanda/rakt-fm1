@@ -86,5 +86,5 @@ int main(int argc,char **argv)
     emu_fw_options(0,1,0,1);emu_hal.ready=2;emu_fw_init(0);CHECK(cf_boot_pending==1);cf_boot_pending=0;
     if(argc==6 || argc==7)physical(atoi(argv[2]),argv[3],atoi(argv[4]),atoi(argv[5]),argc==7?atoi(argv[6]):4096);
     else {state_and_dsp();controls();}
-    printf("CORD boot sound: %u checks, %u failures\n",checks,failures);return failures!=0;
+    printf("RAKT boot sound: %u checks, %u failures\n",checks,failures);return failures!=0;
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// CoralFlower in an AudioWorklet: coralflower.wasm is the emulator's firmware side (tools/emu/web/emu_web.c).
+// CoralFlower in an AudioWorklet: rakt.wasm is the emulator's firmware side (tools/emu/web/emu_web.c).
 // Each render quantum asks it for 128 frames, which runs the device clock forward (the 1 ms tick, a UI frame every
 // 15 ms, the audio blocks). Between quanta the page's input goes in; about 30 times a second the LEDs (and the
 // LCD when it was written) go out; MIDI out packets go out as they come; the flash goes out a second after it
@@ -115,4 +115,4 @@ class FM1 extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("coralflower-fm1", FM1);
+registerProcessor("rakt-fm1", FM1);
