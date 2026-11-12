@@ -1,5 +1,5 @@
 {
-  "what": "RAKT turns the FM-1 into a rack-style chord instrument and groovebox. Build progressions, play along with a four-part band, and shape the session from Studio panels for harmony, sounds, mixing and effects.",
+  "what": "Play chords with a band that follows your progression. Pick a genre or write your own changes, then shape the chords, bass, drums and melodic layer as they evolve. Give each part its own sound and effects, cue drum fills live, and press REC to capture all four.",
   "author": "Chase DeAnda",
   "kinds": ["groove", "chords"],
   "image": "docs/images/rakt-boot/ready.png",
