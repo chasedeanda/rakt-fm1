@@ -483,6 +483,7 @@ static void workspaces_studio(void)
     CHECK(cf_stage_last.rec);
     sq_home_cancel();
     blocks(2);
+    sq_home_poll();
     cpa_stop();
     ui_button(B_GLO);
     ui_button(B_SAVE);

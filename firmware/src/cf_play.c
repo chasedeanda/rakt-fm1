@@ -137,8 +137,11 @@ static uint32_t cfp_ch(uint32_t part)
     return part == 0u ? cfp_cfg.ch_chord : part == 1u ? cfp_cfg.ch_bass : part == 2u ? cfp_cfg.ch_layer :
            part == 3u ? cfp_cfg.ch_drums : 0xFFu;
 }
-static void cfp_midi(uint32_t st, uint32_t ch, uint32_t d1, uint32_t d2)
+static void sq_perf_note(unsigned part,unsigned note,unsigned velocity);
+static void cfp_midi(uint32_t st, uint32_t part, uint32_t d1, uint32_t d2)
 {
+    sq_perf_note(part,d1,d2);
+    uint32_t ch=cfp_ch(part);
     if (ch > 15u)
         return;
     if (cfp_cfg.midi_out)
@@ -147,25 +150,24 @@ static void cfp_midi(uint32_t st, uint32_t ch, uint32_t d1, uint32_t d2)
 static void cfp_on(uint32_t part, uint32_t note, uint32_t vel)
 {
     trk_note_on(&trk[part], note, vel);
-    cfp_midi(0x90u, cfp_ch(part), note, vel);
+    cfp_midi(0x90u, part, note, vel);
 }
 static void cfp_off(uint32_t part, uint32_t note)
 {
     if (sqp_holds(part, note))                   /* (the sequencer sounds it too: it goes when it lets go) */
         return;
     trk_note_off(&trk[part], note);
-    cfp_midi(0x80u, cfp_ch(part), note, 0);
+    cfp_midi(0x80u, part, note, 0);
 }
 static void cfp_on_from(uint32_t part, uint32_t note, uint32_t vel, uint32_t from, uint32_t ticks)
 {
     trk_note_on_from(&trk[part], note, vel, from, ticks);
-    cfp_midi(0x90u, cfp_ch(part), note, vel);
+    cfp_midi(0x90u, part, note, vel);
 }
 /* a held voice moved to another note: MIDI says it as an off and an on */
 static void cfp_move(uint32_t part, uint32_t from, uint32_t to, uint32_t ticks)
 {
     voice_t *v = trk_voice_of(&trk[part], from);
-    uint32_t ch = cfp_ch(part);
     if (from == to)
         return;
     if (v) {
@@ -174,8 +176,8 @@ static void cfp_move(uint32_t part, uint32_t from, uint32_t to, uint32_t ticks)
         trk_note_off(&trk[part], from);
         trk_note_on(&trk[part], to, cfp_cfg.vel);
     }
-    cfp_midi(0x80u, ch, from, 0);
-    cfp_midi(0x90u, ch, to, cfp_cfg.vel);
+    cfp_midi(0x80u, part, from, 0);
+    cfp_midi(0x90u, part, to, cfp_cfg.vel);
 }
 
 static int has(const uint8_t *a, int n, uint8_t v)
@@ -299,7 +301,7 @@ static void cfp_change(uint32_t part, uint8_t *old, uint8_t *pn, const uint8_t *
                         vv[a]->gate = 0, vv[a]->stage = 4;
                     else
                         trk_note_off(&trk[part], from[a]);
-                    cfp_midi(0x80u, cfp_ch(part), from[a], 0);
+                    cfp_midi(0x80u, part, from[a], 0);
                     cfp_on_from(part, nw[b], vel, from[a], ticks);
                 } else if (from[a] != nw[b]) {
                     if (vv[a]) {
@@ -311,8 +313,8 @@ static void cfp_change(uint32_t part, uint8_t *old, uint8_t *pn, const uint8_t *
                         trk_note_off(&trk[part], from[a]);
                         trk_note_on(&trk[part], nw[b], vel);
                     }
-                    cfp_midi(0x80u, cfp_ch(part), from[a], 0);
-                    cfp_midi(0x90u, cfp_ch(part), nw[b], vel);
+                    cfp_midi(0x80u, part, from[a], 0);
+                    cfp_midi(0x90u, part, nw[b], vel);
                 }
             } else if (used_p[a] && !used_q[b]) {    /* a split: a new voice out of this old note */
                 used_q[b] = 1;
@@ -332,7 +334,7 @@ static void cfp_change(uint32_t part, uint8_t *old, uint8_t *pn, const uint8_t *
                 } else {
                     trk_note_off(&trk[part], from[a]);
                 }
-                cfp_midi(0x80u, cfp_ch(part), from[a], 0);
+                cfp_midi(0x80u, part, from[a], 0);
             }
         }
         for (i = 0; i < n; i++)                      /* merged away: the extra old voices let go */
@@ -341,7 +343,7 @@ static void cfp_change(uint32_t part, uint8_t *old, uint8_t *pn, const uint8_t *
                     vv[i]->gate = 0, vv[i]->stage = bass ? 4 : 3;   /* (the bass: at once, it is monophonic) */
                 else
                     trk_note_off(&trk[part], from[i]);  /* (still waiting to start: it must not start now) */
-                cfp_midi(0x80u, cfp_ch(part), from[i], 0);
+                cfp_midi(0x80u, part, from[i], 0);
             }
         for (i = 0; i < m; i++)                      /* (a target nobody reached: plainly) */
             if (!used_q[i])

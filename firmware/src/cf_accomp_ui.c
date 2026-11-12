@@ -199,44 +199,46 @@ static void cpa_tempo_info(cf_knob_t *o)
     kint(o->val, cs.clock_in == 1u ? cf_sn.ext_bpm : cs.bpm, cs.clock_in == 1u ? " EXT" : " BPM");
     o->dis = cs.clock_in == 1u;
 }
-static void cpa_ui_record(void)
-{
-    if (sq_home_target() < 0) { cf_message("All 3 recordings are used:\nclear one in RECORDINGS"); return; }
-    /* REC starts a manual take, after count-in, with the groove shown on HOME.
-     * The sequencer's audio-side setup releases automatic chord/bass ownership. */
-    if (cf_evq_w - cf_evq_r > CF_EVQ - 8u) { cf_message("Busy: press REC again"); return; }
-    cpa_plan_t plan;
-    if (cpa_running()) cpa_active_request(&plan);
-    else if (!cpa_prepare_full(&plan, cpg.idea, cs.chord, cpg.rhythm, cpg.mode, cpg.repeat_off, 0)) return;
-    cs.chord.tonic = plan.tonic; cs.chord.scale = plan.scale; cs.beats = plan.beats;
-    cs.chord.quantize = CF_Q_BASIC;
-    cf_post(CFE_ACCOMP, 0, 0, 0);
-    cf_send_config(); cf_send_metro();
-    unsigned workspace=cu.scr;
-    sq_home_rec_r(plan.rhythm, 1);
-    if(workspace==SCR_PEDIT && sqk.on)cu.scr=SCR_PEDIT;
-    if (sqk.on && plan.rhythm < DM_N) {
-        sq_pat_t *p = &sq_st.pat[sqk.pat];
-        p->kit = plan.kit; p->swing = plan.swing;
-        for (unsigned i = 0; i < SQ_NLANE; i++) p->dkit[i] = plan.kit;
-    }
-}
-static void cpa_ui_play(void)
+static int cpa_ui_start(int capture)
 {
     cpa_plan_t p;
-    if (cpa_commanded) {
-        if (cf_post(CFE_ACCOMP, 0, 0, 0)) cpa_commanded = 0;
-        else cf_message("Busy: press PLAY again");
-        return;
-    }
-    if (sqk.on || cf_sn.sq_rec != 255) { cf_message("Finish recording to play"); return; }
     cpa_explore();
     const cf_progression_t *idea = cf_progression_current();
     cf_chord_cfg_t cfg = cs.chord;
     if (!cf_harmony_supported(cfg.scale, CF_Q_BASIC)) cfg.scale = idea->scale;
     if (cpa_prepare_full(&p, cpg.idea, cfg, cpg.rhythm, cpg.mode, cpg.repeat_off, 0)) {
         cpa_publish(&p, 0, 1);
-        if (cf_post(CFE_ACCOMP, 1, 0, 0)) cpa_commanded = 1;
+        if (cf_post(CFE_ACCOMP, 1, capture, 0)) {cpa_commanded = 1;return 1;}
         else cf_message("Busy: press PLAY again");
     } else cf_message("Cannot prepare progression");
+    return 0;
+}
+static void cpa_ui_play(void)
+{
+    if(cpa_commanded){
+        if(cf_post(CFE_ACCOMP,0,0,0))cpa_commanded=0;
+        else cf_message("Busy: press PLAY again");
+    } else if(sqk.on || cf_sn.sq_rec!=255)cf_message("Finish recording to play");
+    else cpa_ui_start(0);
+}
+static int cgs_start_recording(void);
+static void cpa_ui_record(void)
+{
+    if(cr_safe || cfs_restore_lock){cf_message("Recording unavailable: restart");return;}
+    if(sqp.on || (cpa_commanded!=cpa_running()) || (cpa.on && cpa.paused)){
+        cf_message("Stop replay or resume Studio first");
+        return;
+    }
+    int slot=sq_home_target();
+    if(slot<0){cf_message("All 3 recordings are used:\nclear one in RECORDINGS");return;}
+    if(cf_evq_w-cf_evq_r>CF_EVQ-8u){cf_message("Busy: press REC again");return;}
+    memset(&sq_perf_draft,0,sizeof sq_perf_draft);
+    int started=cpa.on?cf_post(CFE_CAPTURE,1,0,0):
+        cgs_home()?cgs_start_recording():cpa_ui_start(1);
+    if(!started)return;
+    sqk.on=sqk.performance=1;
+    sqk.discard=sqk.seen=sqk.rolled=0;
+    sqk.pat=(uint8_t)slot;
+    sqk.nbar=sqk.t=sqk.bt=0;
+    if(cpa.on && sq_capture.state!=SQ_PERF_ACTIVE)cf_message("Recording on the next bar");
 }

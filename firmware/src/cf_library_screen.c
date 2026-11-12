@@ -27,10 +27,10 @@ static void csl_model(csl_model_t *m)
             str_cpy(meta,pending?(csl_tx.remove?"P / Delete pending":"P / Pending: stop + release"):e->unavailable?"P / Restore backup":"P / Saved / ",40);
             if(!pending && e->used){kint(meta+str_len(meta),e->n," slots / ");kint(meta+str_len(meta),e->bpm," bpm");}
         } else {
-            unsigned pat=row-1-CSL_CAPACITY;kint(name,pat+1," Recording");
-            const sq_pat_t *p=&sq_st.pat[pat];
-            str_cpy(meta,sq_unavailable&(1u<<pat)?"R / Unavailable":sqk.on&&sqk.pat==pat?"R / Recording":sq_take_image(pat)->check!=sq_saved[pat]?"R / Pending":"R / Saved",40);
-            if(p->bars){str_cpy(meta+str_len(meta)," / ",40-str_len(meta));kint(meta+str_len(meta),p->bars," bars");}
+            unsigned pat=row-1-CSL_CAPACITY;kint(name,sq_number(pat)," Recording");
+            unsigned bars=sq_perf[pat].bars?sq_perf[pat].bars:sq_st.pat[pat].bars;
+            str_cpy(meta,sq_unavailable&(1u<<pat)?"R / Unavailable":sqk.on&&sqk.pat==pat?"R / Recording":sq_slot_check(pat)!=sq_saved[pat]?"R / Pending":"R / Saved",40);
+            if(bars){str_cpy(meta+str_len(meta)," / ",40-str_len(meta));kint(meta+str_len(meta),bars," bars");}
         }
     }
     str_cpy(m->hint,cslu.mode==CSL_LIST?"SELECT row / SEL load / EDIT manage":cslu.mode==CSL_MANAGE?"K1 action / SEL do / EDIT back":cslu.mode==CSL_CONFIRM?"K1 choice / SEL confirm":"K1 position / K2 letter / SEL save",sizeof m->hint);

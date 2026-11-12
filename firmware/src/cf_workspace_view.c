@@ -3,26 +3,26 @@
  * pans and scales. Tabs and controls are drawn at their fixed coordinates. */
 static void cgu_take_model(cf_stage_model_t *m)
 {
-    const sq_pat_t *p=&sq_st.pat[sqk.pat];
-    unsigned bar=sqk.nbar<SQ_BARS?sqk.nbar:SQ_BARS-1;
+    int live=sqk.on && sqk.performance;
+    unsigned slot=cf_sn.sq_on?cf_sn.sq_pat:sq_view_slot(cgu.take_slot);
+    const sq_perf_t *take=live?&sq_perf_draft:&sq_perf[slot];
+    unsigned bar=live?sqk.nbar:cf_sn.sq_on && take->bars?cf_sn.sq_n%take->bars:0;
     unsigned first=bar?bar-1:0;
-    unsigned unit=sq_beats*SQ_UB;
-    if(!unit)return;
-    for(unsigned i=0;i<p->nev;i++){
-        const sq_ev_t *e=&p->ev[i];
-        unsigned step=e->pos*CGS_STEPS/unit;
-        if(e->trk<CGS_DRUMS && e->bar>=first && e->bar<first+2 && step<CGS_STEPS)
-            m->steps[e->trk][e->bar-first]|=(uint16_t)(1u<<step);
-    }
-    for(unsigned b=0;b<2;b++)for(unsigned lane=0;lane<SQ_NLANE;lane++)
-        m->steps[CGS_DRUMS][b]|=(uint16_t)p->hit[lane][first+b];
-    m->rec=1;
+    unsigned bt=take->meta.beats*SQ_PPQN;
+    m->rec=live;
     m->phrase_steps=CGS_STEPS;
-    if(sqk.rolled && sqk.bt){
-        unsigned step=sqk.t*CGS_STEPS/sqk.bt;
-        if(step>=CGS_STEPS)step=CGS_STEPS-1;
-        m->beat=(uint8_t)(1+(bar-first)*CGS_STEPS+step);
+    if(!bt)return;
+    unsigned n=take->n;
+    RING_PUBLISH();
+    for(unsigned i=0;i<n;i++){
+        sq_perf_ev_t e=take->ev[i];
+        unsigned tick=e.when&SQ_PERF_TICK, part=(e.when>>SQ_PERF_PART_SHIFT)&3u;
+        unsigned b=tick/bt, step=(tick%bt)*CGS_STEPS/bt;
+        if(b>=first && b<first+2 && (part==SQ_DRUMS || e.data>>7))
+            m->steps[part][b-first]|=(uint16_t)(1u<<step);
     }
+    if((live && sqk.rolled) || (!live && cf_sn.sq_on))
+        m->beat=(uint8_t)(1+(bar-first)*CGS_STEPS+(live?sqk.t:cf_sn.sq_t)*CGS_STEPS/bt);
 }
 
 static void cgu_theory(cf_stage_model_t *m,int active)
@@ -216,7 +216,9 @@ static void cgu_model(cf_stage_model_t *m)
         }
         if(active && (cpa_edit.flags&CPA_GROOVE))str_cpy(m->pending,"Kit queued",sizeof m->pending);
     }
-    if(cgu.tab==CGU_RECORD && sqk.on && sqk.pat<SQ_NPAT)cgu_take_model(m);
+    if(cgu.tab==CGU_RECORD && ((sqk.on && sqk.performance) ||
+       (cf_sn.sq_on?sq_perf[cf_sn.sq_pat].bars:!active && sq_perf[sq_view_slot(cgu.take_slot)].bars)))
+        cgu_take_model(m);
     else if(cgu.tab==CGU_RECORD)cgu_phrase_model(m,(1u<<CGS_NPART)-1u,active);
     else if(cgu.tab==CGU_STUDIO && detail && !m->bank && m->shaping==CGU_PART_EVOLVE)
         cgu_phrase_model(m,1u<<m->focus,active);
@@ -229,8 +231,11 @@ static void cgu_model(cf_stage_model_t *m)
     if(cgu.tab==CGU_SOUND)m->build=cgu.all_sounds;
     if(cgu.tab==CGU_RECORD){
         m->slot=cgu.take_slot;
-        for(unsigned i=0;i<SQ_NPAT;i++)if(sq_has(i))m->count|=(uint8_t)(1u<<i);
-        m->total=sq_unavailable;
+        for(unsigned i=0;i<SQ_NPAT;i++){
+            unsigned slot=sq_view_slot(i);
+            if(sq_has(slot))m->count|=(uint8_t)(1u<<i);
+            if(sq_unavailable&(1u<<slot))m->total|=(uint8_t)(1u<<i);
+        }
         if(cgu.clear_down)m->pulse=(uint8_t)clampi((int)(cu.now-cgu.clear_down)/30,0,100);
     }
     if(m->workspace==CGU_STUDIO && m->zoom<100 && m->rack_scroll+CGU_BAY_H>cgu_rack_offset(CGU_STUDIO,CGS_NPART)){
@@ -292,7 +297,7 @@ static void cgu_help_draw(const cf_stage_model_t *m)
         {"PLAY starts or stops the band.","SELECT switches the top tab.","ALGORITHM picks a musician."},
         {0,0,0},
         {"SEL zooms in or out.","SELECT turns tabs or zoomed pages.","GLO opens live controls."},
-        {"The lanes show generated phrases.","REC starts a manual take.","USB audio captures the mix."}
+        {"REC captures the four parts.","PLAY replays a saved take.","USB audio captures the mix."}
     };
     if(m->focus==CGU_HARMONY){
         cf_learn_keyboard(&m->learn,16,208);
@@ -802,7 +807,7 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
         m->section&CGS_FORM_FILL?"Band turnaround":m->section&CGS_FORM_LAYER_REST?"Band breather":
         studio?(m->live && !m->bank?"EDIT New part":"EDIT New take"):
         tab==CGU_SOUND?(!m->live?"EDIT Reroll sounds":mix?"K1-4 Levels":m->bank?"EDIT Reroll sounds":m->sound_page==CGU_TONE?"EDIT Reroll part":""):
-        tab==CGU_RECORD?(m->rec?"REC Finish take":"REC Manual take"):"";
+        tab==CGU_RECORD?(m->rec?"REC Finish take":"REC Record band"):"";
     if(fx_presets)hint="EDIT FX controls";
     int footer=overview?227:207;
     cfn_fit(&CFN_11,10,footer,hint,101,FL_INK2);

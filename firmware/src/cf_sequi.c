@@ -59,6 +59,7 @@ static struct {
 /* a take from HOME (cf_sequi.c sq_home_rec, below) */
 static struct {
     uint8_t on;                  /* a take under way (its pattern: pat) */
+    uint8_t performance, discard;
     uint8_t pat, last;           /* .. its pattern; the pattern last recorded or opened (0xFF none) */
     uint8_t song;                /* .. the song's page was opened after it (its song not empty): PLAY on HOME plays
                                   * the song (the owner, 2026-10-20: "Когда включён режим песни, выхожу на главный,
@@ -265,6 +266,7 @@ static int sq_open(void)                         /* returns 1: the track's scree
             squ.pat = sq_st.song.pat[squ.slot % sq_st.song.n] % SQ_NPAT;
         return 0;
     }
+    if(sq_perf[squ.pat].bars){cf_message("PLAY replays the take");return 0;}
     p = sq_cur();
     if (sq_empty(p))
         sq_fresh_kept(p);
@@ -512,6 +514,7 @@ static void sq_copy_pattern(uint32_t from, uint32_t to)
     to %= SQ_NPAT;
     if (from == to)
         return;
+    if(sq_perf[from].bars || sq_perf[to].bars){cf_message("Choose a legacy pattern");return;}
     str_cpy(m, "Pattern   ", sizeof m);
     m[8] = (char)('A' + from);
     if (sq_empty(&sq_st.pat[from])) {
@@ -808,6 +811,7 @@ static int sq_key(int key, int down)             /* returns 1: the key is the se
 /* REC tapped on these screens: a take into the track in the frame (from SEQUENCER: its track opens, so the notes are
  * seen as they come), or the take ends. On the song: nothing (a take is a track's) */
 static int sq_open(void);
+static void sq_play_take(unsigned pat);
 /* a take's grid: 16 a bar in 4/4, twice the default STEPS, in every bar of the track left at the default; a bar whose
  * STEPS the player set keeps them, and the take lands on its marks (the owner, 2026-10-20: "Давай всё же при записи с
  * HOME (да и везде) ставить 16, ака 2х по умолчанию, а там уже если пользователь в секвенсоре переключил у такта, то
@@ -838,6 +842,7 @@ static void sq_rec_tap(void)
     }
     if (squ.pat >= SQ_NPAT)
         return;
+    if(sq_perf[squ.pat].bars){cf_message("REC on HOME starts a new take");return;}
     p = sq_cur();
     if (cu.scr == SCR_SQ) {
         if (!sq_open())
@@ -980,6 +985,7 @@ static void sq_clear_take(unsigned pat)
         cf_message("Stop playback to clear"); return;
     }
     memset(&sq_st.pat[pat], 0, sizeof sq_st.pat[pat]);
+    sq_perf[pat].bars=0;
     memset(cfps.r[pat], 0, sizeof cfps.r[pat]);
     sq_unavailable &= (uint8_t)~(1u << pat);
     sq_serial[pat]=0;sq_reorder();
@@ -1015,8 +1021,11 @@ static void sq_play(void)
                                                   * owner, 2026-10-19) */
         cf_post(CFE_TRANSPORT, 0, 0, 1);
     else {
-        sq_activate(squ.pat);
-        cf_post(CFE_SEQ, 1, song ? SQ_NPAT : squ.pat, squ.slot);
+        if(!song && squ.pat<SQ_NPAT && sq_perf[squ.pat].bars)sq_play_take(squ.pat);
+        else {
+            sq_activate(squ.pat);
+            cf_post(CFE_SEQ, 1, song ? SQ_NPAT : squ.pat, squ.slot);
+        }
     }
 }
 
@@ -1026,7 +1035,7 @@ static void sq_play(void)
 static int sq_has(uint32_t pat)                  /* the pattern holds steps (opened and left empty: not) */
 {
     const sq_pat_t *p = &sq_st.pat[pat % SQ_NPAT];
-    return !sq_empty(p) && (p->nev || sq_drums(p));
+    return sq_perf[pat%SQ_NPAT].bars || (!sq_empty(p) && (p->nev || sq_drums(p)));
 }
 static int sq_home_free(void)                    /* the first pattern with nothing written, -1 */
 {
@@ -1045,6 +1054,14 @@ static int sq_home_target(void)
 }
 static void sq_home_end(int drop)                /* the take ends (drop: it goes, the pattern as it was) */
 {
+    if(sqk.on && sqk.performance){
+        if(sq_capture.state!=SQ_PERF_DONE && !cf_post(CFE_CAPTURE,0,!drop,0)){
+            cf_message("Busy: try again");
+            return;
+        }
+        sqk.discard=(uint8_t)drop;
+        return;
+    }
     sq_pat_t *p = &sq_st.pat[sqk.pat % SQ_NPAT];
     uint32_t bars, i, n = 0;
     char m[40];
@@ -1112,7 +1129,7 @@ static void sq_hint_once(uint32_t bit)
     cu.pop_until = cu.now + 1500u;
     sqh_scr = cu.scr;
 }
-static int cgu_recording_here(void);
+static int cgs_home(void);
 static void sq_home_rec_r(uint32_t r, int counted);
 static void sq_home_rec(void)                    /* REC tapped */
 {
@@ -1120,6 +1137,7 @@ static void sq_home_rec(void)                    /* REC tapped */
         sq_home_end(0);
         return;
     }
+    if(sqp.on && sq_perf[sqp.pat].bars){cf_message("Stop replay to record");return;}
     if (cf_sn.sq_rec != 0xFFu) {                 /* (a take begun on a SEQUENCER screen: REC ends it, as there) */
         cf_post(CFE_SEQ, 5, 0, 0);
         return;
@@ -1128,7 +1146,7 @@ static void sq_home_rec(void)                    /* REC tapped */
         cf_post(CFE_DRUM, 5, 0, 0);
         return;
     }
-    if (cpa_running() || ((cu.scr == SCR_HOME && cf_scene() == CF_SCENE_PROGRESSIONS) || cu.scr==SCR_ACC || cu.scr==SCR_PEDIT)) {
+    if (cgs_home() || cpa_running() || ((cu.scr == SCR_HOME && cf_scene() == CF_SCENE_PROGRESSIONS) || cu.scr==SCR_ACC || cu.scr==SCR_PEDIT)) {
         cpa_ui_record(); return;
     }
     if (dm_home_rec())                           /* (under a rhythm: cf_dmui.c) */
@@ -1143,6 +1161,7 @@ static void sq_home_rec_r(uint32_t r, int counted)
 {
     sq_pat_t *p;
     int f, under = r < DM_N, live = under && !counted && cf_sn.dm_on && cf_sn.dm_r == r;
+    if(sqp.on && sq_perf[sqp.pat].bars){cf_message("Stop replay to record");return;}
     f = sq_home_target();
     if (f < 0) {
         cf_message("All 3 recordings are used:\nclear one in RECORDINGS");
@@ -1174,7 +1193,7 @@ static void sq_home_rec_r(uint32_t r, int counted)
     sqk.nbar = sqk.t = sqk.bt = 0;
     sqk.from = (uint8_t)cu.scr;
     squ.bar = squ.step = 0;
-    if (sq_open() && !cgu_recording_here())       /* classic recording opens its track before count-in */
+    if ((CF_SCENES || cu.scr!=SCR_HOME) && sq_open())
         ui_open(SCR_SQED);
     squ.nofr = 1;                                /* (after it the keys only sound: sq_select brings the frame) */
     if (live)
@@ -1209,15 +1228,18 @@ static void sq_home_play(void)                   /* PLAY tapped */
                                                   * 2026-10-20) */
         cf_post(CFE_SEQ, 1, SQ_NPAT, squ.slot < sq_st.song.n ? squ.slot : 0u);
     else if (pat < SQ_NPAT && sq_has(pat)) {
-        sq_activate(pat);
-        cf_post(CFE_SEQ, 1, (uint8_t)pat, 0);
+        sq_play_take(pat);
     }
     else
         cf_post(CFE_TRANSPORT, 0, 0, 1);         /* (no pattern yet: the beat alone, as before) */
 }
 static void sq_home_cancel(void) /* REC held cancels only the current new take */
 {
-    if (sqk.on) { sq_home_end(1); cf_message("Recording cancelled"); }
+    if (sqk.on) {
+        int performance=sqk.performance;
+        sq_home_end(1);
+        if(!performance)cf_message("Recording cancelled");
+    }
 }
 /* a loop kept by the looper (0.3.1 and before), or one an older backup put back (cf_backup.c id 31): a pattern's
  * CHORDS track at power-on (the owner, 2026-10-19: "Перенести в паттерн"). Its keys are pressed again through a chord
@@ -1341,21 +1363,45 @@ static void sq_from_loop(void)
  * HOME's. Stopped, a change loads at once; playing, the next pattern's sounds are made ready (cf_sound.c cf_snd_build)
  * and the audio side puts them in at the bar line where it comes in (cf_stage_in) */
 static uint8_t sq_snd_force;                     /* (power-on: every part's sound taken again, its tweak with it) */
+static uint8_t sq_restore_home;
+static uint32_t sq_replay_queued;
 static uint32_t sq_cur_pat(void)                 /* 0xFF: none (HOME's sounds) */
 {
     if (sqp.on)                                  /* (the player's own: cf_sn's copy is a frame behind a swap) */
         return sqp.pat % SQ_NPAT;
+    if(cpa.on)return 0xFFu;
     if (sq_screen(cu.scr) && squ.pat < SQ_NPAT && sq_has(squ.pat))
-        return squ.pat;
+        return sq_perf[squ.pat].bars?0xFFu:squ.pat;
     if (sqk.song && sq_st.song.n)
         return sq_st.song.pat[squ.slot < sq_st.song.n ? squ.slot : 0u] % SQ_NPAT;
-    return sqk.last < SQ_NPAT ? sqk.last : 0xFFu;
+    return sqk.last < SQ_NPAT && !sq_perf[sqk.last].bars ? sqk.last : 0xFFu;
 }
 static void sq_snd_want(uint32_t pat, uint32_t part, uint32_t *e, uint32_t *pos)   /* part's sound under pat */
 {
-    if (pat < SQ_NPAT && cfps_where(pat, part, e, pos))
+    if(pat<SQ_NPAT && sq_perf[pat].bars &&
+       cfps_ref_where(&sq_perf[pat].sound[part],e,pos))return;
+    if (pat < SQ_NPAT && !sq_perf[pat].bars && cfps_where(pat, part, e, pos))
         return;
     cf_snd_at(part, part == CF_PART_LAYER ? cs.snd_layer : cs.snd[part], e, pos);
+}
+static void sq_play_take(unsigned pat)
+{
+    if(cf_evq_w-cf_evq_r>CF_EVQ-6u){cf_message("Busy: press PLAY again");return;}
+    if(sq_perf[pat].bars){
+        sq_restore_home=1;
+        for(unsigned part=0;part<3;part++){
+            unsigned engine,pos;
+            sq_snd_want(pat,part,&engine,&pos);
+            cf_stage_t *s=&cf_stage[part];
+            s->ready=0;
+            cf_snd_build(part,engine,pos,s);
+            s->own1=s->tw=0;s->pat=(uint8_t)pat;
+            RING_PUBLISH();
+            s->ready=1;
+        }
+    }
+    sq_activate(pat);
+    if(cf_post(CFE_SEQ,1,pat,0) && sq_perf[pat].bars)sq_replay_queued=cf_evq_w;
 }
 static uint32_t sq_next_pat(void)                /* playing: the pattern that comes in next (0xFF: the same, round) */
 {
@@ -1367,7 +1413,7 @@ static uint32_t sq_next_pat(void)                /* playing: the pattern that co
     slot = sqp.slot;
     for (i = 0; i < sq_st.song.n; i++) {          /* (as the player goes on: an empty one passed over) */
         slot = (slot + 1u) % sq_st.song.n;
-        if (!sq_empty(&sq_st.pat[sq_st.song.pat[slot] % SQ_NPAT]))
+        if (sq_has(sq_st.song.pat[slot] % SQ_NPAT))
             return sq_st.song.pat[slot] % SQ_NPAT;
     }
     return 0xFFu;
@@ -1382,9 +1428,15 @@ static void sq_snd_poll(void)
 {
     cge_sound_poll();if(cge_active())return;
     uint32_t cur = sq_cur_pat(), nx = sqp.on ? sq_next_pat() : 0xFFu, part, e, pos, ne, np, follow = 0;
+    if(cur<SQ_NPAT && sq_perf[cur].bars){
+        for(part=0;part<3;part++)if(cf_stage[part].taken && cf_stage[part].pat==cur)cf_stage[part].taken=0;
+        return;
+    }
+    if(sq_restore_home && (int32_t)(cf_evq_r-sq_replay_queued)<0)return;
+    if(sq_restore_home && !sqp.on && !cpa.on){sq_snd_force=1;sq_restore_home=0;}
     for (part = 0; part < 3u; part++) {
         cf_stage_t *s = &cf_stage[part];
-        uint32_t o = cur < SQ_NPAT && cfps.r[cur][part].own ? cur + 1u : 0u;
+        uint32_t o = cur < SQ_NPAT && !sq_perf[cur].bars && cfps.r[cur][part].own ? cur + 1u : 0u;
         int diff;
         if (s->taken) {                          /* (the audio side put one in at the bar line) */
             s->taken = 0;
@@ -1407,7 +1459,7 @@ static void sq_snd_poll(void)
         /* another sound, or the same one of another owner (HOME's and a pattern's own, two patterns': their tweaks
          * are theirs) */
         if (sq_snd_force || ((diff || cfk_own[part] != o) && !(s->ready && s->pat == cur))) {
-            if (diff || cfk_edited(part))
+            if (sq_snd_force || diff || cfk_edited(part))
                 cf_pool_load(part, e, pos);      /* (stopped, or it came in without one ready: now; the same sound
                                                   * again without the last owner's tweak) */
             cfk_take(part, o);                   /* (its owner's tweak on it; edits from now on go to it) */
@@ -1448,6 +1500,37 @@ static void sq_snd_poll(void)
     sq_snd_force = 0;
     if (follow && cs.env_link)
         cf_env_follow();                         /* (linked: the bass takes the chord sound's envelope) */
+}
+
+static void sq_performance_poll(void)
+{
+    if(sq_capture.state==SQ_PERF_ACTIVE){
+        unsigned bt=sq_perf_draft.meta.beats*SQ_PPQN;
+        unsigned tick=sq_capture.tick;
+        sqk.seen=sqk.rolled=1;
+        sqk.bt=bt;sqk.nbar=tick/bt;sqk.t=tick%bt;
+    }
+    if(sq_capture.state!=SQ_PERF_DONE)return;
+    RING_PUBLISH();
+    sq_capture.state=SQ_PERF_IDLE;
+    sqk.on=sqk.performance=0;
+    if(sqk.discard || !sq_perf_draft.n){
+        cf_message(sqk.discard?"Recording cancelled":"Nothing recorded");
+        return;
+    }
+    unsigned slot=sqk.pat, bt=sq_perf_draft.meta.beats*SQ_PPQN;
+    sq_perf_t *r=&sq_perf_draft;
+    r->magic=SQ_TAKE_MAGIC;r->version=2;r->slot=slot;
+    r->bars=(r->end+bt-1u)/bt;r->size=SQ_PERF_SIZE(r->n);
+    r->serial=sq_serial[sq_order[0]]+1u;
+    r->check=sq_perf_check(r);
+    sq_perf[slot]=*r;
+    memset(&sq_st.pat[slot],0,sizeof sq_st.pat[slot]);
+    memset(cfps.r[slot],0,sizeof cfps.r[slot]);
+    sq_meta[slot]=r->meta;sq_meta_known|=1u<<slot;sq_serial[slot]=r->serial;
+    sqk.last=slot;sqk.song=0;sq_reorder();sq_touch();
+    cgu_select_latest_take();
+    cf_message(sq_capture.full?"Recording 1 kept (memory full)":"Recording 1 kept");
 }
 /* HOME's sounds as what they are, and back as places in the row once a SAVE or a delete moved it (the parts may play
  * a pattern's own: HOME's are not theirs) */
@@ -1568,6 +1651,7 @@ static void sq_home_poll(void)                   /* every frame */
         sq_hint_once(SQH_HOME);                  /* (HOME after the first take: how to come back) */
     if (!sqk.on)
         return;
+    if(sqk.performance){sq_performance_poll();return;}
     if (cf_sn.sq_rec != 0xFFu) {
         sqk.seen = 1;
         if (!cf_sn.sq_cin) {                     /* (its bars: the count-in over) */

@@ -46,7 +46,7 @@ static void ui_open(uint32_t scr);
 
 static int cgu_play_part(void)
 {
-    if(!CF_STUDIO || CF_SCENES || sqk.on || cf_sn.sq_rec!=255)return -1;
+    if(!CF_STUDIO || CF_SCENES || (sqk.on && !sqk.performance) || cf_sn.sq_rec!=255)return -1;
     return cgs_home() || cgu.return_screen==SCR_FX ? cgs.focus : -1;
 }
 static int cgu_keys_arp(void)
@@ -388,6 +388,21 @@ static int cgu_recording_here(void)
     return cgs_home() && cgu.tab==CGU_RECORD;
 }
 
+static void cgu_select_latest_take(void)
+{
+    cgu.take_slot=0;
+}
+static void cgu_open_take(unsigned pat)
+{
+    ui_open(SCR_HOME);
+    home_boot_main=1;
+    cf_home_bank=CF_HB_ENGINE;
+    cf_scene_set(CF_SCENE_PROGRESSIONS);
+    if(cgu.tab!=CGU_RECORD)cgu_tab_turn(CGU_RECORD-cgu.tab);
+    cgu.take_slot=(uint8_t)(sq_number(pat)-1u);
+    cu.pop=POP_NONE;
+}
+
 static void cgu_clear_poll(void)
 {
     if(!cgu.clear_down)return;
@@ -398,7 +413,7 @@ static void cgu_clear_poll(void)
     }
     if(cu.now-cgu.clear_down>=3000u){
         cgu.clear_down=0;
-        sq_clear_take(cgu.take_slot);
+        sq_clear_take(sq_view_slot(cgu.take_slot));
     }
 }
 
@@ -615,7 +630,7 @@ static void cgu_roll_studio_sounds(unsigned first,unsigned end)
 
 static int cgu_perform_ready(void)
 {
-    return cgs_active() && !cpa.clock_wait && !cpa.paused && !sqk.on && cpa.plan.rhythm<DM_N;
+    return cgs_active() && !cpa.clock_wait && !cpa.paused && cpa.plan.rhythm<DM_N;
 }
 
 static void cgu_perform(unsigned action)
@@ -825,8 +840,10 @@ static void cgu_knob_turn(int k,int d)
     case CGU_KNOB_LIBRARY: cgu.all_sounds=(uint8_t)(d>0);break;
     case CGU_KNOB_SOUND: cgu_sound_turn(cgs.focus,page,k,d);break;
     case CGU_KNOB_TAKES:
-        cgu.take_slot=(uint8_t)wrapi(cgu.take_slot+d%SQ_NPAT,SQ_NPAT);
-        cgu.clear_down=0;
+        if(k==0){
+            cgu.take_slot=(uint8_t)wrapi(cgu.take_slot+d%SQ_NPAT,SQ_NPAT);
+            cgu.clear_down=0;
+        }
         break;
     case CGU_KNOB_LESSON: cf_harmony_turn(0,d);break;
     }
@@ -934,10 +951,10 @@ static void cgu_knob_read(unsigned panel,int k,cf_knob_t *o,int detail)
     case CGU_KNOB_SOUND: cgu_sound_info(k,o,cgs.focus,cgu_tone_page(detail));break;
     case CGU_KNOB_TAKES:
         if(k==0){
-            unsigned slot=cgu.take_slot;
+            unsigned slot=sq_view_slot(cgu.take_slot);
             kfmt(o->name,12,"TAKE");
-            kint(o->val,slot+1u,(sq_unavailable&(1u<<slot))?" Unread":sq_has(slot)?" Saved":" Empty");
-            o->bar=(int16_t)(slot*255u/(SQ_NPAT-1u));
+            kint(o->val,cgu.take_slot+1u,(sq_unavailable&(1u<<slot))?" Unread":sq_has(slot)?" Saved":" Empty");
+            o->bar=(int16_t)(cgu.take_slot*255u/(SQ_NPAT-1u));
         }
         break;
     case CGU_KNOB_LESSON:

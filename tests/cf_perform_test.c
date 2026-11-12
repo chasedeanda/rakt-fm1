@@ -161,7 +161,7 @@ static void shared_start(unsigned r)
     cpa_setup.plan.beats=DM_RHY[r].beats;cpa_setup.plan.rhythm=r;
     cpa_setup.plan.kit=DM_RHY[r].kit;cpa_setup.plan.swing=DM_RHY[r].swing;
     for(unsigned i=0;i<cpa_setup.plan.n;i++)cpa_setup.plan.slot[i].ticks=DM_RHY[r].beats*SQ_PPQN;
-    CHECK(cpa_valid(&cpa_setup.plan));cpa_start();notes();
+    CHECK(cpa_valid(&cpa_setup.plan));cpa_start(0);notes();
 }
 static void shared(void)
 {

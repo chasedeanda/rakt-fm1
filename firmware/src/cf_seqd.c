@@ -125,6 +125,82 @@ typedef struct {
 } sq_take_rec_t;
 _Static_assert(sizeof(sq_take_rec_t) == 2556u, "recording v1 layout");
 
+typedef struct {
+    uint8_t own, engine, kind, fk, slot, nck;
+    uint16_t pos;
+} cf_sref_t;
+
+/* A performance stores the emitted notes at the transport's 96 ticks per beat.
+ * The top bits of when encode the part and, for drums, the strike velocity.
+ * Pitched data is note | velocity << 7 (zero velocity releases the note).
+ * Drum data is lane | kit << 4 | level << 9. */
+#define SQ_PERF_EVENTS 940u
+#define SQ_PERF_TICK 0x1FFFu
+#define SQ_PERF_PART_SHIFT 13u
+#define SQ_PERF_DRUM_SOFT 0x8000u
+typedef struct { uint16_t when, data; } sq_perf_ev_t;
+typedef struct {
+    uint32_t magic, check;
+    uint16_t size;
+    uint8_t version, slot;
+    uint32_t serial;
+    sq_take_meta_t meta;
+    uint16_t n, end;
+    uint8_t bars, reserved;
+    cf_sref_t sound[3];
+    uint8_t level[SQ_NTRK];
+    uint8_t space, padding;
+    sq_perf_ev_t ev[SQ_PERF_EVENTS];
+} sq_perf_t;
+#define SQ_PERF_SIZE(n) (__builtin_offsetof(sq_perf_t, ev) + (n) * sizeof(sq_perf_ev_t))
+static sq_perf_t sq_perf[SQ_NPAT] __attribute__((section(".pool"), aligned(4)));
+static sq_perf_t sq_perf_draft __attribute__((section(".pool"), aligned(4)));
+enum { SQ_PERF_IDLE, SQ_PERF_ARMED, SQ_PERF_ACTIVE, SQ_PERF_DONE };
+static struct {
+    volatile uint8_t state;
+    uint8_t full;
+    uint16_t tick;
+} sq_capture;
+static void sq_perf_finish(void)
+{
+    if(sq_capture.state!=SQ_PERF_ARMED && sq_capture.state!=SQ_PERF_ACTIVE)return;
+    sq_perf_draft.end=sq_capture.tick+1u;
+    RING_PUBLISH();
+    sq_capture.state=SQ_PERF_DONE;
+}
+static void sq_perf_emit(unsigned part,unsigned data,unsigned drum_velocity)
+{
+    if(sq_capture.state!=SQ_PERF_ACTIVE)return;
+    if(sq_perf_draft.n>=SQ_PERF_EVENTS){
+        sq_capture.full=1;
+        sq_perf_finish();
+        return;
+    }
+    unsigned when=sq_capture.tick | part<<SQ_PERF_PART_SHIFT;
+    if(drum_velocity)when|=SQ_PERF_DRUM_SOFT;
+    sq_perf_draft.ev[sq_perf_draft.n++]=(sq_perf_ev_t){when,data};
+}
+static void sq_perf_note(unsigned part,unsigned note,unsigned velocity)
+{
+    if(sq_capture.state==SQ_PERF_ACTIVE && part<SQ_DRUMS &&
+       (!velocity || (!trk[part].p[P_MUTE] && trk[part].p[P_LEVEL])))
+        sq_perf_emit(part,note | velocity<<7,0);
+}
+static void sq_perf_seed_held(void)
+{
+    for(unsigned part=0;part<SQ_DRUMS;part++){
+        uint32_t seen[4]={0};
+        for(unsigned i=0;i<NVOICE;i++){
+            const voice_t *v=&trk[part].v[i];
+            if(!v->active || !v->gate)continue;
+            unsigned word=v->note/32u, bit=1u<<(v->note%32u);
+            if(seen[word]&bit)continue;
+            sq_perf_note(part,v->note,v->vel);
+            seen[word]|=bit;
+        }
+    }
+}
+
 /* the drum kits (KIT, PRESETS on DRUMS): the DRUM engine's eight knobs set together (eng_drum.c: KIT, TUNE, TONE,
  * DECY, SNAP, ACC, KICK, DRV), so a kit changes every drum (its KIT alone swapped three of the eight, and the kit
  * seemed to do nothing: the owner, 2026-10-19). KIT 1: congas and a clave for the toms and the rim (the crash has a

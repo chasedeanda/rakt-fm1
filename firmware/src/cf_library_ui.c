@@ -5,12 +5,16 @@ enum { CSL_LIST, CSL_MANAGE, CSL_CONFIRM, CSL_RENAME };
 enum { CSL_LOAD, CSL_DUPLICATE, CSL_RENAME_ACTION, CSL_DELETE, CSL_NACTION };
 static const char *const CSL_ACTION[]={"Load","Duplicate","Rename","Delete"};
 static struct { uint8_t row, mode, action, choice, cursor;char name[CF_SONG_NAME+1]; } cslu;
+static void cgu_open_take(unsigned pat);
 /* 0 = Save current; 1..6 = persistent ideas; 7..9 = recorder slots. */
 static unsigned csl_rows(uint8_t rows[1+CSL_CAPACITY+SQ_NPAT])
 {
     unsigned n=0;rows[n++]=0;
     for(unsigned i=0;i<CSL_CAPACITY;i++)if(csl_index[i].used || csl_index[i].unavailable || (csl_tx.pending && csl_tx.slot==i))rows[n++]=1+i;
-    for(unsigned i=0;i<SQ_NPAT;i++)if(sq_has(i) || (sq_unavailable&(1u<<i)))rows[n++]=1+CSL_CAPACITY+i;
+    for(unsigned i=0;i<SQ_NPAT;i++){
+        unsigned pat=sq_view_slot(i);
+        if(sq_has(pat) || (sq_unavailable&(1u<<pat)))rows[n++]=1+CSL_CAPACITY+pat;
+    }
     return n;
 }
 static unsigned csl_selected(void)
@@ -109,8 +113,12 @@ static void csl_execute(void)
             cslu.mode=CSL_LIST;return;
         }
         if(cslu.mode==CSL_MANAGE && cslu.action==CSL_DELETE){cslu.mode=CSL_CONFIRM;cslu.choice=0;return;}
-        if(!csl_available() || !cfd_audio_quiet()){cf_message("Stop/release notes to load");return;}
+        if(!csl_available())return;
+        if(cpa.on || cpa_commanded || sqp.on || cf_sn.sq_on || cf_sn.sq_rec!=255 || cf_sn.dm_on){
+            cf_message("Stop playback to open the take");return;
+        }
         if(!sq_has(pat)){cf_message("Recording unavailable");return;}
+        if(CF_STUDIO && !CF_SCENES){cgu_open_take(pat);return;}
         sqk.last=pat;sqk.song=0;squ.pat=pat;sq_activate(pat);cu.scr=SCR_SQ;cu.pop=POP_NONE;return;
     }
     unsigned slot=row-1;

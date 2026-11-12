@@ -474,7 +474,7 @@ static void cgs_cancel_rolled_sounds(void)
     for(unsigned p=0;p<CGS_DRUMS;p++)
         if(cf_stage[p].pat==CGS_PATCH_ROLL)cf_stage[p].ready=0;
 }
-static int cgs_take_from(int play,int reroll,const cf_song_t *draft)
+static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
 {
     if(cr_safe || cfs_restore_lock || sqk.on || cf_sn.sq_on || cf_sn.sq_rec!=255){
         cf_message("Finish recording/playback first");
@@ -558,18 +558,21 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft)
     if(!draft && !cfs_loaded && !cge.tempo_pin)cs.bpm=CGS_PROFILES[cgs.genre].bpm;
     cpa_explore();
     cf_send_metro();
-    if(!cf_post(CFE_ACCOMP,1,0,0))return 0;
+    if(!cf_post(CFE_ACCOMP,1,capture,0))return 0;
     cpa_commanded=1;
     return 1;
 }
 static int cgs_new_take_for(int play,int reroll)
-{ return cgs_take_from(play,reroll,cgs.custom?&cgs_custom_harmony:NULL); }
+{ return cgs_take_from(play,reroll,cgs.custom?&cgs_custom_harmony:NULL,0); }
+
+static int cgs_start_recording(void)
+{ return cgs_take_from(1,0,cgs.custom?&cgs_custom_harmony:NULL,1); }
 
 static int cgs_select_progression(int custom,int play)
 {
     if(cpa_commanded!=cpa_running()){cf_message("Transport changing: try again");return 0;}
     if(custom && !cfwd.have){cf_message("EDIT to create a progression");return 0;}
-    return cgs_take_from(play,0,custom?&cfwd.song:NULL);
+    return cgs_take_from(play,0,custom?&cfwd.song:NULL,0);
 }
 static int cgs_new_take(int play)
 { return cgs_new_take_for(play,!play); }

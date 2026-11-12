@@ -90,6 +90,7 @@ static void cr_mrelease(uint32_t p, uint32_t note)
         if (cr_mheld[p])
             cr_mheld[p]--;
         trk_note_off(&trk[p], note);
+        sq_perf_note(p,note,0);
     }
 }
 static void cr_mpedal_up(uint32_t p)
@@ -172,6 +173,7 @@ static void __attribute__((noinline)) midi_event(uint32_t st, uint32_t p, uint32
             cr_mrelease(p, d1);
         cr_mbend(p);
         trk_note_on(&trk[p], d1, d2);
+        sq_perf_note(p,d1,d2);
         cr_mnote[p][d1] = 1;
         if (cr_mheld[p] < 128u)
             cr_mheld[p]++;
@@ -238,6 +240,7 @@ static void events_block(uint32_t n)
 /* ------------------------------------------------------------ the queue --- */
 /* UI -> ISR. One producer (the main loop), one consumer (the audio ISR): the index stores are the publication */
 enum {
+    CFE_CAPTURE,      /* a: 1 arm at the next accompaniment bar, 0 finish */
     CFE_PERFORM,      /* a: CFPERF_FILL / DROP / BACK, next-bar transient moment */
     CFE_ACCOMP,       /* a: stop/start/Studio pause or restart */
     CFE_KEY,          /* a: key 0..26, v: down */
@@ -545,6 +548,16 @@ static void cf_apply(const cf_ev_in_t *e)
     if(e->op==CFE_PANIC || e->op==CFE_ACCOMP || e->op==CFE_SEQ || e->op==CFE_DRUM || e->op==CFE_TRANSPORT)cla_cancel(0);
     if(e->op==CFE_CONFIG)cla_cancel(1);
     switch (e->op) {
+    case CFE_CAPTURE:
+        if(e->a){
+            sq_capture.tick=sq_capture.full=0;
+            sq_capture.state=SQ_PERF_ARMED;
+            if(!cpa.on)sq_perf_finish();
+        } else {
+            sq_perf_finish();
+            if(e->b)cpa_stop();
+        }
+        break;
     case CFE_KEY:
         if (e->v) {
             sqp.rage = e->b;                     /* (its age, ms: a take puts it back where it was played) */
@@ -562,7 +575,7 @@ static void cf_apply(const cf_ev_in_t *e)
     case CFE_CONFIG: cfp_config(); cpa_arp_config(); break;
     case CFE_ACCOMP:
         if (e->a >= CGS_PLAY_PAUSE) cgs_live_transport(e->a);
-        else if (e->a) cpa_start();
+        else if (e->a) cpa_start(e->b);
         else {
             if(cgs_active() && cpa_setup.flags && cpa_setup.plan.studio){
                 cpa_setup.plan=cpa.plan;
@@ -733,6 +746,10 @@ static void cf_visual_publish(uint32_t peak)
         cf_visual_window_peak=cf_visual_peak;cf_visual_window_ms=cf_now_ms;
     }
     cf_visual_parts=0;
+    if(sqp.on && sq_perf[sqp.pat].bars)
+        for(unsigned p=0;p<SQ_DRUMS;p++)
+            if(sq_perf_held[p][0] || sq_perf_held[p][1] || sq_perf_held[p][2] || sq_perf_held[p][3])
+                cf_visual_parts|=1u<<p;
     if(trk[0].p[P_LEVEL] && (cfp.n || sqp.dn || cla.on))cf_visual_parts|=1;
     if(trk[1].p[P_LEVEL] && (cfp.nb || sqp.nb))cf_visual_parts|=2;
     if(trk[2].p[P_LEVEL] && sqp.ln)cf_visual_parts|=4;

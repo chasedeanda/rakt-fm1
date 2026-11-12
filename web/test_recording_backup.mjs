@@ -32,7 +32,7 @@ function backupSide(version, ids, objs = [], refuse = []) {   // refuse: ids who
 // precede independent takes, even when the JSON objects have been rearranged.
 for (const [sourceVersion,targetVersion] of [["CoralFlower dev","CoralFlower dev"],["CoralFlower 1.0","CORD 1.0"],["CORD 1.0","CoralFlower 1.0"],["CORD 1.0","CORD 1.0"],["CORD 1.0","RAKT 0.1.0"],["RAKT 0.1.0","CORD 1.0"]]) {
   const ids = CF_BACKUP_IDS;
-  const takes = [71,72,73].map((id) => [id,fill(2556,id)]);
+  const takes = [[71,2556],[72,220],[73,3804]].map(([id,size]) => [id,fill(size,id)]);
   const source = backupSide(sourceVersion,ids,[...cfData(),...takes]);
   const file = await captureBackup(async ([cmd,args]) => Uint8Array.from(source.handle(cmd,args)),sourceVersion);
   file.objects.reverse();

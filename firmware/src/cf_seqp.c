@@ -101,11 +101,14 @@ static void sqp_rpush(const sqr_ev_t *e)
     sqp_rw++;
 }
 
+static uint32_t sq_perf_held[SQ_DRUMS][4];
 static int sqp_holds(uint32_t part, uint32_t note)
 {
     uint32_t i;
     if (!sqp.on && !cpa_running())
         return 0;
+    if(sqp.on && sq_perf[sqp.pat].bars && part<SQ_DRUMS)
+        return (sq_perf_held[part][note/32u]>>(note%32u))&1u;
     if (part == 0u || part == 2u) {              /* (a track's arpeggiator: the notes it sounds) */
         const cfa_t *a = &cfa_sq[part == 2u];
         if (a->on && a->n) {
@@ -141,7 +144,7 @@ static void sqp_off(uint32_t part, uint32_t note)
     if (cfp_holds(part, note))                   /* (the keys sound it too: theirs to let go) */
         return;
     trk_note_off(&trk[part], note);
-    cfp_midi(0x80u, cfp_ch(part), note, 0);
+    cfp_midi(0x80u, part, note, 0);
 }
 static void sqp_chord_off(void)
 {
@@ -264,7 +267,7 @@ static void sqp_chord_glide(const sq_ev_t *e, uint32_t ticks, int legato)
                     trk_retune(&trk[0], v, e->note[b], ticks);
                 v->gate = 0;
                 v->stage = 3;
-                cfp_midi(0x80u, cfp_ch(0), old[a], 0);
+                cfp_midi(0x80u, 0, old[a], 0);
             } else {
                 sqp_off(0, old[a]);
             }
@@ -291,6 +294,61 @@ static void sqp_lane_kit(uint32_t l, uint32_t k, uint32_t lvl)   /* lvl: its lev
         drum_lane_knobs[0][el][i] = (int16_t)SQ_KITS[k % SQ_NKIT].e[i];
     drum_lane_knobs[0][el][8] = SQ_KITS[k % SQ_NKIT].ds;   /* (a kit of the second engine: drum_synth.c) */
     drum_lane_att[0][el] = (uint8_t)(100u - (lvl < 100u ? lvl : 100u));
+}
+
+static void sqp_drum_hit(unsigned lane,unsigned kit,unsigned level,unsigned velocity)
+{
+    if(!trk[SQ_DRUMS].p[P_MUTE] && trk[SQ_DRUMS].p[P_LEVEL])
+        sq_perf_emit(SQ_DRUMS,lane | kit<<4 | (level<100u?level:100u)<<9,velocity==95u);
+    sqp_lane_kit(lane,kit,level);
+    cfp_on(SQ_DRUMS,SQ_LANE_NOTE[lane],velocity);
+    sqp.doff|=(uint16_t)(1u<<lane);
+    sqp.lane_t[lane]=sqp.lit_t[SQ_DRUMS]=cf_now_ms?cf_now_ms:1;
+}
+
+static uint16_t sq_perf_cursor;
+static unsigned sq_play_bars(unsigned pat)
+{
+    return sq_perf[pat].bars?sq_perf[pat].bars:sq_len(&sq_st.pat[pat]);
+}
+static void sq_perf_release(void)
+{
+    for(unsigned part=0;part<SQ_DRUMS;part++)
+        for(unsigned i=0;i<4;i++){
+            uint32_t held=sq_perf_held[part][i];
+            while(held){
+                unsigned bit=__builtin_ctz(held);
+                sqp_off(part,32u*i+bit);
+                held&=held-1u;
+            }
+            sq_perf_held[part][i]=0;
+        }
+}
+static void sq_perf_play_tick(const sq_perf_t *take)
+{
+    unsigned tick=sqp.nbar%take->bars*sqp_bar_ticks()+sqp.t;
+    if(!tick || tick==take->end){
+        sq_perf_release();
+        if(!tick)sq_perf_cursor=0;
+    }
+    while(sq_perf_cursor<take->n && (take->ev[sq_perf_cursor].when & SQ_PERF_TICK)<=tick){
+        sq_perf_ev_t e=take->ev[sq_perf_cursor++];
+        unsigned part=(e.when>>SQ_PERF_PART_SHIFT)&3u;
+        if(part==SQ_DRUMS){
+            sqp_drum_hit(e.data&15u,(e.data>>4)&31u,e.data>>9,e.when&SQ_PERF_DRUM_SOFT?95:100);
+        } else {
+            unsigned note=e.data&127u, velocity=e.data>>7;
+            uint32_t *held=&sq_perf_held[part][note/32u], bit=1u<<(note%32u);
+            if(velocity){
+                cfp_on(part,note,velocity);
+                *held|=bit;
+                sqp.lit_t[part]=cf_now_ms;
+            } else if(*held&bit){
+                *held&=~bit;
+                sqp_off(part,note);
+            }
+        }
+    }
 }
 
 /* ARP on a track (CHORDS, LAYER; the ARP button in its editor: the owner, 2026-10-19): its steps are played by an
@@ -363,7 +421,7 @@ static void sqp_fire(const sq_pat_t *p, uint32_t tk, uint32_t u)
                 }
                 sqp_lane_kit(l, p->dkit[l], cf_perf_level(l, h, sq_dsteps(), p->dlev[l]));
                 trk_note_on(&trk[CF_PART_DRUM], SQ_LANE_NOTE[l], 100);
-                cfp_midi(0x90u, cfp_ch(CF_PART_DRUM), SQ_LANE_NOTE[l], 100);
+                cfp_midi(0x90u, CF_PART_DRUM, SQ_LANE_NOTE[l], 100);
                 sqp.doff |= (uint16_t)(1u << l);
                 sqp.lane_t[l] = cf_now_ms;
                 any = 1;
@@ -484,6 +542,10 @@ static void sqp_fire(const sq_pat_t *p, uint32_t tk, uint32_t u)
 /* the tick now: what ends goes, then what begins sounds */
 static void sqp_now(void)
 {
+    if(sq_perf[sqp.pat].bars){
+        sq_perf_play_tick(&sq_perf[sqp.pat]);
+        return;
+    }
     const sq_pat_t *p = &sq_st.pat[sqp.pat % SQ_NPAT];
     uint32_t tk, gl = sqp_glide_ticks();
     /* with the Glide a chord (and the bass made of it) that ends in this tick goes at its end, after what begins in
@@ -555,12 +617,11 @@ static void sqp_rec_stop(void);
 static void sqp_take_tempo(unsigned pat);
 static void sqp_next_bar(void)
 {
-    const sq_pat_t *p = &sq_st.pat[sqp.pat % SQ_NPAT];
     uint32_t i, len;
     if (sqp.rec != 0xFFu && sqp.rlim && sqp.nbar + 1u >= sqp.rlim)   /* (a take from HOME: its bars are up; its last
                                                   * chord ends at this bar's end) */
         sqp_rec_stop();
-    len = sq_len(p);
+    len = sq_play_bars(sqp.pat);
     sqp.t = 0;                                   /* (what sounds lasts on over the bar line: its own count) */
     sqp.nu = sqp.nh = 0;
     if (sqp.next == 0xFFu && (!sqp.song || !sq_st.song.n || sqp.nbar + 1u < len)) {   /* it goes on: alone, round and
@@ -570,6 +631,7 @@ static void sqp_next_bar(void)
         sqp_bars();
         return;
     }
+    sq_perf_release();
     sqp.nbar = 0;
     sqp.bar = 0;
     if (sqp.next != 0xFFu) {                     /* another pattern picked (the song: PLAY on it): it comes in now */
@@ -593,7 +655,7 @@ static void sqp_next_bar(void)
     for (i = 0; i < sq_st.song.n; i++) {            /* (at most once round: a song of empty patterns stays put) */
         sqp.slot = (uint8_t)((sqp.slot + 1u) % sq_st.song.n);
         sqp.pat = sq_st.song.pat[sqp.slot] % SQ_NPAT;
-        if (!sq_empty(&sq_st.pat[sqp.pat]))
+        if (sq_perf[sqp.pat].bars || !sq_empty(&sq_st.pat[sqp.pat]))
             break;
     }
     cf_stage_in(sqp.pat);
@@ -605,7 +667,7 @@ static void sqp_drum_offs(void)                  /* the drums' MIDI notes of the
     uint32_t l;
     for (l = 0; l < SQ_NLANE && sqp.doff; l++)
         if ((sqp.doff >> l) & 1u) {
-            cfp_midi(0x80u, cfp_ch(CF_PART_DRUM), SQ_LANE_NOTE[l], 0);
+            cfp_midi(0x80u, CF_PART_DRUM, SQ_LANE_NOTE[l], 0);
             sqp.doff &= (uint16_t)~(1u << l);
         }
 }
@@ -753,6 +815,7 @@ static void sqp_stop(void)
 {
     if (!sqp.on)
         return;
+    if(sq_perf[sqp.pat].bars)sq_perf_release();
     sqp_chord_off();
     sqp_bass_off();
     sqp_layer_off();
@@ -799,7 +862,8 @@ static void sqp_setup(uint32_t pat, uint32_t slot)
     sqp.slot = (uint8_t)(sqp.song && sq_st.song.n ? slot % sq_st.song.n : 0u);
     sqp.pat = (uint8_t)(sqp.song ? sq_st.song.pat[sqp.slot] % SQ_NPAT : pat);
     sqp_take_tempo(sqp.pat);
-    for (i = 0; sqp.song && i < sq_st.song.n && sq_empty(&sq_st.pat[sqp.pat]); i++) {   /* (an empty one passed over,
+    for (i = 0; sqp.song && i < sq_st.song.n && !sq_perf[sqp.pat].bars && sq_empty(&sq_st.pat[sqp.pat]); i++) {
+                                                  /* (an empty one passed over,
                                                   * as the song goes on: it played a silent bar first) */
         sqp.slot = (uint8_t)((sqp.slot + 1u) % sq_st.song.n);
         sqp.pat = sq_st.song.pat[sqp.slot] % SQ_NPAT;
@@ -904,6 +968,10 @@ static void sqp_rec_stop(void)                   /* REC again: the take ends, th
 /* a drum heard at once (the DRUMS screen: a drum picked, a step set); in a take on DRUMS, a hit there too */
 static void sqp_audition(uint32_t lane, uint32_t kit)   /* kit: the drum's, its level 0..100 % above it (bits 8-15) */
 {
+    if(sq_capture.state==SQ_PERF_ACTIVE){
+        sqp_drum_hit(lane%SQ_NLANE,(kit&255u)%SQ_NKIT,(kit>>8)&255u,100);
+        return;
+    }
     sqp_lane_kit(lane, kit & 0xFFu, (kit >> 8) & 0xFFu);
     sqp.lane_t[lane % SQ_NLANE] = cf_now_ms;
     if (sqp.rec == SQ_DRUMS && sqp.on && sqp.cin < SQ_PPQN / 4u) {   /* (the take: where it fell; in the count-in's last
@@ -930,7 +998,7 @@ static void sqp_audition(uint32_t lane, uint32_t kit)   /* kit: the drum's, its 
             sqp.dskp[l] = sqp.pat;
         }
         sqp_rpush(&e);
-        cfp_midi(0x90u, cfp_ch(CF_PART_DRUM), SQ_LANE_NOTE[lane % SQ_NLANE], 100);
+        cfp_midi(0x90u, CF_PART_DRUM, SQ_LANE_NOTE[lane % SQ_NLANE], 100);
         sqp.doff |= (uint16_t)(1u << (lane % SQ_NLANE));
     }
     trk_note_on(&trk[CF_PART_DRUM], SQ_LANE_NOTE[lane % SQ_NLANE], 100);

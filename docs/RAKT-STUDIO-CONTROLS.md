@@ -132,6 +132,6 @@ Turn **SELECT** to the timing page. **K1 Gate** sets how much of each step a not
 
 ## Record and Help
 
-**Record** shows the four generated phrases and the playhead. **SEL** opens a two-bar view of the highlighted musician. **REC** starts or finishes a manual take of up to eight bars. Highlight **Saved Takes** at the end of the rack, turn **K1** to select one of the three slots, and hold **SAVE** for three seconds to clear it. Release early to cancel. Finish recording or stop saved-take playback before clearing. Use USB audio capture to record the full generated mix as audio.
+**Record** shows four lanes and the playhead. **SEL** opens a two-bar view of the highlighted musician. Press **REC** to record all four parts and press it again to finish. Hold **REC** to discard the current take. Highlight **Saved Takes** at the end of the rack and turn **K1** to select a take. **PLAY** starts or stops playback. Hold **SAVE** for three seconds to clear the selected take. Use USB audio capture to record the full mix as audio.
 
 **Help** contains Start here, Harmony, Playing and Capture. Turn **ALGORITHM** to select a topic and **SEL** to open it. The Harmony lesson shows the role of the note you play. **K1** switches between Auto and Manual harmony. **EDIT** opens Chord Lab.

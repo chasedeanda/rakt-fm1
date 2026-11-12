@@ -8,6 +8,7 @@ typedef struct { uint32_t magic; uint8_t version, protect, reserved[2]; uint32_t
 #define SQ_REC_PREF_MAGIC 0x31505243u
 static sq_rec_pref_t sq_pref;
 static uint8_t sq_pref_dirty;
+_Static_assert(sizeof(sq_perf_t)<=ST_PAYLOAD_MAX,"performance fits a recording sector");
 static int sq_pref_valid(const sq_rec_pref_t *r)
 {
     return r->magic == SQ_REC_PREF_MAGIC && r->version == 1 && r->protect <= 1 &&
@@ -31,8 +32,8 @@ static void sq_reorder(void)
     for (unsigned i=0;i<SQ_NPAT;i++)sq_order[i]=i;
     for (unsigned i=0;i<SQ_NPAT;i++)for(unsigned j=i+1;j<SQ_NPAT;j++) {
         unsigned a=sq_order[i],b=sq_order[j];
-        int ah=sq_st.pat[a].nev || sq_drums(&sq_st.pat[a]);
-        int bh=sq_st.pat[b].nev || sq_drums(&sq_st.pat[b]);
+        int ah=sq_perf[a].bars || sq_st.pat[a].nev || sq_drums(&sq_st.pat[a]);
+        int bh=sq_perf[b].bars || sq_st.pat[b].nev || sq_drums(&sq_st.pat[b]);
         if ((bh && !ah) || (ah==bh && (int32_t)(sq_serial[b]-sq_serial[a])>0)) {
             sq_order[i]=b;sq_order[j]=a;
         }
@@ -60,6 +61,7 @@ static uint32_t sq_chunk_len(uint32_t k) /* legacy backup lengths, independent o
 static void sq_defaults(void)
 {
     memset(&sq_st, 0, sizeof sq_st);
+    memset(sq_perf,0,sizeof sq_perf);
     sq_meta_known = 0; sq_drafting=0;
     memset(sq_serial,0,sizeof sq_serial);
     sq_st.song.mute = SQ_MUTE_OWN;
@@ -92,6 +94,38 @@ static sq_take_rec_t *sq_take_image(unsigned slot)
     r->serial = sq_serial[slot]; r->meta = sq_meta[slot]; r->pat = sq_st.pat[slot];
     r->check = cfs_fnv(&r->serial, sizeof r->serial + sizeof r->meta + sizeof r->pat);
     return r;
+}
+static uint32_t sq_perf_check(const sq_perf_t *r)
+{
+    return cfs_fnv(&r->serial,r->size-__builtin_offsetof(sq_perf_t,serial));
+}
+static int sq_perf_valid(const sq_perf_t *r,unsigned slot,unsigned len)
+{
+    if(len<SQ_PERF_SIZE(1) || r->magic!=SQ_TAKE_MAGIC || r->version!=2 || r->slot!=slot ||
+       !r->n || r->n>SQ_PERF_EVENTS || r->size!=len || len!=SQ_PERF_SIZE(r->n) ||
+       !r->bars || r->bars>SQ_BARS || r->reserved || r->meta.reserved || r->padding || r->space>100 ||
+       r->meta.bpm<30 || r->meta.bpm>300 || r->meta.beats<2 || r->meta.beats>7 ||
+       !r->end || r->end>r->bars*r->meta.beats*SQ_PPQN || r->check!=sq_perf_check(r))return 0;
+    for(unsigned i=0;i<3;i++){
+        const cf_sref_t *s=&r->sound[i];
+        if(s->own>1 || (s->own && (s->engine>=NENGINES || s->kind>PK_USER)))return 0;
+    }
+    for(unsigned i=0;i<SQ_NTRK;i++)if(r->level[i]>100)return 0;
+    unsigned last=0;
+    for(unsigned i=0;i<r->n;i++){
+        sq_perf_ev_t e=r->ev[i];
+        unsigned tick=e.when&SQ_PERF_TICK, part=(e.when>>SQ_PERF_PART_SHIFT)&3u;
+        if(tick<last || tick>=r->end)return 0;
+        if(part==SQ_DRUMS){
+            if((e.data&15u)>=SQ_NLANE || ((e.data>>4)&31u)>=SQ_NKIT || e.data>>9>100)return 0;
+        } else if(e.when&SQ_PERF_DRUM_SOFT || e.data>>7>127)return 0;
+        last=tick;
+    }
+    return 1;
+}
+static uint32_t sq_slot_check(unsigned slot)
+{
+    return sq_perf[slot].bars?sq_perf[slot].check:sq_take_image(slot)->check;
 }
 static int sq_legacy_read(uint32_t off, void *dst, uint32_t n)
 {
@@ -143,7 +177,13 @@ static void sq_load(void)
         int exists = !ST_BLOCKED() && st_current(OBJ_CFTAKE0 + i, &h) >= 0 && h.len;
         int n = st_load(OBJ_CFTAKE0 + i, sq_io, sizeof sq_io);
         const sq_take_rec_t *r = (const sq_take_rec_t *)sq_io;
-        if (n == sizeof *r && sq_take_valid(r, i)) {
+        const sq_perf_t *take=(const sq_perf_t *)sq_io;
+        if(n>0 && sq_perf_valid(take,i,(unsigned)n)){
+            memcpy(&sq_perf[i],take,n);
+            memset(&sq_st.pat[i],0,sizeof sq_st.pat[i]);
+            sq_meta[i]=take->meta;sq_meta_known|=1u<<i;
+            sq_serial[i]=take->serial;sq_saved[i]=take->check;
+        } else if (n == sizeof *r && sq_take_valid(r, i)) {
             sq_st.pat[i] = r->pat; sq_meta[i] = r->meta; sq_meta_known |= 1u << i;
             sq_serial[i] = r->serial;
             sq_saved[i] = r->check;
@@ -164,6 +204,13 @@ static void sq_save_write(void)
     int err = 0;
     for (unsigned i = 0; i < SQ_NPAT; i++) {
         if (sq_unavailable & (1u << i)) continue;
+        if(sq_perf[i].bars){
+            const sq_perf_t *r=&sq_perf[i];
+            if(r->check==sq_saved[i])continue;
+            if(st_save(OBJ_CFTAKE0+i,r,r->size))err=1;
+            else sq_saved[i]=r->check;
+            continue;
+        }
         sq_take_rec_t *r = sq_take_image(i);
         if (r->check == sq_saved[i]) continue;
         if (st_save(OBJ_CFTAKE0 + i, r, sizeof *r)) err = 1;
@@ -175,11 +222,12 @@ static void sq_save_write(void)
 
 /* A transient cancel guard in POOL, not an edit/undo history. The three live
  * patterns stay in ordinary RAM. Flash and backup staging use the separate sq_io. */
-static struct { sq_take_rec_t take; cf_sref_t refs[3]; uint8_t active, known; } sq_cancel
+static struct { sq_take_rec_t take; cf_sref_t refs[3]; uint8_t active, known, perf_bars; } sq_cancel
     __attribute__((section(".pool"), aligned(4)));
 static void sq_begin_take(unsigned slot)
 {
     sq_cancel.take=*sq_take_image(slot); memcpy(sq_cancel.refs,cfps.r[slot],sizeof sq_cancel.refs);
+    sq_cancel.perf_bars=sq_perf[slot].bars;sq_perf[slot].bars=0;
     sq_drafting=1; sq_cancel.active=1; sq_cancel.known=(sq_meta_known>>slot)&1u;
     memset(cfps.r[slot],0,sizeof cfps.r[slot]);
 }
@@ -187,6 +235,7 @@ static void sq_cancel_take(unsigned slot)
 {
     if (!sq_cancel.active) return;
     sq_st.pat[slot]=sq_cancel.take.pat;sq_meta[slot]=sq_cancel.take.meta;sq_serial[slot]=sq_cancel.take.serial;
+    sq_perf[slot].bars=sq_cancel.perf_bars;
     sq_meta_known=(sq_meta_known&~(1u<<slot))|((unsigned)sq_cancel.known<<slot);
     memcpy(cfps.r[slot],sq_cancel.refs,sizeof sq_cancel.refs);sq_cancel.active=0;sq_drafting=0;sq_reorder();
 }

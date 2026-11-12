@@ -236,6 +236,7 @@ static void kpc(char *b, int pc)
 #include "cf_fxui.c"                             /* (the FX screen's controls) */
 static void cv_turned(int d);
 static void cpa_ui_record(void);
+static void cgu_select_latest_take(void);
 #include "cf_sequi.c"                            /* (the SEQUENCER screens' controls) */
 #include "cf_dmui.c"                             /* (the drum machine's page, 0.6) */
 #include "cf_accomp_ui.c"
@@ -1277,7 +1278,19 @@ static void ui_button(uint32_t b)
         if(b==B_SAVE && cgu.tab==CGU_RECORD){
             if(!cgu.rack_controls)return;
             if(sqk.on || cf_sn.sq_on || cf_sn.sq_rec!=255)cf_message("Stop the take before clearing");
-            else if(sq_has(cgu.take_slot) || (sq_unavailable&(1u<<cgu.take_slot)))cgu.clear_down=cu.now?cu.now:1u;
+            else {
+                unsigned slot=sq_view_slot(cgu.take_slot);
+                if(sq_has(slot) || (sq_unavailable&(1u<<slot)))cgu.clear_down=cu.now?cu.now:1u;
+            }
+            return;
+        }
+        if(b==B_PLAY && cgu.tab==CGU_RECORD){
+            if(sqk.on){sq_home_end(0);return;}
+            if(cpa_commanded){cpa_ui_play();return;}
+            if(cf_sn.sq_on || sqp.on){cf_post(CFE_SEQ,0,0,0);return;}
+            unsigned slot=sq_view_slot(cgu.take_slot);
+            if(!sq_has(slot)){cf_message("No recording selected");return;}
+            sq_play_take(slot);
             return;
         }
         if(b==B_ARP){
@@ -1537,7 +1550,7 @@ static void ui_button(uint32_t b)
     case B_REC:                                  /* a tap records; a hold cancels the current new take */
         cu.rec_hold = cu.now ? cu.now : 1u;
         cu.rec_fired = 0;
-        cf_rec_down();
+        if(!sqk.performance && !cgs_home() && !cpa.on)cf_rec_down();
         break;
     case B_OCTDN:
     case B_OCTUP:

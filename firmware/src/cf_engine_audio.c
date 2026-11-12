@@ -145,6 +145,10 @@ static int cge_bar(int onset)
 }
 static void cge_block(uint32_t n)
 {
+    if(sqp.on && sq_perf[sqp.pat].bars){
+        cfx_space=sq_perf[sqp.pat].space*32768u/100u;
+        return;
+    }
     if(cgs_mix_live()){
         cfx_space=cgs.space*32768u/100u;
         cgs_audio_block(n);
@@ -162,6 +166,8 @@ static void cge_block(uint32_t n)
 }
 static uint32_t cge_mix_gain(unsigned part)
 {
+    if(part<SQ_NTRK && sqp.on && sq_perf[sqp.pat].bars)
+        return sq_perf[sqp.pat].level[part]*32768u/100u;
     if(part<CGS_NPART && cgs_mix_live())return cgs.gain[part];
     if(part==0 || part==1)return cge.gain[part];
     if(part==CF_PART_DRUM)return cge.gain[2];

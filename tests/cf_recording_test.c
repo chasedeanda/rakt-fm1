@@ -24,62 +24,100 @@ static void empty(void)
     stop(); sq_defaults(); sq_unavailable=0; sq_dirty=0; sqk.on=0; sqk.last=0xFF;
     memset(emu_flash+0xE6000,0xFF,0x8000); sq_load(); cfs_restore_lock=0;
 }
+static void studio_home(void)
+{
+    cu.scr=SCR_HOME;home_boot_main=1;cf_home_bank=CF_HB_ENGINE;
+    cf_scene_set(CF_SCENE_PROGRESSIONS);
+    cgs_init(102);cgs.genre=CGS_DEFAULT_GENRE;cgs_prepare_start();
+    cgu_home();
+}
 static void record_flow(unsigned rate)
 {
-    empty(); sq_pref.protect=1; ua_reset(); ua.cap_alt=1; ua.cap_hold=0; ua_rate_set(rate);
-    cu.scr=SCR_HOME; home_boot_main=1; cf_home_bank=CF_HB_CORE; cf_scene_set(CF_SCENE_PROGRESSIONS);
-    cpg.idea=0; cpg.rhythm=dm_nth(4,0); cpg.mode=CPA_BOTH;
-    cs.bpm=120; cs.beats=4; cs.chord.tonic=0; cs.chord.scale=CF_SC_MAJOR;
-    cs.chord.quantize=CF_Q_BASIC; cs.clock_in=0; ch.mode=CF_H_AUTO; cu.arp_on=0;
-    cf_send_config(); cf_send_metro(); advance(12);
-    ui_button(B_PLAY); advance(60); CHECK(cpa.on && sqp.n);
-    unsigned rhythm=cpg.rhythm, kit=cpa.plan.kit, swing=cpa.plan.swing;
-    rec(); CHECK(sqk.on && !cpa.on && !sqp.n && !sqp.nb && sqp.rec==SQ_CHORDS && sqp.cin);
-    CHECK(sq_meta[0].bpm==120 && sq_meta[0].beats==4 && sq_st.pat[0].kit==kit && sq_st.pat[0].swing==swing);
-    sq_pat_t expected; sq_fresh(&expected,4);dm_fill(&expected,rhythm,0);
-    CHECK(!memcmp(sq_st.pat[0].hit,expected.hit,sizeof expected.hit));
-    unsigned guard=0; while(sqp.cin && guard++<2000)advance(3); CHECK(!sqp.cin);
-    key(7,1); uint8_t notes[6], n=cfc.out.n; memcpy(notes,cfc.out.note,sizeof notes);
-    advance(400); key(7,0);
-    guard=0; while(sqp.nbar<1 && guard++<2000)advance(3); CHECK(sqp.nbar==1);
-    key(12,1); advance(400); key(12,0); rec();
-    CHECK(!sqk.on && sqp.on && sq_st.pat[0].bars==2 && sq_st.pat[0].nev>=2);
-    CHECK(sq_st.pat[0].ev[0].rootkey==0xFF && sq_st.pat[0].ev[0].n==n &&
-          !memcmp(sq_st.pat[0].ev[0].note,notes,n));
-    stop(); sq_save_write(); unsigned hash=cfs_fnv(&sq_st.pat[0],sizeof(sq_pat_t));
-    sq_load(); CHECK(cfs_fnv(&sq_st.pat[0],sizeof(sq_pat_t))==hash && sq_meta[0].bpm==120);
-    cs.bpm=77;cs.beats=3;cf_send_metro();advance(12);cu.scr=SCR_SQ;squ.pat=0;
-    ui_button(B_PLAY);advance(90);CHECK(sqp.on && cfm.bpm==120 && cfm.beats==4 && sq_beats==4);
+    empty();sq_pref.protect=1;ua_reset();ua.cap_alt=1;ua.cap_hold=0;ua_rate_set(rate);
+    cs.bpm=120;cs.beats=4;cs.clock_in=0;cs.chord.tonic=0;cs.chord.scale=CF_SC_MAJOR;
+    cs.chord.quantize=CF_Q_BASIC;ch.mode=CF_H_AUTO;cu.arp_on=0;
+    studio_home();
+    cgs.arp=1u<<CGS_CHORDS;
+    cs.midi_out=0;cf_send_config();cf_send_metro();advance(12);
+    ui_button(B_PLAY);advance(120);
+    CHECK(cgs_active() && cpa.on);
+    unsigned grid=cf_grid.gen;
+    rec();
+    CHECK(cgu.tab==CGU_RECORD && cu.scr==SCR_HOME && cpa.on && sqk.on && sqk.performance);
+    CHECK(sq_capture.state==SQ_PERF_ARMED);
+    unsigned guard=0;
+    while(sq_capture.state==SQ_PERF_ARMED && guard++<1200)advance(3);
+    CHECK(sq_capture.state==SQ_PERF_ACTIVE && cf_grid.gen==grid);
+    CHECK(crb_busy());
+    advance(950);
+    cgs.fill_held=1;
+    key(7,1);advance(300);key(7,0);
+    cgs.fill_held=0;
+    rec();
+    CHECK(!sqk.on && !cpa.on && sq_perf[0].bars==1 && sq_perf[0].n>0);
+    const sq_perf_t *r=&sq_perf[0];
+    CHECK(r->meta.beats==4 && r->meta.bpm==cfm.bpm);
+    CHECK(sq_perf_valid(r,0,r->size) && crb_size_ok(CFB_TAKE,r->size));
+    unsigned parts=0, pitched_off=0, kit=cpa.plan.kit, fill_hits=0;
+    for(unsigned i=0;i<r->n;i++){
+        sq_perf_ev_t e=r->ev[i];unsigned part=(e.when>>SQ_PERF_PART_SHIFT)&3u;
+        if(part==SQ_DRUMS){
+            CHECK(((e.data>>4)&31u)==kit);
+            if((e.data&15u)>=5u && (e.data&15u)<=8u)fill_hits++;
+            parts|=1u<<part;
+        } else if(e.data>>7)parts|=1u<<part;
+        else pitched_off|=1u<<part;
+    }
+    CHECK(parts==15u && (pitched_off&(1u<<SQ_CHORDS)) && fill_hits);
+    unsigned hash=cfs_fnv(r,r->size);
+    sq_save_write();sq_load();
+    CHECK(sq_has(0) && cfs_fnv(r,r->size)==hash);
+    csl_open();
+    uint8_t rows[1+CSL_CAPACITY+SQ_NPAT];
+    cslu.row=csl_rows(rows)-1;
+    csl_execute();
+    CHECK(cgs_home() && cgu.tab==CGU_RECORD && cgu.take_slot==0);
+    ui_button(B_PLAY);advance(180);
+    CHECK(sqp.on && sqp.pat==0 && sq_perf_cursor>0 && !cpa.on);
+    CHECK(cfm.beats==r->meta.beats && cfm.bpm==r->meta.bpm);
+    ui_button(B_PLAY);advance(30);
+    CHECK(!sqp.on);
+    for(unsigned part=0;part<SQ_DRUMS;part++)
+        for(unsigned i=0;i<4;i++)CHECK(!sq_perf_held[part][i]);
+
+    rec();CHECK(cgs_active() && sqk.on && sq_capture.state==SQ_PERF_ACTIVE);
+    advance(200);sq_home_cancel();advance(30);
+    CHECK(!sqk.on && cpa.on && !sq_has(1) && cfs_fnv(r,r->size)==hash);
     stop();
-    sq_st.pat[1]=sq_st.pat[0];sq_meta[1]=(sq_take_meta_t){90,3,0};sq_meta_known|=2;
-    sqp_start(0,0);sqp_queue(1,0);CHECK(sqp.next==1);
-    sqp_next_bar();cf_snapshot();sq_tempo_poll();
-    CHECK(sqp.pat==1 && cfm.bpm==90 && cfm.beats==3 && cs.bpm==90 && cs.beats==3);
+    sq_load();
+    CHECK(!sq_has(1) && cfs_fnv(r,r->size)==hash);
+}
+static void capture_limit(void)
+{
+    empty();studio_home();
+    rec();CHECK(sqk.on && cgs_active() && sq_capture.state==SQ_PERF_ACTIVE);
+    unsigned end=cpa.plan.beats*SQ_PPQN*SQ_BARS;
+    for(unsigned i=0;i<end;i++)cpa_tick1();
+    sq_home_poll();
+    const sq_perf_t *r=&sq_perf[0];
+    CHECK(!sqk.on && cpa.on && r->bars==SQ_BARS && r->end==end);
+    CHECK(sq_perf_valid(r,0,r->size));
     stop();
-    /* No history/redo: holding REC when stopped cannot change a take. */
-    sq_home_cancel();CHECK(cfs_fnv(&sq_st.pat[0],sizeof(sq_pat_t))==hash);
-    for(unsigned i=1;i<SQ_NPAT;i++){sq_st.pat[i]=sq_st.pat[0];sq_meta[i]=sq_meta[0];}
-    sq_pref.protect=1;cu.scr=SCR_HOME; unsigned before=cfs_fnv(&sq_st,sizeof sq_st);rec();
-    CHECK(!sqk.on && cfs_fnv(&sq_st,sizeof sq_st)==before && !cpa.on);
-    ui_button(B_PLAY);advance(90);CHECK(cpa.on);rec();CHECK(cpa.on && !sqk.on);
-    stop();
-    /* The actual held-SAVE gesture clears only the selected stopped take. */
-    cu.scr=SCR_SQ;squ.pat=1;ui_button(B_SAVE);fm1_in.buttons=1u<<panel.btn[B_SAVE];
-    cu.now=sq_clear_down+2999;test_ms=cu.now;fm1_ms=test_ms;sq_clear_poll();CHECK(sq_has(1));
-    cu.now++;test_ms=cu.now;fm1_ms=test_ms;sq_clear_poll();fm1_in.buttons=0;CHECK(!sq_has(1) && sq_has(0) && sq_has(2));
-    sq_save_write();sq_load();CHECK(!sq_has(1) && sq_has(0) && sq_has(2));
-    cu.scr=SCR_HOME;rec();CHECK(sqk.on && sqk.pat==1 && sqp.cin);
-    sq_home_cancel();advance(12);CHECK(!sqk.on && !sq_has(1) && !sqp.on);
-    sq_save_write();sq_load();CHECK(!sq_has(1));
-    cu.scr=SCR_HOME;dm_view=dm_nth(3,0);rec();CHECK(sqk.on && sqk.pat==1 && sqk.rhy==rhythm+1);
-    guard=0;while(sqp.cin && guard++<2000)advance(3);
-    key(7,1);advance(300);sq_home_cancel();advance(30);key(7,0);advance(60);
-    CHECK(!sqk.on && !sqp.on && !sq_has(1));
-    sq_save_write();sq_load();CHECK(!sq_has(1));
+    memcpy(cfb_raw,r,r->size);
+    crb.id=CFB_TAKE;crb.pos=crb.len=r->size;
+    ((sq_perf_t *)cfb_raw)->ev[0].when=SQ_PERF_TICK;
+    ((sq_perf_t *)cfb_raw)->check=sq_perf_check((const sq_perf_t *)cfb_raw);
+    crb.crc=st_crc32(cfb_raw,crb.len);
+    CHECK(crb_commit()==2);
+    memcpy(cfb_raw,r,r->size);
+    crb.crc=st_crc32(cfb_raw,crb.len);
+    CHECK(crb_commit()==0);
+    sq_load();cfs_restore_lock=0;
+    CHECK(sq_has(0) && sq_perf_valid(&sq_perf[0],0,sq_perf[0].size));
 }
 static void synthetic_take(unsigned note)
 {
-    cu.scr=SCR_HOME;rec();CHECK(sqk.on);
+    cu.scr=SCR_HOME;sq_home_rec_r(DM_N,0);advance(12);CHECK(sqk.on);
     sq_pat_t *p=&sq_st.pat[sqk.pat];
     p->ev[0]=(sq_ev_t){.trk=SQ_CHORDS,.n=1,.note={note},.rootkey=0xFF,.len=24};p->nev=1;
     sqk.rolled=sqk.seen=1;sqk.nbar=0;sqk.t=24;sqk.bt=96;
@@ -96,7 +134,7 @@ static void history(void)
           sq_st.pat[sq_view_slot(2)].ev[0].note[0]==61);
     unsigned oldest=sq_view_slot(2),before=cfs_fnv(&sq_st,sizeof sq_st);
     cfps_set(oldest,0,&cf_snd[0]);cf_sref_t ref=cfps.r[oldest][0];
-    cu.scr=SCR_HOME;rec();CHECK(sqk.on && sqk.pat==oldest && sq_number(oldest)==1);
+    cu.scr=SCR_HOME;sq_home_rec_r(DM_N,0);advance(12);CHECK(sqk.on && sqk.pat==oldest && sq_number(oldest)==1);
     CHECK(crb_busy());unsigned writes=emu_flash_writes;sq_save_write();CHECK(emu_flash_writes==writes);
     sq_home_cancel();advance(90);
     CHECK(!crb_busy());CHECK(cfs_fnv(&sq_st,sizeof sq_st)==before && !memcmp(&cfps.r[oldest][0],&ref,sizeof ref));
@@ -108,7 +146,7 @@ static void history(void)
     sq_algo(1);CHECK(sq_number(squ.pat)==3);sq_algo(-2);CHECK(sq_number(squ.pat)==1);
     cu.scr=SCR_GLO;cu.page[SCR_GLO]=CF_GLO_RECORDINGS;ui_knob_turn(0,-1);
     CHECK(sq_pref.protect && sq_pref_dirty);sq_save_write();sq_pref_load();CHECK(sq_pref.protect);
-    before=cfs_fnv(&sq_st,sizeof sq_st);cu.scr=SCR_HOME;rec();
+    before=cfs_fnv(&sq_st,sizeof sq_st);cu.scr=SCR_HOME;sq_home_rec_r(DM_N,0);advance(12);
     CHECK(!sqk.on && cfs_fnv(&sq_st,sizeof sq_st)==before);
     cu.scr=SCR_GLO;cu.page[SCR_GLO]=CF_GLO_RECORDINGS;ui_knob_turn(0,1);
     sq_save_write();sq_pref_load();CHECK(!sq_pref.protect);
@@ -157,6 +195,6 @@ int main(void)
 {
     emu_fw_options(NULL,1,0,1);emu_hal.ready=2;emu_fw_init(0);advance(1600);
     CHECK(sizeof sq_st==7656 && SQ_NPAT==3 && sizeof(sq_take_rec_t)==2556);
-    record_flow(44100);record_flow(48000);history();legacy();
+    record_flow(44100);record_flow(48000);capture_limit();history();legacy();
     printf("recordings: %u checks, %u failures\n",checks,failures);return failures!=0;
 }

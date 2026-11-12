@@ -10,6 +10,12 @@ Play chords over a generated band of Chords, Bass, Drums and Layer. The four par
   <a href="docs/RAKT-FM1-Quick-Start.pdf"><img src="docs/images/rakt-quick-start.png" width="760" alt="RAKT FM-1 quick start with first jam steps, rack navigation, sound and arp shortcuts, and the GLO keyboard map"></a>
 </p>
 
+The recording cheat sheet below shows the current REC workflow.
+
+<p align="center">
+  <a href="docs/RECORDINGS.md"><img src="docs/images/rakt-recording.png" width="760" alt="RAKT FM-1 recording cheat sheet for capturing all four parts, replaying and clearing saved takes, and recording the full mix over USB"></a>
+</p>
+
 ## How the band plays together
 
 Some styles react to another musician's phrase. In **New Wave**, the Bass **Moving pulse** style accents notes that land with the kick and can pull a nearby note forward to meet it. Switch Drums from **Machine** to **Open hats** to hear the bass accents move. In **Indie**, try Chords **Chop** with Layer **Counterline**. The Layer looks for space between chord hits and shortens its reply when the next chord is close. [Musician styles](docs/RAKT-STUDIO-CONTROLS.md#musician-panel)
@@ -30,7 +36,7 @@ Open a part's **Envelope** page to adjust how a pitched sound swells or fades. O
 
 ## Capture a performance
 
-The **Record** rack shows the band's phrases and playhead. Manual takes start with a one-bar count-in, run for up to eight bars, and occupy one of three **Saved Takes** slots. Use the USB audio workflow below to capture the complete generated arrangement with live fills and effects. [Record controls](docs/RAKT-STUDIO-CONTROLS.md#record-and-help) · [Recording and backup guide](docs/RECORDINGS.md)
+Press **REC** to capture what Chords, Bass, Layer and Drums are playing, including live keys, arpeggios and drum fills. Recording starts with the band from a stop or on the next bar while it plays. Press **REC** again to keep the take, or hold it to discard. The **Record** rack keeps the three latest takes, up to eight bars each. Select a take and press **PLAY** to hear it. Use USB audio for a stereo recording of the full mix and effects. [Record controls](docs/RAKT-STUDIO-CONTROLS.md#record-and-help) · [Recording and backup guide](docs/RECORDINGS.md)
 
 ## Play without an FM-1
 

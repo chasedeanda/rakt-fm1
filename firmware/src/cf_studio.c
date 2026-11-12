@@ -173,10 +173,7 @@ static void cgs_drums(unsigned hit, unsigned step,unsigned steps,unsigned accent
         unsigned original=level[i]+accent+(!(step&3u)?7u:0u);
         unsigned v=punch?cf_perf_fill_level(style,l,step%half+half,steps,original):cf_perf_level(l,step,steps,original);
         if(sparse)v=v*2u/3u;
-        sqp_lane_kit(l,cpa.plan.kit,cgs_velocity(CGS_DRUMS,v));
-        cfp_on(CGS_DRUMS,SQ_LANE_NOTE[l],95);
-        sqp.doff|=(uint16_t)(1u<<l);
-        sqp.lane_t[l]=sqp.lit_t[SQ_DRUMS]=cf_now_ms?cf_now_ms:1;
+        sqp_drum_hit(l,cpa.plan.kit,cgs_velocity(CGS_DRUMS,v),95);
     }
 }
 static void cgs_arp(const cpa_slot_t *s,unsigned part)

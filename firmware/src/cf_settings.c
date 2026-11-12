@@ -237,11 +237,6 @@ static int cfs_sounding(void)
  * patterns' store keeps its format, so 0.4.x reads the patterns. Written as the settings are */
 #define CFPS_MAGIC 0x31524643u                     /* "CFR1" */
 typedef struct {
-    uint8_t own;                                  /* 1: the pattern's own sound; 0: HOME's */
-    uint8_t engine, kind, fk, slot, nck;          /* (cf_snd_t's; nck: a user sound's name, summed) */
-    uint16_t pos;                                 /* (an INIT: its place) */
-} cf_sref_t;
-typedef struct {
     uint32_t magic;
     uint8_t npat, ntrk, rsv[2];
     cf_sref_t r[SQ_LEGACY_NPAT][3];                /* archive layout retains all eight legacy sound references */
@@ -274,6 +269,13 @@ static void cfps_ref_of(cf_sref_t *r, const cf_snd_t *m)   /* m 0: HOME */
 }
 static void cfps_set(uint32_t pat, uint32_t t3, const cf_snd_t *m) { cfps_ref_of(&cfps.r[pat % SQ_NPAT][t3 % 3u], m); }
 /* a pattern's track's own sound as a place in its engine's pool: 1, or 0 (HOME's, or its sound gone) */
+static void sq_perf_capture_sounds(void)
+{
+    for(unsigned part=0;part<3;part++){
+        const cf_snd_t *sound=cf_stage[part].taken?&cf_stage[part].meta:&cf_snd[part];
+        cfps_ref_of(&sq_perf_draft.sound[part],sound);
+    }
+}
 static int cfps_ref_where(const cf_sref_t *r, uint32_t *e, uint32_t *pos)   /* a kept sound's place now: 1 */
 {
     uint32_t en = r->engine % NENGINES;

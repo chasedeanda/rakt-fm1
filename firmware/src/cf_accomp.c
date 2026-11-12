@@ -33,6 +33,7 @@ static void cge_start(void),cge_stop(void),cge_block(uint32_t),cge_arp_pop(int);
 static int cge_bar(int);
 static void cge_tick1(void);
 static int cge_chord_gap(void);
+static void sq_perf_capture_sounds(void);
 #include "cf_studio.c"
 static int cpa_running(void) { return cpa.on; }
 static int cpa_valid(const cpa_plan_t *p)
@@ -95,6 +96,7 @@ static void cpa_release(void)
 }
 static void cpa_stop(void)
 {
+    sq_perf_finish();
     cpa_commanded = 0;cge_stop();
     if(CF_STUDIO){
         cgs.take_revision++;
@@ -204,9 +206,23 @@ static void cpa_grid_start(void)
     cfm.click = 2; cfm.beat = 1; cfm.beats_done = 1; cfm.beat_ms = cf_now_ms;
     cf_grid.on = 1; cf_grid.g24 = 24;
 }
-static void cpa_start(void)
+static void cpa_capture_begin(void)
 {
-    if (!cpa_valid(&cpa_setup.plan)) return;
+    unsigned bpm=cfp_cfg.clock_in && cfx_in.bpm>=30 && cfx_in.bpm<=300?cfx_in.bpm:cfm.bpm;
+    sq_perf_draft.meta=(sq_take_meta_t){bpm,cpa.plan.beats,0};
+    memset(sq_perf_draft.level,100,sizeof sq_perf_draft.level);
+    sq_perf_draft.space=cgs_active()?cgs.space:100;
+    if(cgs_active())memcpy(sq_perf_draft.level,cgs.level,sizeof sq_perf_draft.level);
+    sq_perf_capture_sounds();
+    sq_capture.state=SQ_PERF_ACTIVE;
+    sq_perf_seed_held();
+}
+static void cpa_start(int capture)
+{
+    if (!cpa_valid(&cpa_setup.plan)) {
+        if(capture){sq_capture.state=SQ_PERF_ARMED;sq_perf_finish();}
+        return;
+    }
     cpa_stop(); sqp_stop(); dmp_stop(); cf_perf_reset();
     /* stop cleared flags, but the immutable snapshot remains available. */
     cpa.plan = cpa_setup.plan; cpa_setup.flags = cpa_edit.flags = 0;
@@ -222,7 +238,12 @@ static void cpa_start(void)
     }
     cpa_commit();
     cpa.clock_wait=cpa.clock_external=cfp_cfg.clock_in; cpa.clock_lost=0; cpa.clock_ms=cf_now_ms;
+    if(capture){
+        sq_capture.tick=sq_capture.full=0;
+        sq_capture.state=SQ_PERF_ARMED;
+    }
     if(cpa.clock_wait) { cfm.running=0; cf_grid.on=0; return; }
+    if(capture)cpa_capture_begin();
     cpa_grid_start();cge_start();
     cpa_groove(1); cpa_emit(); if (dmp.on && cge_drums_enabled()) dmp_now();
 }
@@ -233,6 +254,12 @@ static void cpa_tick1(void)
     cpa.t++; cpa.elapsed++;
     int bar=cpa.t>=cpa.plan.beats*SQ_PPQN;
     int onset=cpa.elapsed>=cpa.plan.slot[cpa.slot].ticks;
+    if(sq_capture.state==SQ_PERF_ACTIVE){
+        if(sq_capture.tick+1u>=sq_perf_draft.meta.beats*SQ_PPQN*SQ_BARS ||
+           (bar && cpa_setup.flags && cpa_setup.plan.beats!=cpa.plan.beats)){
+            sq_perf_finish();
+        } else sq_capture.tick++;
+    }
     if (bar || onset) {
         cpa_tie_from=onset?cpa.plan.slot[cpa.slot].tie:0;
         int reset = 0, revoice=0;
@@ -279,6 +306,7 @@ static void cpa_tick1(void)
                 cpa.slot = (uint8_t)((cpa.slot + 1u) % cpa.plan.n); cpa.elapsed = 0;
             }
         }
+        if(bar && sq_capture.state==SQ_PERF_ARMED)cpa_capture_begin();
         if(bar || reset) {
             revoice=cge_bar(onset);
             cpa_groove(reset);
@@ -312,6 +340,7 @@ static void cpa_tick(uint32_t n, uint32_t pulses)
 {
     if(!cpa.on)return;
     if(cpa.clock_external!=cfp_cfg.clock_in) {
+        sq_perf_finish();
         cpa.clock_external=cfp_cfg.clock_in;cpa.clock_ms=cf_now_ms;cpa.clock_lost=0;
         if(cpa.clock_external) {
             cpa_release();cpa.paused=1;cpa.clock_wait=1;cfm.running=0;cf_grid.on=0;
@@ -324,10 +353,12 @@ static void cpa_tick(uint32_t n, uint32_t pulses)
     if (cfp_cfg.clock_in) {
         if(cpa.clock_wait) {
             if(!pulses)return;
+            if(sq_capture.state==SQ_PERF_ARMED)cpa_capture_begin();
             cpa.clock_wait=0; cpa_grid_start(); cpa_groove(1); cpa_emit(); if(dmp.on && cge_drums_enabled())dmp_now();
         }
         if(pulses)cpa.clock_ms=cf_now_ms;
         else if(cf_now_ms-cpa.clock_ms>=300u) {
+            sq_perf_finish();
             cpa_release();cpa.paused=1;cpa.clock_lost=1;cfm.running=0;cf_grid.on=0;return;
         }
         unsigned q2 = pulses * 8u;
@@ -349,6 +380,7 @@ static void cpa_tick(uint32_t n, uint32_t pulses)
 static void cpa_realtime(unsigned status)
 {
     if (!cpa.on) return;
+    if(status==0xFCu || (status==0xFAu && !cpa.clock_wait))sq_perf_finish();
     if(status==0xFAu || status==0xFBu || status==0xFCu)cpa.clock_external=cfp_cfg.clock_in;
     if (status == 0xFCu) {
         if(cgs_active()){cgs.take_revision++;cgs_cancel_auto((1u<<CGS_NPART)-1u);}
@@ -359,13 +391,17 @@ static void cpa_realtime(unsigned status)
         cpa_release(); cpa.slot = 0; cpa.t = cpa.elapsed = cpa.acc = 0;
         cpa.paused = 0; cpa_grid_start();cge_start();
         if(cgs_active())cgs_start();
+        if(sq_capture.state==SQ_PERF_ARMED)cpa_capture_begin();
         cpa_groove(1); cpa_emit(); if (dmp.on && cge_drums_enabled()) dmp_now();
     }
     if (status == 0xFBu && (cpa.paused || cpa.clock_wait)) {
         int fresh=cpa.clock_wait && !cpa.paused;
         cpa.clock_wait=cpa.clock_lost=0;cpa.clock_ms=cf_now_ms;
         cpa.paused = 0;
-        if(fresh){cpa_grid_start();cpa_groove(1);if(dmp.on && cge_drums_enabled())dmp_now();}
+        if(fresh){
+            if(sq_capture.state==SQ_PERF_ARMED)cpa_capture_begin();
+            cpa_grid_start();cpa_groove(1);if(dmp.on && cge_drums_enabled())dmp_now();
+        }
         cfm.running = 1; cf_grid.on = 1;
         const cpa_slot_t *s=&cpa.plan.slot[cpa.slot];
         if(s->tie || cpa.elapsed<(uint32_t)s->ticks*s->gate/100u)cpa_emit();
@@ -381,6 +417,7 @@ static void cgs_live_transport(unsigned action)
         cpa_realtime(0xFAu);
     } else if(cpa.paused)cpa_realtime(0xFBu);
     else {
+        sq_perf_finish();
         cgs.take_revision++;
         cgs_cancel_auto((1u<<CGS_NPART)-1u);
         cpa_release_notes();

@@ -386,11 +386,7 @@ static void dmp_fire(uint32_t h)
     uint32_t l;
     for (l = 0; l < SQ_NLANE; l++)
         if (cf_perf_hit(l, h, sq_dsteps(), (dm_mask(dmp.r, l, dmp.bar) >> h) & 1u)) {
-            sqp_lane_kit(l, dmp.kit, cf_perf_level(l, h, sq_dsteps(), y->lev[l]));
-            trk_note_on(&trk[CF_PART_DRUM], SQ_LANE_NOTE[l], 100);
-            cfp_midi(0x90u, cfp_ch(CF_PART_DRUM), SQ_LANE_NOTE[l], 100);
-            sqp.doff |= (uint16_t)(1u << l);
-            sqp.lane_t[l] = cf_now_ms;
+            sqp_drum_hit(l,dmp.kit,cf_perf_level(l,h,sq_dsteps(),y->lev[l]),100);
         }
 }
 static void dmp_now(void)

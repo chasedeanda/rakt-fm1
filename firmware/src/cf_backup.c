@@ -211,7 +211,7 @@ static int crb_fm6_old(const uint8_t *raw, uint32_t len)
 }
 /* busy: never since 0.4 (it was the looper playing or recording: a flash erase cut it). The sequencer plays from RAM;
  * a restore ends in a restart anyway */
-static int crb_busy(void) { return sq_drafting || csl_tx.pending; }
+static int crb_busy(void) { return sqk.on || sq_drafting || csl_tx.pending; }
 
 /* ------------------------------------------------------------------ LIST / GET --- */
 static void crb_list(void)
@@ -291,7 +291,9 @@ static int crb_size_ok(uint32_t id, uint32_t len)   /* a begin's size for this i
     if (id>=CFB_SONG && id<CFB_SONG+CSL_CAPACITY)return !len || len==sizeof(csl_record_t);
     if (id == CFB_DRAFT) return !len || len==CF_SONG_WIRE;
     if (id == CFB_RECPREF) return !len || len == sizeof(sq_rec_pref_t);
-    if (id >= CFB_TAKE && id < CFB_TAKE + SQ_NPAT) return !len || len == sizeof(sq_take_rec_t);
+    if (id >= CFB_TAKE && id < CFB_TAKE + SQ_NPAT)
+        return !len || len == sizeof(sq_take_rec_t) ||
+            (len>=SQ_PERF_SIZE(1) && len<=SQ_PERF_SIZE(SQ_PERF_EVENTS) && !(len%4u));
     if (id == CFB_PREFS) return !len || len == sizeof(cpb_rec_t) || len == sizeof(cpb_legacy_rec_t);
     if (id == CFB_FX) return !len || len == sizeof(fxp_bank_t);
     if (id == CFB_HARM) return !len || len == sizeof(cfh_rec_t);
@@ -395,7 +397,8 @@ static uint32_t crb_commit(void)
         sq_pref_dirty=0;cfs_restore_lock=1;return 0;
     }
     if (id >= CFB_TAKE && id < CFB_TAKE + SQ_NPAT) {
-        if (len && !sq_take_valid((const sq_take_rec_t *)raw, id - CFB_TAKE)) return 2;
+        if(len && !sq_perf_valid((const sq_perf_t *)raw,id-CFB_TAKE,len) &&
+           !(len==sizeof(sq_take_rec_t) && sq_take_valid((const sq_take_rec_t *)raw,id-CFB_TAKE)))return 2;
         if (st_save(crb_obj(id), raw, len)) return 4;
         sq_dirty = 0; cfs_restore_lock = 1;
         cf_message("Recordings restored: restart"); return 0;
