@@ -957,18 +957,29 @@ static __attribute__((noinline)) void ua_parts_late(int16_t *st, uint32_t n)
 }
 #endif
 
+#ifdef CF_FX_PARTS
+static int32_t cfx_part_mix[CF_FX_PARTS][2][CTL] __attribute__((section(".pool")));
+#endif
+
 /* A part's block b (sd: its stereo side, when side) at its level into the mix: the peak, the three sends (sg: their
  * gains, each moving by its dg a sample: ChoralRoot's ramp; Felucca's: the gains, dg 0), the pan, USB audio's tap
  * (pc). k: the block's values (MX_*). side, sends and tap are constants where a loop is built for them (the
  * mix_loop_* below): a part that sends nothing has no send in its loop, one that is not recorded no tap. Returns the
  * peak. */
-enum { MX_LVL, MX_GL, MX_GR, MX_XMAX, MX_PK, MX_SG, MX_DG = MX_SG + 3, MX_N = MX_DG + 3 };
+enum { MX_LVL, MX_GL, MX_GR, MX_XMAX, MX_PK, MX_PART, MX_SG, MX_DG = MX_SG + 3, MX_N = MX_DG + 3 };
 static inline __attribute__((always_inline)) int32_t mix_part_loop(const int32_t *b, const int32_t *sd, uint32_t n,
                                                                    const int32_t *k, int16_t *pc, int side, int sends,
                                                                    int tap)
 {
     int32_t lvl = k[MX_LVL], gl = k[MX_GL], gr = k[MX_GR], xmax = k[MX_XMAX], pk = k[MX_PK];
     int32_t s0 = k[MX_SG], s1 = k[MX_SG + 1], s2 = k[MX_SG + 2], d0 = k[MX_DG], d1 = k[MX_DG + 1], d2 = k[MX_DG + 2];
+    int32_t *left = mix_l, *right = mix_r;
+#ifdef CF_FX_PARTS
+    if (cfx_studio && k[MX_PART] < CF_FX_PARTS) {
+        left = cfx_part_mix[k[MX_PART]][0];
+        right = cfx_part_mix[k[MX_PART]][1];
+    }
+#endif
     uint32_t i;
     for (i = 0; i < n; i++) {
         int32_t x, y = 0, a, l, rr;
@@ -1002,8 +1013,8 @@ static inline __attribute__((always_inline)) int32_t mix_part_loop(const int32_t
             l = (x * gl) >> 12;
             rr = (x * gr) >> 12;
         }
-        mix_l[i] += l;
-        mix_r[i] += rr;
+        left[i] += l;
+        right[i] += rr;
 #if FX_UA_STAGE
         if (tap) {
             pc[i * UA_CAP_CHANNELS] = ua_sat(l >> 1);
@@ -1080,8 +1091,11 @@ static void mix_part_out(track_t *t, int32_t *b, int32_t *side, uint8_t side_on,
         dg[0] = dg[1] = dg[2] = 0;
 #if CR_FX
         int32_t *sg = fx_sg[t - trk];
-        if (fx_off)
-            c = d = r = 0;
+        if (fx_off
+#ifdef CF_FX_PARTS
+            || cfx_studio
+#endif
+        ) c = d = r = 0;
         dg[0] = (c - sg[0]) >> CTL_LOG2;                /* (CTL samples a block; the ramp's last fraction: a step of
                                                          * under 32 / 32768) */
         dg[1] = (d - sg[1]) >> CTL_LOG2;
@@ -1124,6 +1138,9 @@ static void mix_part_out(track_t *t, int32_t *b, int32_t *side, uint8_t side_on,
         k[MX_GR] = gr;
         k[MX_XMAX] = xmax;
         k[MX_PK] = pk;
+#ifdef CF_FX_PARTS
+        k[MX_PART] = t == &trk[NTRK] ? cf_tail_part : (int32_t)(t - trk);
+#endif
         /* the loop of this block: with or without the side, the sends, the tap */
         if (sd)
             pk = sends ? (pc ? mix_loop_sfu : mix_loop_sf)(b, sd, n, k, pc) : (pc ? mix_loop_su : mix_loop_s)(b, sd, n, k, pc);
@@ -1260,6 +1277,9 @@ static void mix_block(int32_t *out, uint32_t n)
 #endif
     for (i = 0; i < n; i++)
         send_c[i] = send_d[i] = send_r[i] = mix_l[i] = mix_r[i] = 0;
+#ifdef CF_FX_PARTS
+    if (cfx_studio) memset(cfx_part_mix, 0, sizeof cfx_part_mix);
+#endif
     events_block(n);
 #if FELUCCA_PERFORM
     perf = perf_begin(n);                               /* the FX hold layer at work (perform.c) */

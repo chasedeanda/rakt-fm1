@@ -7,6 +7,14 @@ slots are retained. Hardware verification remains pending.
 
 ## Controls
 
+In the Studio rack, **FX** opens the highlighted musician’s preset page. **K1**
+or **PRESETS** browses the library and **SEL** loads the preset for that musician.
+Use **ALGORITHM** to switch musicians, **EDIT** to edit the loaded chain, and
+**SAVE** to manage library slots or clear or undo that musician’s FX. Studio
+saves the four assignments in backup object 76. Musicians without a saved
+assignment start with the previous master FX settings. Studio uses separate
+quarter-rate delay and reverb buffers for each musician.
+
 Press FX to open Macros. SELECT browses the complete factory bank, followed by
 sixteen user slots; it leaves the current sound alone. SEL explicitly loads the
 highlighted recipe. The loaded name and browse target are distinct on screen.

@@ -539,7 +539,6 @@ static void cf_snd_meta(uint32_t e, uint32_t pos, cf_snd_t *m)
  * rules it: a new note on a tight core (over 70 %) takes one of its voices, an overload sheds them first (voice.c
  * voice_tail_yield, cf_fx.c SHED_FIRST). fx.c mixes it while it rings */
 static const uint8_t CF_TAIL_RANK[3] = {3u, 1u, 2u};   /* chord, bass, LAYER */
-static uint8_t cf_tail_part = 0xFFu;             /* whose sound rings there */
 static int cf_tail_rings(void)
 {
     uint32_t i;

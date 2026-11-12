@@ -36,14 +36,15 @@ static uint8_t cfx_identify(const cf_fx_t *s)
 }
 static void cfx_anchor(void)
 {
-    cfxu.anchor = cfxu.seen = cs.fx;
-    uint32_t on = cs.fx.on;
-    cfxu.value[0] = on & (1u << CFX_REVERB) ? (uint8_t)clampi((cs.fx.v[CFX_REVERB][1] + cs.fx.v[CFX_REVERB][2]) / 2, 1, 99) : 0;
-    cfxu.value[1] = on & (1u << CFX_DELAY) ? (uint8_t)clampi((cs.fx.v[CFX_DELAY][1] + cs.fx.v[CFX_DELAY][2]) / 2, 1, 99) : 0;
+    const cf_fx_t *fx = fxp_active_chain();
+    cfxu.anchor = cfxu.seen = *fx;
+    uint32_t on = fx->on;
+    cfxu.value[0] = on & (1u << CFX_REVERB) ? (uint8_t)clampi((fx->v[CFX_REVERB][1] + fx->v[CFX_REVERB][2]) / 2, 1, 99) : 0;
+    cfxu.value[1] = on & (1u << CFX_DELAY) ? (uint8_t)clampi((fx->v[CFX_DELAY][1] + fx->v[CFX_DELAY][2]) / 2, 1, 99) : 0;
     uint32_t motion = 0;
     for (uint32_t e = CFX_CHORUS; e <= CFX_PHASER; e++)
         if (on & (1u << e)) {
-            uint32_t v = (cs.fx.v[e][1] + cs.fx.v[e][2]) / 2u;
+            uint32_t v = (fx->v[e][1] + fx->v[e][2]) / 2u;
             if (v > motion) motion = v;
         }
     cfxu.value[2] = (uint8_t)(on & ((1u << CFX_CHORUS) | (1u << CFX_PHASER)) ? clampi((int)motion, 1, 99) : 0);
@@ -54,15 +55,15 @@ static void cfx_init(void)
 {
     memset(&cfxu, 0, sizeof cfxu);
     cfxu.ready = 1;
-    cfxu.loaded = cfx_identify(&cs.fx);
+    cfxu.loaded = cfx_identify(fxp_active_chain());
     cfxu.browse = cfxu.loaded == CFX_CUSTOM ? 0 : cfxu.loaded; fxpu.pick = cfxu.browse;
     cfx_anchor();
 }
 static void cfx_sync(void)
 {
     if (!cfxu.ready) cfx_init();
-    else if (!cfx_equal(&cs.fx, &cfxu.seen)) {
-        uint8_t exact = cfx_identify(&cs.fx);
+    else if (!cfx_equal(fxp_active_chain(), &cfxu.seen)) {
+        uint8_t exact = cfx_identify(fxp_active_chain());
         if (exact != CFX_CUSTOM) cfxu.loaded = exact;
         else cfxu.loaded = CFX_CUSTOM;
         cfxu.edited = 0;
@@ -74,6 +75,21 @@ static void cfx_sync(void)
         cfxu.loaded = CFX_CUSTOM;
     }
 }
+static void cfx_scope(unsigned scope)
+{
+    if (scope == fxp_scope) return;
+    fxp_context[fxp_scope].pick = (uint8_t)(fxpu.pick + 1u);
+    fxp_context[fxp_scope].prev = fxpu.prev;
+    fxp_context[fxp_scope].previous = fxpu.previous;
+    fxp_context[fxp_scope].bypass = fxpu.prev_bypass;
+    fxp_scope = scope;
+    cfx_init();
+    if (fxp_context[scope].pick) fxpu.pick = fxp_context[scope].pick - 1u;
+    fxpu.prev = fxp_context[scope].prev;
+    fxpu.previous = fxp_context[scope].previous;
+    fxpu.prev_bypass = fxp_context[scope].bypass;
+}
+
 static void cfx_recall(void)
 {
     cfx_sync();
@@ -104,64 +120,64 @@ static uint8_t cfx_curve(int value, int at, int base, int lo, int hi)
     if (value < at) return (uint8_t)(lo + (base - lo) * value / at);
     return (uint8_t)(base + (hi - base) * (value - at) / (100 - at));
 }
-static void cfx_switch(uint32_t mask, int on)
+static void cfx_switch(cf_fx_t *fx, uint32_t mask, int on)
 {
-    cs.fx.on = (uint8_t)(on ? cs.fx.on | mask : cs.fx.on & ~mask);
+    fx->on = (uint8_t)(on ? fx->on | mask : fx->on & ~mask);
 }
 static void cfx_macro_turn(int k, int d)
 {
     cfx_sync();
     int m = clampi(cfxu.value[k] + d, 0, 100), at = cfxu.at[k];
     if (m == cfxu.value[k]) return;
-    cge_direct(CGE_FX);
+    cf_fx_t fx = *fxp_active_chain();
     const cf_fx_t *a = &cfxu.anchor;
     uint8_t *v;
     if (k <= 1) {
         uint32_t e = k == 0 ? CFX_REVERB : CFX_DELAY;
-        v = cs.fx.v[e];
+        v = fx.v[e];
         int enabled = (a->on >> e) & 1u;
         /* Types and repeat timing remain constant throughout a macro gesture. */
         v[1] = cfx_curve(m, at, enabled ? a->v[e][1] : 0, 0, e == CFX_DELAY ? 85 : 100);
         v[2] = cfx_curve(m, at, enabled ? a->v[e][2] : 0, 0, e == CFX_DELAY ? 75 : 90);
-        cfx_switch(1u << e, m > 0);
+        cfx_switch(&fx, 1u << e, m > 0);
     } else if (k == 2) {
         uint32_t mask = a->on & ((1u << CFX_CHORUS) | (1u << CFX_PHASER));
         if (!mask) mask = 1u << CFX_CHORUS;
         for (uint32_t e = CFX_CHORUS; e <= CFX_PHASER; e++) if (mask & (1u << e)) {
-            v = cs.fx.v[e];
+            v = fx.v[e];
             int enabled = (a->on >> e) & 1u;
             v[1] = cfx_curve(m, at, enabled ? a->v[e][1] : 0, 0, 100);
             v[2] = cfx_curve(m, at, enabled ? a->v[e][2] : 0, 0, 100);
         }
-        cfx_switch(mask, m > 0);
+        cfx_switch(&fx, mask, m > 0);
     } else {
         const uint8_t *f = a->v[CFX_FILTER], *ds = a->v[CFX_DIST];
         int filter = (a->on >> CFX_FILTER) & 1u, drive = (a->on >> CFX_DIST) & 1u;
-        v = cs.fx.v[CFX_FILTER];
+        v = fx.v[CFX_FILTER];
         v[0] = filter ? f[0] : 0;
         int base = filter ? f[1] : 99;
         int low = v[0] == 2 ? 0 : 99;
         int high = v[0] == 0 ? base / 2 : clampi(base - 12, 0, 99);
         v[1] = cfx_curve(m, at, base, low, high);
-        v = cs.fx.v[CFX_DIST];
+        v = fx.v[CFX_DIST];
         int old = drive ? ds[0] : 0;
         v[0] = cfx_curve(m, at, old, 0, 100);
         v[1] = cfx_curve(m, at, drive ? ds[1] : 100, 100, 10);
         v[2] = (uint8_t)clampi((drive ? ds[2] : 70) * (100 + old) / (100 + v[0]), 0, 100);
-        cfx_switch((1u << CFX_FILTER) | (1u << CFX_DIST), m > 0);
+        cfx_switch(&fx, (1u << CFX_FILTER) | (1u << CFX_DIST), m > 0);
     }
     if (m == at) {
         uint32_t mask = k == 0 ? 1u << CFX_REVERB : k == 1 ? 1u << CFX_DELAY :
                         k == 2 ? (1u << CFX_CHORUS) | (1u << CFX_PHASER) :
                                  (1u << CFX_FILTER) | (1u << CFX_DIST);
         for (uint32_t e = 0; e < CFX_N; e++) if (mask & (1u << e))
-            memcpy(cs.fx.v[e], a->v[e], 3);
-        cs.fx.on = (uint8_t)((cs.fx.on & ~mask) | (a->on & mask));
+            memcpy(fx.v[e], a->v[e], 3);
+        fx.on = (uint8_t)((fx.on & ~mask) | (a->on & mask));
     }
     cfxu.value[k] = (uint8_t)m;
     cfxu.edited = 1;
-    cfxu.seen = cs.fx;
-    cf_fx_apply(&cs.fx); cf_fx_bypass(0);
+    cfxu.seen = fx;
+    fxp_publish(&fx, 0, 0);
 }
 
 /* main already publishes post-MASTER activity, including tails and mute. */
@@ -173,8 +189,8 @@ static void cfx_visual_tick(uint32_t dt, uint32_t energy, int active)
     if (active) cfxu.vis_ms += dt > 80u ? 80u : dt;
 }
 
-static uint32_t cfx_sel(void) { return cs.fx.order[cu.fx_pos % CFX_N] % CFX_N; }
-static int cfx_is_on(uint32_t e) { return (int)((cs.fx.on >> e) & 1u); }
+static uint32_t cfx_sel(void) { return fxp_active_chain()->order[cu.fx_pos % CFX_N] % CFX_N; }
+static int cfx_is_on(uint32_t e) { return (int)((fxp_active_chain()->on >> e) & 1u); }
 
 /* "1004 Hz", "2.5 kHz", "12 kHz": 7 characters at most */
 static void cfx_hz(char *b, uint32_t hz)
@@ -212,7 +228,7 @@ static void cfx_knob_info(int knob, cf_knob_t *o)
         return;
     }
     uint32_t e = cfx_sel();
-    const uint8_t *v = cs.fx.v[e];
+    const uint8_t *v = fxp_active_chain()->v[e];
     int k = knob - 1;                            /* (KNOB 1 the switch, KNOB 2-4 the three values) */
     if (knob == 0) {
         kfmt(o->name, 12, "1 ON/OFF");
@@ -247,17 +263,17 @@ static void cfx_knob_turn(int knob, int d)
     cfxu.view = fxpu.mode == FXP_BROWSE ? CFX_MACROS : CFX_INDIVIDUAL;
     if (!d) return;
     if (cfxu.view == CFX_MACROS) { cfx_macro_turn(knob, d); return; }
-    cge_direct(CGE_FX);
+    cf_fx_t fx = *fxp_active_chain();
     uint32_t e = cfx_sel();
-    uint8_t *v = cs.fx.v[e];
+    uint8_t *v = fx.v[e];
     int k = knob - 1;
     if (knob == 0)
-        cs.fx.on = (uint8_t)(d > 0 ? cs.fx.on | (1u << e) : cs.fx.on & ~(1u << e));
+        fx.on = (uint8_t)(d > 0 ? fx.on | (1u << e) : fx.on & ~(1u << e));
     else if (k == 0 && (e == CFX_FILTER || e == CFX_REVERB))
         v[0] = (uint8_t)clampi(v[0] + (d > 0 ? 1 : -1), 0, 2);
     else
         v[k] = (uint8_t)clampi(v[k] + d, 0, e == CFX_FILTER && k == 1 ? 99 : 100);
-    cf_fx_apply(&cs.fx); cf_fx_bypass(0);
+    fxp_publish(&fx, 0, 0);
     cfxu.edited = 1;
     cfx_anchor();
 }

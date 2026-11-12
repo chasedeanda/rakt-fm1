@@ -16,6 +16,7 @@
  * MIX: the reverb and the delay keep most of the dry sound (dry 1 - mix / 2, wet x mix); the chorus and the phaser
  * blend (dry 1 - mix / 2, wet mix / 2: at 100 the two halves, where their effect is strongest). An effect switched off
  * takes no new sound, but a reverb's or a delay's tail rings out.
+ * Studio processes independent musician buses before summing them (cf_fx_studio.c).
  * Included after fx.c (cr_fx.c's functions), before cf_state.h (cf_set_t holds a cf_fx_t). */
 
 #if CR_FX_DELAY_DS != 1 || CR_FX_REVERB_DS != 2
@@ -148,7 +149,7 @@ static int32_t cfx_dry[2][CTL] __attribute__((section(".pool")));
 #define CFX_FADE_STEP 75
 
 
-static struct {
+typedef struct {
     uint32_t hash;                   /* of cfx_set: what the values below were worked out from */
     int32_t fg, fg_t, fa1, fa2, fa3, fk;   /* filter: g now and its target (Q16, gliding), the TPT's a1..a3 (Q15), k
                                             * (Q14) */
@@ -157,8 +158,11 @@ static struct {
     uint32_t pph, pinc;              /* phaser: the LFO's phase, its step a block */
     int32_t pdep, px[2][6], py[2][6], pfb[2];
     int32_t wg[CFX_N], wt[CFX_N];    /* each effect's wet gain now and set (Q15, eased a block at a time) */
-    int32_t m[CTL], wl[CTL], wr[CTL];
-} cfx __attribute__((section(".pool")));
+} cfx_dsp_t;
+static cfx_dsp_t cfx __attribute__((section(".pool")));
+static int32_t cfx_m[CTL] __attribute__((section(".pool")));
+static int32_t cfx_wl[CTL] __attribute__((section(".pool")));
+static int32_t cfx_wr[CTL] __attribute__((section(".pool")));
 
 #define CFX_MUL(a, b, sh) ((int32_t)(((int64_t)(a) * (b)) >> (sh)))
 
@@ -197,57 +201,58 @@ static void cf_fx_bypass(int on)
 static void cv_coefs(uint32_t type, uint32_t decay);   /* (the reverb, below) */
 
 /* the values -> what each effect runs on (a change of the set: once) */
-static void cfx_coefs(void)
+static void cfx_coefs(cfx_dsp_t *dsp, const cf_fx_t *s, int master)
 {
-    const cf_fx_t *s = &cfx_set;
     const uint8_t *f = s->v[CFX_FILTER], *rv = s->v[CFX_REVERB], *dl = s->v[CFX_DELAY], *ds = s->v[CFX_DIST];
     const uint8_t *ch = s->v[CFX_CHORUS], *ph = s->v[CFX_PHASER];
     uint32_t t = rv[0] > 2u ? 2u : rv[0], e;
     int32_t m;
-    cfx.fg_t = CFX_G[f[1] > 99u ? 99u : f[1]];
-    cfx.fk = CFX_K[f[2] > 100u ? 100u : f[2]];
-    cv_coefs(t, rv[1]);
-    xfp[XP_DSYNC] = 0;                                  /* the stock delay's time is free, in ms */
-    xfp[XP_DMODE] = 1;                                  /* ping-pong */
-    xfp[XP_DTIME] = (int16_t)(dl[0] * 127u / 100u);
-    xfp[XP_DFDBK] = (int16_t)(dl[1] * 118u / 100u);     /* (to 0.92: a long tail, never a runaway) */
-    song.g[G_CRATE] = (int16_t)(8 + ch[0] * 100u / 100u);
-    song.g[G_CDEPTH] = (int16_t)(ch[1] * 127u / 100u);
-    cfx.dg = CFX_DRIVE[ds[0] > 100u ? 100u : ds[0]];
-    cfx.dk = CFX_TONE[ds[1] > 100u ? 100u : ds[1]];
-    cfx.dl = (int32_t)ds[2] * 300 / 100;                /* level 0 .. 1.17 */
-    cfx.pinc = CFX_PRATE[ph[0] > 100u ? 100u : ph[0]];
-    cfx.pdep = (int32_t)ph[1] * 32 * 256 / 100;         /* the sweep: up to 32 of the 64 corners each way */
+    dsp->fg_t = CFX_G[f[1] > 99u ? 99u : f[1]];
+    dsp->fk = CFX_K[f[2] > 100u ? 100u : f[2]];
+    if (master) {
+        cv_coefs(t, rv[1]);
+        xfp[XP_DSYNC] = 0;                                  /* the stock delay's time is free, in ms */
+        xfp[XP_DMODE] = 1;                                  /* ping-pong */
+        xfp[XP_DTIME] = (int16_t)(dl[0] * 127u / 100u);
+        xfp[XP_DFDBK] = (int16_t)(dl[1] * 118u / 100u);     /* (to 0.92: a long tail, never a runaway) */
+        song.g[G_CRATE] = (int16_t)(8 + ch[0] * 100u / 100u);
+        song.g[G_CDEPTH] = (int16_t)(ch[1] * 127u / 100u);
+    }
+    dsp->dg = CFX_DRIVE[ds[0] > 100u ? 100u : ds[0]];
+    dsp->dk = CFX_TONE[ds[1] > 100u ? 100u : ds[1]];
+    dsp->dl = (int32_t)ds[2] * 300 / 100;                /* level 0 .. 1.17 */
+    dsp->pinc = CFX_PRATE[ph[0] > 100u ? 100u : ph[0]];
+    dsp->pdep = (int32_t)ph[1] * 32 * 256 / 100;         /* the sweep: up to 32 of the 64 corners each way */
     for (e = 0; e < CFX_N; e++) {
         m = e == CFX_DIST || e == CFX_FILTER ? 0 : (int32_t)s->v[e][2];
-        cfx.wt[e] = m * 32768 / 100;
+        dsp->wt[e] = m * 32768 / 100;
     }
 }
 
 /* the filter's coefficients from g (Q16) and k (Q14): a1 = 1 / (1 + g (g + k)), a2 = g a1, a3 = g a2 */
-static void cfx_filter_coefs(void)
+static void cfx_filter_coefs(cfx_dsp_t *dsp)
 {
-    int32_t g = cfx.fg;
-    uint32_t den = 65536u + (uint32_t)(((int64_t)g * (g + cfx.fk * 4)) >> 16);
-    cfx.fa1 = (int32_t)((1u << 31) / den);
-    cfx.fa2 = CFX_MUL(g, cfx.fa1, 16);
-    cfx.fa3 = CFX_MUL(g, cfx.fa2, 16);
+    int32_t g = dsp->fg;
+    uint32_t den = 65536u + (uint32_t)(((int64_t)g * (g + dsp->fk * 4)) >> 16);
+    dsp->fa1 = (int32_t)((1u << 31) / den);
+    dsp->fa2 = CFX_MUL(g, dsp->fa1, 16);
+    dsp->fa3 = CFX_MUL(g, dsp->fa2, 16);
 }
 
-static void cfx_filter(int32_t *l, int32_t *r, uint32_t n)
+static void cfx_filter(cfx_dsp_t *dsp, unsigned type, int32_t *l, int32_t *r, uint32_t n)
 {
-    int32_t a1, a2, a3, k = cfx.fk, type = cfx_set.v[CFX_FILTER][0];
+    int32_t a1, a2, a3, k = dsp->fk;
     uint32_t c, i;
-    if (cfx.fg != cfx.fg_t || !cfx.fa1) {               /* the cutoff glides: a quarter of the way a block */
-        int32_t d = cfx.fg_t - cfx.fg;
-        cfx.fg += d / 4 ? d / 4 : d;
-        cfx_filter_coefs();
+    if (dsp->fg != dsp->fg_t || !dsp->fa1) {               /* the cutoff glides: a quarter of the way a block */
+        int32_t d = dsp->fg_t - dsp->fg;
+        dsp->fg += d / 4 ? d / 4 : d;
+        cfx_filter_coefs(dsp);
     }
-    a1 = cfx.fa1;
-    a2 = cfx.fa2;
-    a3 = cfx.fa3;
+    a1 = dsp->fa1;
+    a2 = dsp->fa2;
+    a3 = dsp->fa3;
     for (c = 0; c < 2u; c++) {
-        int32_t *b = c ? r : l, s0 = cfx.fs[c][0], s1 = cfx.fs[c][1];
+        int32_t *b = c ? r : l, s0 = dsp->fs[c][0], s1 = dsp->fs[c][1];
         for (i = 0; i < n; i++) {
             int32_t x = b[i], v3 = x - s1;
             int32_t v1 = (int32_t)(((int64_t)a1 * s0 + (int64_t)a2 * v3) >> 15);
@@ -256,40 +261,40 @@ static void cfx_filter(int32_t *l, int32_t *r, uint32_t n)
             s1 = 2 * v2 - s1;
             b[i] = type == 0 ? v2 : type == 1 ? CFX_MUL(k, v1, 14) : x - CFX_MUL(k, v1, 14) - v2;
         }
-        cfx.fs[c][0] = s0;
-        cfx.fs[c][1] = s1;
+        dsp->fs[c][0] = s0;
+        dsp->fs[c][1] = s1;
     }
 }
 
-static void cfx_dist(int32_t *l, int32_t *r, uint32_t n)
+static void cfx_dist(cfx_dsp_t *dsp, int32_t *l, int32_t *r, uint32_t n)
 {
     uint32_t c, i;
     for (c = 0; c < 2u; c++) {
-        int32_t *b = c ? r : l, lp = cfx.dlp[c];
+        int32_t *b = c ? r : l, lp = dsp->dlp[c];
         for (i = 0; i < n; i++) {
-            int32_t x = CFX_MUL(b[i], cfx.dg, 8), y;
+            int32_t x = CFX_MUL(b[i], dsp->dg, 8), y;
             y = softclip(x < -(1 << 20) ? -(1 << 20) : x > (1 << 20) ? (1 << 20) : x);
-            lp += CFX_MUL(y - lp, cfx.dk, 15);
-            b[i] = CFX_MUL(lp, cfx.dl, 8);
+            lp += CFX_MUL(y - lp, dsp->dk, 15);
+            b[i] = CFX_MUL(lp, dsp->dl, 8);
         }
-        cfx.dlp[c] = lp;
+        dsp->dlp[c] = lp;
     }
 }
 
 /* the wet back into the bus: dry x (1 - w / 2) + wet x w x boost, w the eased wet gain (Q15) */
-static void cfx_mix(int32_t *l, int32_t *r, uint32_t e, uint32_t n, int32_t boost_q8, int blend)
+static void cfx_mix(cfx_dsp_t *dsp, int32_t *l, int32_t *r, uint32_t e, uint32_t n, int32_t boost_q8, int blend)
 {
-    int32_t w = cfx.wg[e], dg, wg;
+    int32_t w = dsp->wg[e], dg, wg;
     uint32_t i;
-    int32_t target=cfx.wt[e];
+    int32_t target=dsp->wt[e];
     if(e==CFX_REVERB || e==CFX_DELAY || e==CFX_CHORUS)target=CFX_MUL(target,cfx_space,15);
     if (w != target)
-        cfx.wg[e] = w = w + (target - w) / 8 + (target > w ? 1 : target < w ? -1 : 0);
+        dsp->wg[e] = w = w + (target - w) / 8 + (target > w ? 1 : target < w ? -1 : 0);
     dg = 32768 - w / 2;
     wg = CFX_MUL(blend ? w / 2 : w, boost_q8, 8);
     for (i = 0; i < n; i++) {
-        l[i] = (int32_t)(((int64_t)l[i] * dg + (int64_t)cfx.wl[i] * wg) >> 15);
-        r[i] = (int32_t)(((int64_t)r[i] * dg + (int64_t)cfx.wr[i] * wg) >> 15);
+        l[i] = (int32_t)(((int64_t)l[i] * dg + (int64_t)cfx_wl[i] * wg) >> 15);
+        r[i] = (int32_t)(((int64_t)r[i] * dg + (int64_t)cfx_wr[i] * wg) >> 15);
     }
 }
 
@@ -299,9 +304,9 @@ static int32_t cfx_send(const int32_t *l, const int32_t *r, uint32_t n, int feed
     int32_t any = 0;
     uint32_t i;
     for (i = 0; i < n; i++) {
-        cfx.m[i] = feed ? (l[i] + r[i]) >> 1 : 0;
-        any |= cfx.m[i];
-        cfx.wl[i] = cfx.wr[i] = 0;
+        cfx_m[i] = feed ? (l[i] + r[i]) >> 1 : 0;
+        any |= cfx_m[i];
+        cfx_wl[i] = cfx_wr[i] = 0;
     }
     return any;
 }
@@ -341,10 +346,10 @@ static void cfx_delay(int32_t *l, int32_t *r, uint32_t n, int feed)
     xf.d_ph[0] += (uint32_t)(((uint64_t)330u << 32) * CTL / (1000u * FS));   /* the wow (xf_block's) */
     xf.d_ph[1] += (uint32_t)(((uint64_t)3100u << 32) * CTL / (1000u * FS));
     xf.d_wt = ((osc_sine(xf.d_ph[0]) + (osc_sine(xf.d_ph[1]) >> 3)) * (xf.d_wow >> 3)) >> 12;
-    XF_CALL(xd_run)(cfx.m, cfx.wl, cfx.wr, n, XF_IN);
+    XF_CALL(xd_run)(cfx_m, cfx_wl, cfx_wr, n, XF_IN);
     if (!xf.d_live)
         xf.d_lp[0] = xf.d_lp[1] = xf.d_hp[0] = xf.d_hp[1] = 0;
-    cfx_mix(l, r, CFX_DELAY, n, 768, 0);
+    cfx_mix(&cfx, l, r, CFX_DELAY, n, 768, 0);
 }
 
 /* ---- the reverb: Dattorro's plate (J. Dattorro, "Effect Design, Part 1: Reverberator and Other Filters", JAES
@@ -389,7 +394,16 @@ static const uint16_t CV_DEC[3][101] = {   /* the tank's decay (Q15) for DECAY 0
     {5026, 5245, 5468, 5696, 5927, 6162, 6401, 6644, 6889, 7138, 7390, 7645, 7903, 8163, 8425, 8690, 8956, 9225, 9495, 9766, 10039, 10313, 10588, 10864, 11140, 11417, 11695, 11972, 12250, 12527, 12804, 13081, 13358, 13633, 13908, 14182, 14455, 14727, 14997, 15267, 15534, 15800, 16065, 16328, 16589, 16848, 17105, 17360, 17613, 17863, 18112, 18358, 18602, 18843, 19082, 19318, 19552, 19783, 20012, 20237, 20461, 20681, 20899, 21114, 21326, 21536, 21743, 21947, 22148, 22346, 22542, 22734, 22924, 23112, 23296, 23478, 23656, 23833, 24006, 24177, 24344, 24510, 24672, 24832, 24989, 25144, 25296, 25445, 25592, 25737, 25879, 26018, 26155, 26290, 26422, 26552, 26679, 26804, 26927, 27048, 27166},
 };
 
-static int16_t cv_buf[CV_TOTAL] __attribute__((section(".pool")));
+#define CFX_STUDIO_REV_N 2048u
+static union {
+    int16_t master[CV_TOTAL];
+    struct {
+        int16_t reverb[CFX_STUDIO_REV_N];
+        int16_t chorus[CHO_LEN];
+    } studio[CF_FX_PARTS];
+} cfx_reverb_memory __attribute__((section(".pool")));
+_Static_assert(sizeof cfx_reverb_memory == sizeof cfx_reverb_memory.master, "Studio chorus and reverb fit the master reverb memory");
+#define cv_buf cfx_reverb_memory.master
 static struct {
     uint16_t base[V_N], n[V_N], w[V_N];          /* each line's place in cv_buf, its length, its next write */
     uint16_t len[V_N], tap[14];                  /* the lengths and taps at this size */
@@ -517,7 +531,7 @@ static void cfx_reverb(int32_t *l, int32_t *r, uint32_t n, int feed)
         cv_coefs(1, 45);
     if (!fed && cv.idle > 15u * 22050u && !xf.up_live)
         return;                                   /* 15 s of nothing in: the tail is gone, nothing runs */
-    XF_CALL(xf_down)(&xf.dn[1], cfx.m, hr, n);
+    XF_CALL(xf_down)(&xf.dn[1], cfx_m, hr, n);
     /* (switched off: the tail rings out, but in a second or two even at DECAY 100, where it would never end) */
     cv_run(hr, ol, orr, nh, feed || cv.dec < 16000 ? cv.dec : 16000);
     for (i = 0, any = 0; i < nh; i++)
@@ -526,46 +540,45 @@ static void cfx_reverb(int32_t *l, int32_t *r, uint32_t n, int feed)
         xf.up_live = 256u;
     else if (xf.up_live)
         xf.up_live = xf.up_live > nh ? xf.up_live - nh : 0u;
-    XF_CALL(xf_up)(&xf.up[0], ol, cfx.wl, nh);
-    XF_CALL(xf_up)(&xf.up[1], orr, cfx.wr, nh);
-    cfx_mix(l, r, CFX_REVERB, n, 256, 0);
+    XF_CALL(xf_up)(&xf.up[0], ol, cfx_wl, nh);
+    XF_CALL(xf_up)(&xf.up[1], orr, cfx_wr, nh);
+    cfx_mix(&cfx, l, r, CFX_REVERB, n, 256, 0);
 }
 
 static void cfx_chorus(int32_t *l, int32_t *r, uint32_t n)
 {
     cfx_send(l, r, n, 1);
-    xc_block(cfx.m, cfx.wl, cfx.wr, n);
-    cfx_mix(l, r, CFX_CHORUS, n, 256, 1);
+    xc_block(cfx_m, cfx_wl, cfx_wr, n);
+    cfx_mix(&cfx, l, r, CFX_CHORUS, n, 256, 1);
 }
 
-static void cfx_phaser(int32_t *l, int32_t *r, uint32_t n)
+static void cfx_phaser(cfx_dsp_t *dsp, int32_t *l, int32_t *r, uint32_t n)
 {
     uint32_t c, i, s;
-    cfx.pph += cfx.pinc;
+    dsp->pph += dsp->pinc;
     for (c = 0; c < 2u; c++) {
         const int32_t *b = c ? r : l;
-        int32_t q = 32 * 256 + CFX_MUL(osc_sine(cfx.pph + (c ? 0x40000000u : 0u)), cfx.pdep, 15), k, a;
-        int32_t *w = c ? cfx.wr : cfx.wl, fb = cfx.pfb[c];
+        int32_t q = 32 * 256 + CFX_MUL(osc_sine(dsp->pph + (c ? 0x40000000u : 0u)), dsp->pdep, 15), k, a;
+        int32_t *w = c ? cfx_wr : cfx_wl, fb = dsp->pfb[c];
         q = q < 0 ? 0 : q > 63 * 256 - 1 ? 63 * 256 - 1 : q;
         k = q >> 8;
         a = CFX_PA[k] + (((CFX_PA[k + 1] - CFX_PA[k]) * (q & 255)) >> 8);
         for (i = 0; i < n; i++) {
             int32_t u = b[i] + CFX_MUL(fb, 19660, 15);    /* (feedback 0.6) */
             for (s = 0; s < 6u; s++) {
-                int32_t y = cfx.px[c][s] + CFX_MUL(a, u - cfx.py[c][s], 15);
-                cfx.px[c][s] = u;
-                cfx.py[c][s] = y;
+                int32_t y = dsp->px[c][s] + CFX_MUL(a, u - dsp->py[c][s], 15);
+                dsp->px[c][s] = u;
+                dsp->py[c][s] = y;
                 u = y;
             }
             fb = u;
             w[i] = u;
         }
-        cfx.pfb[c] = fb;
+        dsp->pfb[c] = fb;
     }
-    cfx_mix(l, r, CFX_PHASER, n, 256, 1);
+    cfx_mix(dsp, l, r, CFX_PHASER, n, 256, 1);
 }
 
-/* fx.c's FX_MIX_HOOK: the chain, in its order, on the mixed parts */
 /* ------------------------------------------------------ the power-on sound --- */
 /* CORD: a short Dm7 electric-key signature, matching the piano-key logo.
  * Six rising notes, a brief second harmonic and a finite 2.2 s tail.
@@ -651,7 +664,23 @@ static void cf_boot_note(void)
     if(cfb.on)cfb.yield=1;
 }
 
-static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n)
+static void cfx_fade(int32_t *l, int32_t *r, uint32_t n, int32_t *blend, int32_t target)
+{
+    uint32_t i;
+    int32_t gain = *blend;
+    for (i = 0; i < n; i++) {
+        if (gain < target) { gain += CFX_FADE_STEP; if (gain > target) gain = target; }
+        else if (gain > target) { gain -= CFX_FADE_STEP; if (gain < target) gain = target; }
+        if (!gain) { l[i] = cfx_dry[0][i]; r[i] = cfx_dry[1][i]; }
+        else if (gain != 32768) {
+            l[i] = cfx_dry[0][i] + CFX_MUL(l[i] - cfx_dry[0][i], gain, 15);
+            r[i] = cfx_dry[1][i] + CFX_MUL(r[i] - cfx_dry[1][i], gain, 15);
+        }
+    }
+    *blend = gain;
+}
+
+static void cfx_master(int32_t *l, int32_t *r, uint32_t n)
 {
     uint32_t i, h;
     if (!cfx_ready)
@@ -664,37 +693,36 @@ static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n)
     h = cfx_fnv(&cfx_set, sizeof cfx_set);
     if (h != cfx.hash || !cfx.fa1) {
         cfx.hash = h;
-        cfx_coefs();
+        cfx_coefs(&cfx, &cfx_set, 1);
         if (!cfx.fg)
             cfx.fg = cfx.fg_t;
-        cfx_filter_coefs();
+        cfx_filter_coefs(&cfx);
     }
     cfx_xf_prepare();
     for (i = 0; i < CFX_N; i++) {
         uint32_t e = cfx_set.order[i];
         int on = e < CFX_N && ((cfx_set.on >> e) & 1u);
         switch (e) {
-        case CFX_FILTER: if (on) cfx_filter(l, r, n); break;
-        case CFX_DIST: if (on) cfx_dist(l, r, n); break;
+        case CFX_FILTER: if (on) cfx_filter(&cfx, cfx_set.v[CFX_FILTER][0], l, r, n); break;
+        case CFX_DIST: if (on) cfx_dist(&cfx, l, r, n); break;
         case CFX_CHORUS: if (on) cfx_chorus(l, r, n); break;
-        case CFX_PHASER: if (on) cfx_phaser(l, r, n); break;
+        case CFX_PHASER: if (on) cfx_phaser(&cfx, l, r, n); break;
         case CFX_DELAY: cfx_delay(l, r, n, on); break;   /* (off: no new sound in, the tail rings out) */
         case CFX_REVERB: cfx_reverb(l, r, n, on); break;
         default: break;
         }
     }
-    if (transitioning) {
-        int32_t target = cfx_pending || cfx_bypass ? 0 : 32768;
-        for (i = 0; i < n; i++) {
-            if (cfx_blend < target) { cfx_blend += CFX_FADE_STEP; if (cfx_blend > target) cfx_blend = target; }
-            else if (cfx_blend > target) { cfx_blend -= CFX_FADE_STEP; if (cfx_blend < target) cfx_blend = target; }
-            if (!cfx_blend) { l[i] = cfx_dry[0][i]; r[i] = cfx_dry[1][i]; }
-            else if (cfx_blend != 32768) {
-                l[i] = (int32_t)(cfx_dry[0][i] + ((((int64_t)l[i] - cfx_dry[0][i]) * cfx_blend) >> 15));
-                r[i] = (int32_t)(cfx_dry[1][i] + ((((int64_t)r[i] - cfx_dry[1][i]) * cfx_blend) >> 15));
-            }
-        }
-    }
+    if (transitioning) cfx_fade(l, r, n, &cfx_blend, cfx_pending || cfx_bypass ? 0 : 32768);
+}
+
+#include "cf_fx_studio.c"
+
+static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n)
+{
+    uint32_t i;
+    int ready = cfx_route(cfx_studio);
+    if (cfx_studio) cfx_studio_mix(l, r, n, ready);
+    else if (ready) cfx_master(l, r, n);
 #if CF_VLOAD
     {
         uint32_t vl0 = VL_NOW();

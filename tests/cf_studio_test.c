@@ -427,7 +427,7 @@ static void workspaces_studio(void)
     CHECK(cgu.tab==CGU_SOUND && cgs.zoom && cgu.sound_page==CGU_PRESETS);
     CHECK(fxpu.mode==FXP_BROWSE && fxp_pick()==preset);
     ui_button(B_SCL);
-    CHECK(cgs.zoom && preset && cfx_equal(&cs.fx,&preset->fx));
+    CHECK(cgs.zoom && preset && cfx_equal(fxp_active_chain(),&preset->fx) && cfx_equal(&cs.fx,&previous));
     ui_capture("sound-fx-presets");
     ui_select(1);
     CHECK(cgu.sound_page==CGU_TONE);
@@ -2315,6 +2315,87 @@ static void render_studio(uint32_t seed, unsigned regenerate, const char *path, 
     printf("seed=%u progression=%u bpm=%u clocks=%u frames=%u voice_kills=%u sheds=%u\n",
            seed,progression,cs.bpm,clocks,sample,voice_kills-kills,shed_count-sheds);
 }
+static void track_fx_studio(void)
+{
+    static const unsigned picks[] = {4, 2, 9, 8};
+    cf_fx_t master = cs.fx;
+    cpa_stop(); sqp_stop(); dmp_stop(); cfp_panic();
+    cu.scr=SCR_HOME; home_boot_main=1; cf_home_bank=CF_HB_ENGINE;
+    cf_scene_set(CF_SCENE_PROGRESSIONS); cgu_home(); cgs.mix_idle=1;
+    cf_boot_go=0; cfb.on=0;
+    for (unsigned p=0; p<CGS_NPART; p++) {
+        cgu_focus_part(p);
+        ui_button(B_FX);
+        CHECK(fxp_scope==p+1u);
+        ui_knob_turn(0,(int)picks[p]-fxpu.pick);
+        ui_button(B_SCL);
+        CHECK(cfx_equal(fxp_active_chain(),&FXP_FACTORY[picks[p]].fx));
+    }
+    CHECK(cfx_equal(&master,&cs.fx));
+    for (unsigned p=0; p<CGS_NPART; p++) {
+        CHECK(cfx_equal(fxp_track_chain(p),&FXP_FACTORY[picks[p]].fx));
+        trk[p].p[P_CHOR]=trk[p].p[P_DLY]=trk[p].p[P_REV]=0;
+    }
+    /* A recall publishes only to the selected musician. */
+    blocks(200);
+    int32_t left[CTL],right[CTL];
+    cfx_part_t saved[CF_FX_PARTS];
+    memcpy(saved,cfx_parts,sizeof saved);
+    cgu_focus_part(CGS_BASS);
+    ui_knob_turn(0,-(int)fxpu.pick);
+    ui_button(B_SCL);
+    CHECK(cfx_equal(fxp_active_chain(),&FXP_FACTORY[0].fx));
+    for (unsigned p=0; p<CGS_NPART; p++) {
+        if (p!=CGS_BASS) CHECK(!memcmp(&saved[p],&cfx_parts[p],sizeof saved[p]));
+    }
+    blocks(40);
+    CHECK(cfx_equal(&cfx_parts[CGS_BASS].set,&FXP_FACTORY[0].fx));
+    CHECK(cfx_equal(&cfx_parts[CGS_DRUMS].set,&FXP_FACTORY[8].fx));
+    CHECK(cfx_equal(&cfx_parts[CGS_LAYER].set,&FXP_FACTORY[9].fx));
+
+    /* The longest echo is still heard, and silence in other part inputs
+     * leaves those outputs dry throughout the echo. */
+    unsigned echoed=0, leaked=0;
+    for (unsigned b=0; b<FS*10u/CTL; b++) {
+        memset(cfx_part_mix,0,sizeof cfx_part_mix);
+        memset(left,0,sizeof left); memset(right,0,sizeof right);
+        cf_fx_chain(left,right,CTL);
+    }
+    for (unsigned b=0; b<FS/CTL; b++) {
+        memset(cfx_part_mix,0,sizeof cfx_part_mix);
+        if (b<4) cfx_part_mix[CGS_CHORDS][0][0]=cfx_part_mix[CGS_CHORDS][1][0]=14000;
+        memset(left,0,sizeof left); memset(right,0,sizeof right);
+        cf_fx_chain(left,right,CTL);
+        if (b>100) for (unsigned i=0; i<CTL; i++) echoed|=left[i]!=0 || right[i]!=0;
+        for (unsigned p=1; p<CGS_NPART; p++)
+            for (unsigned i=0; i<CTL; i++) leaked|=cfx_part_mix[p][0][i]!=0 || cfx_part_mix[p][1][i]!=0;
+    }
+    CHECK(echoed && !leaked);
+    ui_button(B_EDIT);
+    CHECK(cu.scr==SCR_FX && fxp_scope==CGS_BASS+1u);
+    ui_knob_turn(0,1);
+    CHECK(fxp_active_chain()->on & (1u<<CFX_FILTER));
+    CHECK(cfx_equal(fxp_track_chain(CGS_CHORDS),&FXP_FACTORY[4].fx));
+    ui_button(B_HOME);
+    ui_button(B_SAVE);
+    CHECK(cu.scr==SCR_FX && fxpu.mode==FXP_MANAGE);
+    fxpu.action=4; fxp_manage_do();
+    CHECK(cfx_equal(fxp_active_chain(),&FXP_FACTORY[2].fx));
+    fxp_manage_open(); fxpu.action=3; fxp_manage_do();
+    CHECK(fxp_active_bypass() && !fxp_active_chain()->on);
+    CHECK(cfx_equal(&master,&cs.fx));
+
+    CHECK(cfx_studio_dirty && cfx_studio_write(ST_NOERASE)==0);
+    cfx_studio_rec_t record=cfx_studio_rec;
+    CHECK(cfx_studio_record_valid(&record) && record.mask==15u);
+    cfx_studio_load();
+    CHECK(!memcmp(&record,&cfx_studio_rec,sizeof record) && fxp_active_bypass());
+    CHECK(crb_obj(CFB_STUDIO_FX)==OBJ_CFSTUDIOFX);
+    CHECK(crb_index(CFB_STUDIO_FX)>=0);
+    blocks(30);
+    CHECK(cfx_parts[CGS_BASS].bypass);
+}
+
 static unsigned studio_render_genre(const char *name)
 {
     char *end;
@@ -2375,6 +2456,7 @@ int main(int argc,char **argv)
         rack_navigation();
         native_controls_studio();
         quick_start_shortcuts();
+        track_fx_studio();
     }
     printf("RAKT Studio: %u checks, %u failures\n",checks,failures);
     return failures!=0;

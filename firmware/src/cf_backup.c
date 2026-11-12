@@ -48,6 +48,7 @@ enum { CRB_INFO = 1, CRB_LIST = 65, CRB_GET, CRB_PUT, CRB_RESTART = 72, CRB_USB 
 #define CFB_FX 69u                                   /* versioned user FX preset bank */
 #define CFB_SONG 81u /* 81..86, six saved semantic Songs */
 #define CFB_DRAFT 75u
+#define CFB_STUDIO_FX 76u
 #define CFB_RECPREF 74u
 #define CFB_TAKE 71u                                 /* independent recordings A..C; 50..55 remain archived */
 static const uint8_t CRB_IDS[] = {6, 7, 8, CRB_VA, CRB_FM6S, CRB_FM6S + 1u, CFB_SET, CFB_LOOP,
@@ -55,7 +56,7 @@ static const uint8_t CRB_IDS[] = {6, 7, 8, CRB_VA, CRB_FM6S, CRB_FM6S + 1u, CFB_
                                   CFB_EDIT, CFB_EDIT + 1u, CFB_EDIT + 2u, CFB_PSND,
                                   CFB_TWK, CFB_TWK + 1u, CFB_TWK + 2u, CFB_TWK + 3u, CFB_TWK + 4u, CFB_TWK + 5u,
                                   CFB_TWK + 6u, CFB_TWK + 7u, CFB_HARM, CFB_FX, CFB_PREFS,
-                                  CFB_TAKE, CFB_TAKE + 1u, CFB_TAKE + 2u, CFB_RECPREF, CFB_DRAFT,
+                                  CFB_TAKE, CFB_TAKE + 1u, CFB_TAKE + 2u, CFB_RECPREF, CFB_DRAFT, CFB_STUDIO_FX,
                                   CFB_SONG, CFB_SONG+1u, CFB_SONG+2u, CFB_SONG+3u, CFB_SONG+4u, CFB_SONG+5u};
 _Static_assert(SQ_NCHUNK == 6u, "backup: one id per sequencer object");
 #define CRB_N ((uint32_t)sizeof CRB_IDS)
@@ -161,6 +162,7 @@ static uint32_t crb_obj(uint32_t id)                 /* storage.c's object of an
 {
     if (id>=CFB_SONG && id<CFB_SONG+CSL_CAPACITY)return OBJ_CFSONG0+id-CFB_SONG;
     if (id == CFB_DRAFT) return OBJ_CFDRAFT;
+    if (id == CFB_STUDIO_FX) return OBJ_CFSTUDIOFX;
     if (id == CFB_RECPREF) return OBJ_CFRECPREF;
     if (id >= CFB_TAKE && id < CFB_TAKE + SQ_NPAT) return OBJ_CFTAKE0 + id - CFB_TAKE;
     if (id == CFB_SET)
@@ -225,7 +227,8 @@ static void crb_list(void)
     if(csl_tx.pending){crb.listed=0;crb_b(1);crb_b(3);crb_b(0);return;}
     if(cfds.pending && !cfd_checkpoint()){crb.listed=0;crb_b(1);crb_b(3);crb_b(0);return;}
     /* Do not offer a stale FX bank if its explicit save is still deferred. */
-    if (!cr_safe && !cfs_restore_lock && fxp_pending() && fxp_write(ST_NOERASE)) {
+    if (!cr_safe && !cfs_restore_lock && ((fxp_pending() && fxp_write(ST_NOERASE)) ||
+        (cfx_studio_dirty && cfx_studio_write(ST_NOERASE)))) {
         crb.listed = 0; crb_b(1); crb_b(4); crb_b(0); return;
     }
     if (!cr_safe && !cfs_restore_lock && cfs_fnv(&cs, sizeof cs) != cfs_saved)
@@ -296,6 +299,7 @@ static int crb_size_ok(uint32_t id, uint32_t len)   /* a begin's size for this i
             (len>=SQ_PERF_SIZE(1) && len<=SQ_PERF_SIZE(SQ_PERF_EVENTS) && !(len%4u));
     if (id == CFB_PREFS) return !len || len == sizeof(cpb_rec_t) || len == sizeof(cpb_legacy_rec_t);
     if (id == CFB_FX) return !len || len == sizeof(fxp_bank_t);
+    if (id == CFB_STUDIO_FX) return !len || len == sizeof(cfx_studio_rec_t);
     if (id == CFB_HARM) return !len || len == sizeof(cfh_rec_t);
     if (id == 6u || id == 7u)
         return !len || len == sizeof(up_bank_t);
@@ -358,6 +362,13 @@ static uint32_t crb_commit(void)
         if (st_save(OBJ_CFPREFS, raw, len)) return 4;
         cfs_restore_lock = 1;
         cf_message("Preferences restored: restart");
+        return 0;
+    }
+    if (id == CFB_STUDIO_FX) {
+        if (len && !cfx_studio_record_valid((const cfx_studio_rec_t *)raw)) return 2;
+        if (st_save(OBJ_CFSTUDIOFX, raw, len)) return 4;
+        cfs_restore_lock = 1;
+        cf_message("Studio FX restored: restart");
         return 0;
     }
     if (id == CFB_FX) {

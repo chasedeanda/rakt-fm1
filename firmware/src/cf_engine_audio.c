@@ -145,11 +145,14 @@ static int cge_bar(int onset)
 }
 static void cge_block(uint32_t n)
 {
-    if(sqp.on && sq_perf[sqp.pat].bars){
+    int studio_mix = cgs_mix_live();
+    int studio_take = sqp.on && sq_perf[sqp.pat].bars;
+    cfx_studio = studio_mix || (CF_STUDIO && studio_take);
+    if(studio_take){
         cfx_space=sq_perf[sqp.pat].space*32768u/100u;
         return;
     }
-    if(cgs_mix_live()){
+    if(studio_mix){
         cfx_space=cgs.space*32768u/100u;
         cgs_audio_block(n);
         return;

@@ -209,6 +209,11 @@ static void cgu_model(cf_stage_model_t *m)
             cfx_sync();
             str_cpy(m->applied,cfx_loaded_name(),sizeof m->applied);
             str_cpy(m->next_setup,fxp_pick_name(),sizeof m->next_setup);
+        } else if(detail && !m->bank && m->sound_page==CGU_SENDS){
+            const cf_fx_t *fx=fxp_track_chain(m->focus);
+            memcpy(m->fx_send_shape[1],fx->v[CFX_CHORUS],2);
+            memcpy(m->fx_send_shape[2],fx->v[CFX_DELAY],2);
+            memcpy(m->fx_send_shape[3],fx->v[CFX_REVERB],2);
         } else if(detail && !m->bank && m->sound_page==CGU_TONE && m->focus==CGS_DRUMS){
             for(unsigned lane=0;lane<SQ_NLANE;lane++)
                 if(cf_sn.sq_lane_t[lane] && cf_sn.now_ms-cf_sn.sq_lane_t[lane]<120u)
@@ -358,7 +363,7 @@ static void cgu_pages(int x,int y,int w,unsigned tab,unsigned part,unsigned sele
     }
 }
 
-static void cgu_send_graph(unsigned effect,unsigned amount,int x,int y,int w,int h,unsigned ink)
+static void cgu_send_graph(unsigned effect,unsigned amount,const uint8_t shape[2],int x,int y,int w,int h,unsigned ink)
 {
     fb_rect(x,y,w,h,FL_BG);
     int mid=y+h/2, base=y+h-2;
@@ -373,8 +378,8 @@ static void cgu_send_graph(unsigned effect,unsigned amount,int x,int y,int w,int
                 unsigned drive=amount*127u/100u;
                 v=softclip(in*(4096+(int)drive*(int)drive*2)/4096);
             } else {
-                uint32_t phase=(uint32_t)i*(15000000u+(uint32_t)song.g[G_CRATE]*1200000u);
-                v=osc_sine(phase)*song.g[G_CDEPTH]*(int)amount/(127*100);
+                uint32_t phase=(uint32_t)i*(15000000u+(uint32_t)(8u+shape[0])*1200000u);
+                v=osc_sine(phase)*shape[1]*(int)amount/(100*100);
             }
             int now=mid-clampi(v*(h/2-2)/32768,2-h/2,h/2-2);
             if(i)fb_line(x+i+1,previous,x+i+2,now,ink);
@@ -382,8 +387,8 @@ static void cgu_send_graph(unsigned effect,unsigned amount,int x,int y,int w,int
         }
         return;
     }
-    int height=(h-3)*(int)amount, step=effect==2?5+song.g[G_DTIME]:3;
-    int feedback=effect==2?clampi(song.g[G_DFDBK]*2,0,246):175+song.g[G_RSIZE]/2;
+    int height=(h-3)*(int)amount, step=effect==2?5+shape[0]/6:3;
+    int feedback=effect==2?shape[1]*246/100:150+shape[1];
     for(int i=3;i<w-2 && height>=100;i+=step){
         int bar=height/100;
         if(effect==3 && i&1)bar=bar*3/4;

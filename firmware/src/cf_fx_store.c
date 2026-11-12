@@ -26,17 +26,20 @@ static void fxp_load(void)
     }
     fxp_saved = fxp_bank.check;
 }
-static int fxp_save_slot(unsigned slot, const char *name)
+static int fxp_save_chain(unsigned slot, const char *name, const cf_fx_t *fx)
 {
     fxp_preset_t p = {0};
     unsigned i;
     if (cr_safe || cfs_restore_lock || fxp_protected) return 0;
     for (i = 0; i + 1 < FXP_NAME && name[i]; i++) p.name[i] = name[i];
     if (name[i]) return 0;
-    p.fx = cs.fx;
+    p.fx = *fx;
     if (!fxp_bank_save(&fxp_bank, slot, &p)) return 0;
     fxp_changed = cu.now; fxp_retry = 0; return 1;
 }
+static int __attribute__((unused)) fxp_save_slot(unsigned slot, const char *name)
+{ return fxp_save_chain(slot, name, &cs.fx); }
+
 static int fxp_delete_slot(unsigned slot)
 {
     if (cr_safe || cfs_restore_lock || fxp_protected || !fxp_bank_delete(&fxp_bank, slot)) return 0;

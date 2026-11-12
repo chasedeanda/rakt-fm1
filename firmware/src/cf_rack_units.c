@@ -264,7 +264,7 @@ static void cgu_amp_head(const cf_stage_model_t *m,unsigned part,cgu_face_t f,in
         int cx=cgu_unit_knob_x(f,i,4)+dx;
         unsigned marker=selected && m->emphasis[i]?ink:FL_INK;
         if(selected && m->disabled[i])marker=CGU_METAL+6;
-        if(selected && sends && zoom>90)cgu_send_graph((unsigned)i,position,cx-20,cy-36,40,17,ink);
+        if(selected && sends && zoom>90)cgu_send_graph((unsigned)i,position,m->fx_send_shape[i],cx-20,cy-36,40,17,ink);
         cgu_amp_dial(part,cx,cy,radius,position,marker);
         if(!selected || zoom<=74)continue;
         char label[12];

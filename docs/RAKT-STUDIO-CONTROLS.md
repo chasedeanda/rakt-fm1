@@ -111,7 +111,7 @@ Pause, restart and tempo follow the external clock when MIDI clock input is acti
 
 Open **Mix** for Chords, Bass, Drums and Layer levels on K1–K4.
 
-Open **Sound Library** at the end of the Sound rack. **K1 Library** selects the short Genre list or All sounds. Highlight a musician and use **K1 Preset** to browse its tones or kits. With Genre selected, press **SEL** to load the complete palette. Press **EDIT** on the Sound overview or in Sound Library to choose the next tone or kit for each musician. In a musician’s Tone panel, **EDIT** changes that musician only. While playing, the pitched sounds change immediately and the drum kit changes at the next bar. The palette keeps the current levels, pan, sends and shared effects settings.
+Open **Sound Library** at the end of the Sound rack. **K1 Library** selects the short Genre list or All sounds. Highlight a musician and use **K1 Preset** to browse its tones or kits. With Genre selected, press **SEL** to load the complete palette. Press **EDIT** on the Sound overview or in Sound Library to choose the next tone or kit for each musician. In a musician’s Tone panel, **EDIT** changes that musician only. While playing, the pitched sounds change immediately and the drum kit changes at the next bar. The palette keeps the current levels, pan, sends and each musician’s FX settings.
 
 A highlighted Sound musician shows the Tone controls. Zoom in and turn **SELECT** to reach the other named pages. The page counter shows where you are.
 
@@ -120,9 +120,9 @@ A highlighted Sound musician shows the Tone controls. Zoom in and turn **SELECT*
 | Tone | Preset or drum kit | Mix level | First synth macro, such as filter cutoff on VA tones | Pan |
 | Envelope | Attack, the time to reach full level | Decay, the time to fall toward Sustain | Sustain, the held level | Release, the time to fade after note-off |
 | Sends | Drive amount | Chorus send | Delay send | Reverb send |
-| FX Presets | Browse shared FX presets | | | |
+| FX Presets | Browse FX presets for this musician | | | |
 
-Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit. Sends shows a preview of the selected musician’s drive curve, chorus sweep, delay taps and reverb tail. Each graph responds to that musician’s knob. Press **FX** from any rack tab to open FX Presets. Turn **K1** or **PRESETS** to highlight a preset and press **SEL** to apply it to the band. Use **SELECT** to turn to Sends or another Sound page. **SAVE** opens preset management. Press **EDIT** on FX Presets to open the EQ and effects editor for the loaded preset. **LFO** from a zoomed pitched musician opens its detailed synth editor.
+Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit. Sends shows a preview of the selected musician’s drive curve, chorus sweep, delay taps and reverb tail. Each graph responds to that musician’s knob. Press **FX** from any rack tab to open FX Presets. Turn **K1** or **PRESETS** to highlight a preset and press **SEL** to apply it to the highlighted musician. Turn **ALGORITHM** to switch musicians. Each musician keeps its own FX chain through patch changes, new takes, and restarts. Use **SELECT** to turn to Sends or another Sound page. **SAVE** opens preset management. Press **EDIT** on FX Presets to open the EQ and effects editor for the loaded preset. **LFO** from a zoomed pitched musician opens its detailed synth editor.
 
 ## Arpeggiator
 

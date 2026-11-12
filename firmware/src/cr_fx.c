@@ -169,7 +169,18 @@ static uint32_t xf_pre_ms(uint32_t p)     /* XP_RPRE -> ms: 0 .. 138 (24 samples
 }
 
 /* ------------------------------------------------------------------ the state --- */
+#ifdef CF_FX_PARTS
+#define CFX_STUDIO_DELAY_DS 4u
+#define CFX_STUDIO_DELAY_N (XD_N / CFX_STUDIO_DELAY_DS)
+static union {
+    int16_t master[2][XD_N];
+    int16_t studio[CF_FX_PARTS][CFX_STUDIO_DELAY_N * 2u];
+} cfx_delay_memory __attribute__((section(".pool")));
+_Static_assert(CF_FX_PARTS == CFX_STUDIO_DELAY_DS, "Studio delay fits the master delay memory");
+#define xd_buf cfx_delay_memory.master
+#else
 static int16_t xd_buf[2][XD_N] __attribute__((section(".pool")));
+#endif
 
 /* the reverb's eight lines at SIZE 127, in samples at 22.05 kHz (57 .. 125 ms; primes, a ratio of ~1.12 from one to
  * the next; x XR_X at the full rate), in ONE ring: line i writes at w + base[i] and reads up to its length and

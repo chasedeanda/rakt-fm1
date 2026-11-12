@@ -132,6 +132,7 @@ typedef struct {
     uint8_t workspace,zoom,genre,solo,muted,held_parts,shaping,sound_page,knob[4],part_level[4];
     uint8_t signal_peak,drum_groups,phrase_steps,layer_reply,bass_reply,section;
     uint8_t rack_knob[CGU_BAND_PANELS-1][4], amp_knob[CGS_NPART][4];
+    uint8_t fx_send_shape[4][2];
     uint8_t rack_beat, rack_meter, rack_level, rack_arp_step, rack_arp_mode, rack_lens, rack_draft;
     uint16_t steps[4][2],bass_delays[2],drum_hits,matches;
     int16_t bank_dx;

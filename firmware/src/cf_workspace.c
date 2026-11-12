@@ -44,6 +44,9 @@ static void cgu_focus_part(unsigned part);
 static void cgu_tab_turn(int d);
 static void ui_open(uint32_t scr);
 
+static int cgu_studio_fx_screen(void)
+{ return CF_STUDIO && !CF_SCENES && cu.scr==SCR_FX && cgu.return_screen==SCR_FX; }
+
 static int cgu_play_part(void)
 {
     if(!CF_STUDIO || CF_SCENES || (sqk.on && !sqk.performance) || cf_sn.sq_rec!=255)return -1;
@@ -72,7 +75,7 @@ static void cgu_sound_page(unsigned page)
 {
     cgu.sound_page=(uint8_t)(cgs.focus==CGS_DRUMS && page==CGU_ENVELOPE?CGU_SENDS:page);
     if(cgu.sound_page==CGU_PRESETS){
-        cfx_sync();fxpu.mode=FXP_BROWSE;cfxu.view=CFX_MACROS;
+        cfx_scope(cgs.focus + 1u);cfx_sync();fxpu.mode=FXP_BROWSE;cfxu.view=CFX_MACROS;
     }
     cgu.turn_ms=0;
 }
@@ -353,6 +356,7 @@ static void cgu_focus_part(unsigned part)
 {
     if(part==cgs.focus)return;
     cgs.focus=(uint8_t)part;
+    if(cgu.tab==CGU_SOUND && cgu.sound_page==CGU_PRESETS)cfx_scope(part + 1u);
     if(part==CGS_DRUMS && cgu.sound_page==CGU_ENVELOPE)cgu_sound_page(CGU_SENDS);
     cf_keys_changed();
 }
@@ -387,7 +391,6 @@ static int cgu_recording_here(void)
 {
     return cgs_home() && cgu.tab==CGU_RECORD;
 }
-
 static void cgu_select_latest_take(void)
 {
     cgu.take_slot=0;

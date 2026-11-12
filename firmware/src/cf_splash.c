@@ -19,6 +19,7 @@ static void cf_splash(void)
     cf_settings_load();                          /* (what was set before the power-off, unless SAFE MODE) */
     cfh_load();
     fxp_load();
+    cfx_studio_load();
     cpb_load();                                  /* theme/Motion must be known before the first rack frame */
     cf_palette_build();
     fb_full = 1;

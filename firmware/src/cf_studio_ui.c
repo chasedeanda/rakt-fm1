@@ -597,7 +597,7 @@ static void cgs_evolve_turn(int d)
 static int cgs_home(void);
 static void cgs_poll(void)
 {
-    cgs.mix_idle=(uint8_t)(cgs_home() && !cpa.on && !sqp.on && !dmp.on);
+    cgs.mix_idle=(uint8_t)((cgs_home() || cgu_studio_fx_screen()) && !cpa.on && !sqp.on && !dmp.on);
     fm1_irq_off();
     if(!cgs_active() || cpa.paused || cpa.clock_wait || cpa_setup.flags || cgs.pending){
         fm1_irq_on();

@@ -12,6 +12,7 @@ static void cf_rakt_begin(void);
 
 static void cf_message(const char *s);
 static int cgu_glow_available(void);
+static int cgu_studio_fx_screen(void);
 #ifndef CF_KEY_T0
 #ifdef CU_KEY_T0
 #define CF_KEY_T0(k) CU_KEY_T0(k)                /* (the emulator's: tools/emu/emu_hal_fw.h) */
@@ -1315,7 +1316,7 @@ static void ui_button(uint32_t b)
             if(b==B_EDIT && cgs.zoom && cgu.tab==CGU_SOUND && !cgu.rack_controls && cgu.sound_page==CGU_PRESETS){
                 cfx_sync();fxpu.mode=FXP_EDIT;cfxu.view=CFX_INDIVIDUAL;
                 cu.fx_pos=0;
-                for(unsigned i=0;i<CFX_N;i++)if(cs.fx.order[i]==CFX_FILTER)cu.fx_pos=(uint8_t)i;
+                for(unsigned i=0;i<CFX_N;i++)if(fxp_active_chain()->order[i]==CFX_FILTER)cu.fx_pos=(uint8_t)i;
                 cgu.return_screen=SCR_FX;ui_open(SCR_FX);return;
             }
             if(b==B_ENV && cgs.zoom){
@@ -1512,7 +1513,7 @@ static void ui_button(uint32_t b)
     case B_FX:
         if (cu.scr == SCR_FX && fxpu.mode == FXP_MANAGE) { fxpu.mode = FXP_BROWSE; cu.save_hold = 0; }
         else if (cu.scr == SCR_FX) ui_open(SCR_HOME);
-        else { cfx_sync(); fxpu.mode = FXP_BROWSE; cfxu.view = CFX_MACROS; ui_open(SCR_FX); }
+        else { cfx_scope(FXP_MASTER); cfx_sync(); fxpu.mode = FXP_BROWSE; cfxu.view = CFX_MACROS; ui_open(SCR_FX); }
         break;
     case B_ARP:
         if(home_stage() && (cf_home_bank==CF_HB_ENGINE || cf_home_bank==CF_HB_FLOW))cu.page[SCR_ARP]=0;

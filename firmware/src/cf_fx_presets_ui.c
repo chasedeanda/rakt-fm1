@@ -8,6 +8,44 @@ static struct {
     char name[FXP_NAME];
     cf_fx_t prev;
 } fxpu;
+enum { FXP_MASTER };
+static unsigned fxp_scope;
+static struct {
+    cf_fx_t prev;
+    uint8_t pick, previous, bypass;
+} fxp_context[CF_FX_PARTS + 1u];
+
+static const cf_fx_t *fxp_track_chain(unsigned part)
+{ return (cfx_studio_rec.mask & (1u << part)) ? &cfx_studio_rec.fx[part] : &cs.fx; }
+
+static const cf_fx_t *fxp_active_chain(void)
+{ return fxp_scope ? fxp_track_chain(fxp_scope - 1u) : &cs.fx; }
+
+static int fxp_active_bypass(void)
+{
+    unsigned bit = fxp_scope ? 1u << (fxp_scope - 1u) : 0;
+    return cfx_studio_rec.mask & bit ? (cfx_studio_rec.bypass & bit) != 0 : cfx_bypass;
+}
+
+static void fxp_publish(const cf_fx_t *fx, int recall, int bypass)
+{
+    if (fxp_scope) cfx_studio_save(fxp_scope - 1u, fx, recall, bypass);
+    else {
+        cge_direct(CGE_FX);
+        cs.fx = *fx;
+        if (recall) cf_fx_recall(&cs.fx);
+        else cf_fx_apply(&cs.fx);
+        cf_fx_bypass(bypass);
+    }
+}
+
+static void fxp_remember(void)
+{
+    fxpu.prev = *fxp_active_chain();
+    fxpu.previous = 1;
+    fxpu.prev_bypass = fxp_active_bypass();
+}
+
 static const fxp_preset_t *fxp_pick(void)
 {
     unsigned i = fxpu.pick;
@@ -27,10 +65,8 @@ static void fxp_recall(int announce)
         if (announce) cf_message("Empty FX slot");
         return;
     }
-    cge_direct(CGE_FX);
-    fxpu.prev = cs.fx; fxpu.previous = 1; fxpu.prev_bypass = cfx_bypass;
-    cs.fx = p->fx; cf_fx_recall(&cs.fx);
-    cf_fx_bypass(0);
+    fxp_remember();
+    fxp_publish(&p->fx, 1, 0);
     if (announce) cf_message(p->name);
 }
 static void fxp_recall_selected(void) { fxp_recall(1); }
@@ -43,26 +79,21 @@ static void fxp_select(int d)
 }
 static void fxp_previous(void)
 {
-    cf_fx_t tmp;
-    uint8_t bypass;
+    cf_fx_t previous = fxpu.prev;
+    int bypass = fxpu.prev_bypass;
     if (!fxpu.previous) { cf_message("No previous FX chain"); return; }
-    cge_direct(CGE_FX);
-    tmp = cs.fx; bypass = cfx_bypass; cs.fx = fxpu.prev;
-    cf_fx_recall(&cs.fx); cf_fx_bypass(fxpu.prev_bypass);
-    fxpu.prev = tmp; fxpu.prev_bypass = bypass;
+    fxp_remember();
+    fxp_publish(&previous, 1, bypass);
     cf_message("Previous FX chain");
 }
 static void fxp_clear(void)
 {
-    cge_direct(CGE_FX);
-    if (cs.fx.on) {
-        fxpu.prev = cs.fx; fxpu.previous = 1; fxpu.prev_bypass = cfx_bypass;
-        cs.fx.on = 0;
-        cf_fx_recall(&cs.fx);
-    }
-    /* Fade all the way to dry, including any already-running delay/reverb tails.
-     * The saved enable mask is also empty, so the next boot starts without FX. */
-    cf_fx_bypass(1);
+    cf_fx_t fx = *fxp_active_chain();
+    if (fx.on || (fxp_scope && !fxp_active_bypass())) {
+        fxp_remember();
+        fx.on = 0;
+        fxp_publish(&fx, 1, 1);
+    } else if (!fxp_scope) cf_fx_bypass(1);
     cf_message("No FX");
 }
 static void fxp_manage_open(void)
@@ -90,7 +121,7 @@ static void fxp_manage_do(void)
     memset(name, 0, sizeof name);
     memcpy(name, fxpu.name, FXP_NAME - 1);
     for (int i = FXP_NAME - 2; i >= 0 && (name[i] == ' ' || !name[i]); i--) name[i] = 0;
-    ok = fxpu.action == 2 ? fxp_delete_slot(fxpu.slot) : fxp_save_slot(fxpu.slot, name);
+    ok = fxpu.action == 2 ? fxp_delete_slot(fxpu.slot) : fxp_save_chain(fxpu.slot, name, fxp_active_chain());
     if (!ok) { cf_message("FX name must contain text"); return; }
     fxpu.pick = FXP_FACTORY_N + fxpu.slot; fxpu.mode = FXP_BROWSE;
     cf_message("FX queued for storage");

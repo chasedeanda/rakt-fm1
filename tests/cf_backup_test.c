@@ -194,12 +194,13 @@ int main(void)
     cr_bank_boot();
     cf_ui_init();
     fxp_load();
+    cfx_studio_load();
 
     /* ---- INFO ---- */
     t_begin(1);
     a = t_send(&n);
-    CHECK(a && n > 12 && !memcmp(a, "CoralFlower", 11) && a[n - 6] == 0x42 && a[n - 4] == 3 && a[n - 3] == 0x43 &&
-          a[n - 1] == 2, "INFO: \"CoralFlower ...\", tags 42 01 03 and 43 01 02 (%s)", a ? (const char *)a : "none");
+    CHECK(a && n > 12 && !memcmp(a, FELUCCA_VERSION, sizeof FELUCCA_VERSION - 1u) && a[n - 6] == 0x42 && a[n - 4] == 3 && a[n - 3] == 0x43 &&
+          a[n - 1] == 2, "INFO: firmware version and tags 42 01 03 and 43 01 02 (%s)", a ? (const char *)a : "none");
     t_begin(2); t_b(0); t_b(0);
     CHECK(!t_send(&n), "an editor command (2) gets no reply");
 
@@ -209,13 +210,16 @@ int main(void)
     CHECK(a && a[1] == 5, "GET before LIST: 5");
 
     /* ---- a fresh device: the 8 objects, nothing stored but what the boot wrote ---- */
-    CHECK(t_list() == 0 && nman == 40, "LIST on a fresh flash: 40 objects (%u)", nman);
+    CHECK(t_list() == 0 && nman == 41, "LIST on a fresh flash: 41 objects (%u)", nman);
     CHECK(t_find(50) && !t_find(50)->size && t_find(55) && !t_find(55)->size, "LIST: no patterns stored yet");
 
     CHECK(t_find(CFB_FX) && !t_find(CFB_FX)->size, "FX bank absent on an old/blank device");
+    CHECK(t_find(CFB_STUDIO_FX) && !t_find(CFB_STUDIO_FX)->size, "Studio FX absent on an old/blank device");
     CHECK(t_find(CFB_PREFS) && !t_find(CFB_PREFS)->size,"favorites absent on an old/blank device");
     cf_browser_star(&cpb,72,1); cf_browser_star(&cpb,cf_progression_count()-1,1); cpb_dirty=1;
     CHECK(fxp_save_slot(7, "BACKUP FX"), "save an independent FX preset");
+    cfx_studio_save(CGS_CHORDS, &FXP_FACTORY[4].fx, 1, 0);
+    cfx_studio_save(CGS_DRUMS, &FXP_FACTORY[7].fx, 1, 0);
     /* ---- content: a user sound, the settings, a loop ---- */
     CHECK(cf_snd_save(CF_PART_CHORD, 1, "BACKUP TEST") == 0, "a chord sound saved as new");
     cs.bpm = 95;
@@ -250,6 +254,7 @@ int main(void)
     CHECK(t_list() == 0, "LIST");
     CHECK(t_find(CFB_PREFS)->size==sizeof(cpb_rec_t),"LIST flushes pending favorites");
     CHECK(t_find(CFB_FX)->size == sizeof(fxp_bank_t), "LIST includes the pending FX bank");
+    CHECK(t_find(CFB_STUDIO_FX)->size == sizeof(cfx_studio_rec_t), "LIST flushes Studio FX assignments");
     for (i = 0, k = 0; i < nman; i++) k += man[i].size != 0;
     CHECK(t_find(6)->size && t_find(30)->size && t_find(31)->size, "LIST: the bank, the settings and the loop hold data");
     CHECK(t_find(57)->size == sizeof(cfk_rec_t) && t_find(56)->size == 0 && t_find(58)->size == 0,
@@ -370,6 +375,20 @@ int main(void)
         CHECK(t_list() == 0 && t_find(CFB_FX)->crc == original_crc, "refused FX restores preserve the bank");
         fxp_load(); CHECK(!fxp_protected && (fxp_bank.used & (1u << 7)) && !strcmp(fxp_bank.slot[7].name,"BACKUP FX"),
                          "restored FX bank reloads at startup");
+    }
+    {
+        obj_t *o = t_find(CFB_STUDIO_FX);
+        cfx_studio_rec_t bad;
+        memcpy(&bad, o->bytes, sizeof bad);
+        bad.fx[CGS_CHORDS].v[CFX_REVERB][0] = 3;
+        bad.check = cfs_fnv(&bad, __builtin_offsetof(cfx_studio_rec_t, check));
+        CHECK(t_put(CFB_STUDIO_FX, (const uint8_t *)&bad, sizeof bad, st_crc32(&bad, sizeof bad)) == 2,
+              "Studio FX reject invalid parameters even with valid checksums");
+        cfx_studio_load();
+        CHECK(!cfx_studio_protected && cfx_studio_rec.mask == ((1u << CGS_CHORDS) | (1u << CGS_DRUMS)) &&
+              cfx_equal(fxp_track_chain(CGS_CHORDS), &FXP_FACTORY[4].fx) &&
+              cfx_equal(fxp_track_chain(CGS_DRUMS), &FXP_FACTORY[7].fx),
+              "Studio FX assignments reload after backup restore");
     }
     /* ---- refusals: nothing written ---- */
     {

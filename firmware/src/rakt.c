@@ -132,6 +132,9 @@ static void cf_boot_note(void);            /* (cf_fx.c) */
 #define ST_LOG_OBJ (OBJ_PROJECT0 + 3u)    /* storage.c: the settings' object keeps a log (cf_settings.c CF_SET_OBJ) */
 #define CLN_TRIM 4096                     /* fx.c's Clean output: the mix in at 0 dB (ChoralRoot's -2.5 dB left it quieter
                                            * than the Classic chain it replaces here) */
+#define CF_FX_PARTS 4u
+static uint8_t cf_tail_part = 0xFFu;
+static uint8_t cfx_studio;
 static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n);
 #define FX_MIX_HOOK cf_fx_chain
 #include "fx.c"

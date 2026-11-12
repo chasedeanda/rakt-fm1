@@ -99,7 +99,7 @@ static void draw_title(const char *t, const char *note);
 /* the selected effect's own little picture, x0..x0+w along, its foot on yb, at most h tall */
 static void draw_fx_graph(uint32_t e, int x0, int yb, int w, int h)
 {
-    const uint8_t *v = cs.fx.v[e];
+    const uint8_t *v = fxp_active_chain()->v[e];
     uint8_t c = cfx_is_on(e) ? C_ACC(1) : FL_INK3, c2 = cfx_is_on(e) ? C_ACC(2) : FL_BG3;
     int x, px = -1, py = 0;
     fb_hline(x0, yb, w, FL_BG3);
@@ -180,7 +180,7 @@ static void draw_fx_presets(void)
         else kint(sub, fxpu.pick - FXP_FACTORY_N + 1, " / 16 user");
         draw_title("FX presets", sub);
         fb_text_c(&CF_FONT_UI, 120, Y_VIEW + 60, fxp_pick_name(), C_ACC(0), 1);
-        fb_text_c(&CF_FONT_UI, 120, Y_VIEW + 84, !cs.fx.on ? "No FX" : cfx_bypass ? "Chain bypassed" : "K2 clear  K3 undo", FL_INK2, 1);
+        fb_text_c(&CF_FONT_UI, 120, Y_VIEW + 84, !fxp_active_chain()->on ? "No FX" : fxp_active_bypass() ? "Chain bypassed" : "K2 clear  K3 undo", FL_INK2, 1);
         if (fxp_pending()) fb_text_c(&CF_FONT_UI, 120, Y_VIEW + 106, "Save pending: keep power on", C_ACC(0), 1);
         else if (fxp_protected) fb_text_c(&CF_FONT_UI, 120, Y_VIEW + 106, "User bank protected", C_ACC(0), 1);
         else fb_text_c(&CF_FONT_UI, 120, Y_VIEW + 106, "Turn SELECT to hear presets", FL_INK3, 1);
@@ -215,18 +215,18 @@ static void draw_fx_presets(void)
 static void draw_fx(void)
 {
     if (fxpu.mode) { draw_fx_presets(); return; }
-    uint32_t sel = cu.fx_pos % CFX_N, e = cs.fx.order[sel] % CFX_N, i;
+    uint32_t sel = cu.fx_pos % CFX_N, e = fxp_active_chain()->order[sel] % CFX_N, i;
     int x0 = 8, y0 = Y_VIEW + 58, tw = 34, gap = 4, run = 6 * tw + 5 * gap;
     char sub[24];
     cf_scene_frame();
     draw_plant(Y_VIEW);
     fb_veil(0, Y_VIEW, FB_W, H_VIEW, FL_BG);   /* (the plant faint: the picture leads) */
-    str_cpy(sub, e == CFX_FILTER ? CFX_FTYPE[cs.fx.v[e][0] % 3u] : e == CFX_REVERB ? CFX_RTYPE[cs.fx.v[e][0] % 3u] : "",
+    str_cpy(sub, e == CFX_FILTER ? CFX_FTYPE[fxp_active_chain()->v[e][0] % 3u] : e == CFX_REVERB ? CFX_RTYPE[fxp_active_chain()->v[e][0] % 3u] : "",
             sizeof sub);
     if (sub[0])
         str_cpy(sub + str_len(sub), "  ", 3);
     str_cpy(sub + str_len(sub), cfx_is_on(e) ? "on" : "off", 4);
-    if (cfx_bypass) str_cpy(sub, "Chain bypassed", sizeof sub);
+    if (fxp_active_bypass()) str_cpy(sub, "Chain bypassed", sizeof sub);
     draw_title(CFX_NAME[e], sub);
     fb_hline(x0, y0 + 13, run, FL_BG3);          /* the signal's way, a dot running along it */
     {
@@ -234,7 +234,7 @@ static void draw_fx(void)
         fb_rect(x0 + d, y0 + 12, 2, 3, C_ACC(1));
     }
     for (i = 0; i < CFX_N; i++) {
-        uint32_t id = cs.fx.order[i] % CFX_N;
+        uint32_t id = fxp_active_chain()->order[i] % CFX_N;
         int x = x0 + (int)i * (tw + gap), on = cfx_is_on(id);
         fb_rbox(x, y0, tw, 26, 2, on ? cf_panel(2) : cf_panel(1));
         if (i == sel)

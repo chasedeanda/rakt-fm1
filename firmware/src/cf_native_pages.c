@@ -114,7 +114,7 @@ static void cfn_page_model(cfn_page_t *m)
         NP(title,"Chord buttons");NP(section,cf_is_off(&cs.chord,cu.sel_btn)?"HOLD":ch.mode==CF_H_AUTO?cf_modifier_name(ch.slot[cu.sel_btn]):cf_type_name(sel_form()->type));NP(hint,"SELECT button / HOME back");break;
     case SCR_BASS:NP(title,"Linked bass");NP(section,cf_snd[CF_PART_BASS].name);break;
     case SCR_FX:
-        cfx_sync();NP(title,"Effects");
+        cfx_sync();NP(title,fxp_scope?CGS_PART_NAME[fxp_scope-1u]:"Effects");
         if(fxpu.mode==FXP_MANAGE){
             m->kind=N_NAME;
             NP(section,fxpu.action==4?"Previous FX":fxpu.action==3?"Clear FX":fxpu.action==2?"Delete user FX":fxpu.action?"Replace user FX":"Save new FX");
@@ -136,8 +136,9 @@ static void cfn_page_model(cfn_page_t *m)
             NP(detail,m->focus?"SELECT effect":"SELECT browse / SEL load");
             NP(hint,m->focus?"ALGO < Macros / SAVE manage":"ALGO > Individual / SAVE manage");
             m->keys=cfxu.vis_ms;m->env[0]=cfxu.level;m->cursor=(uint8_t)cfx_sel();
-            for(unsigned e=0;e<CFX_N;e++)m->bits[e]=cs.fx.v[e][0] | (uint32_t)cs.fx.v[e][1]<<8 | (uint32_t)cs.fx.v[e][2]<<16 | ((cs.fx.on>>e)&1u)<<24;
-            if(cfx_bypass)NP(row[1],"Chain bypassed");
+            const cf_fx_t *fx=fxp_active_chain();
+            for(unsigned e=0;e<CFX_N;e++)m->bits[e]=fx->v[e][0] | (uint32_t)fx->v[e][1]<<8 | (uint32_t)fx->v[e][2]<<16 | ((fx->on>>e)&1u)<<24;
+            if(fxp_active_bypass())NP(row[1],"Chain bypassed");
             if(fxp_pending())NP(row[1],"Saving / keep power on");
         }break;
     case SCR_SAVE:

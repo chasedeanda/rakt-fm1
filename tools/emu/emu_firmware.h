@@ -103,6 +103,9 @@ static void cf_boot_note(void);    /* as rakt.c */
 #define CF_LOOP_STORE 1                               /* as rakt.c: the looper's flash object */
 #define ST_LOG_OBJ (OBJ_PROJECT0 + 3u)                /* as rakt.c: the settings' object keeps a log */
 #define CLN_TRIM 4096                                 /* as rakt.c */
+#define CF_FX_PARTS 4u
+static uint8_t cf_tail_part = 0xFFu;
+static uint8_t cfx_studio;
 static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n);
 #define FX_MIX_HOOK cf_fx_chain
 #include "../../tests/hostsim.c"

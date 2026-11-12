@@ -59,6 +59,7 @@ static uint32_t cfs_fnv(const void *p, uint32_t n)
 #include "cf_browser_store.c"
 #include "cf_harmony_store.c"
 #include "cf_fx_store.c"
+#include "cf_fx_studio_store.c"
 
 /* a stored value out of range (a record from a build with other limits): the default instead */
 static void cfs_sanitize(cf_set_t *s)
@@ -681,6 +682,7 @@ static void settings_poll(void)
     cfd_poll(now, now - cfs_sound_ms >= CF_SET_SILENT_MS);
     csl_poll(now, now - cfs_sound_ms >= CF_SET_SILENT_MS);
     fxp_poll(now, now - cfs_sound_ms >= CF_SET_SILENT_MS);
+    cfx_studio_poll(now, now - cfs_sound_ms >= CF_SET_SILENT_MS);
     if (cfs_retry_ms && (int32_t)(now - cfs_retry_ms) < 0)
         return;                                   /* (a flash error, or the log full: once more a second later) */
     cfs_retry_ms = 0;

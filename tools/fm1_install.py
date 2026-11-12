@@ -965,8 +965,9 @@ CF_PREFS_ID = 70
 CF_TAKE_IDS = [71, 72, 73]
 CF_REC_PREF_ID = 74
 CF_DRAFT_ID = 75
+CF_STUDIO_FX_ID = 76
 CF_SONG_IDS = list(range(81, 87))
-CF_IDS = [6, 7, 8, 9, 10, 11, 30, 31] + CF_SEQ_IDS + CF_EDIT_IDS + [CF_PSND_ID] + CF_TWK_IDS + [CF_HARM_ID, CF_FX_ID, CF_PREFS_ID] + CF_TAKE_IDS + [CF_REC_PREF_ID, CF_DRAFT_ID] + CF_SONG_IDS   # fm1backup.js CF_BACKUP_IDS (30
+CF_IDS = [6, 7, 8, 9, 10, 11, 30, 31] + CF_SEQ_IDS + CF_EDIT_IDS + [CF_PSND_ID] + CF_TWK_IDS + [CF_HARM_ID, CF_FX_ID, CF_PREFS_ID] + CF_TAKE_IDS + [CF_REC_PREF_ID, CF_DRAFT_ID, CF_STUDIO_FX_ID] + CF_SONG_IDS   # fm1backup.js CF_BACKUP_IDS (30
 # settings, 31 the loop, 50..55 the sequencer's patterns and song: the six parts of one store, 0.3.1; 56..58 the
 # sounds' edits, 0.4.2; 59 the patterns' own sounds, 0.5)
 KNOWN_IDS = set(FELUCCA_IDS) | set(CR_IDS) | set(CF_IDS)
@@ -1062,6 +1063,8 @@ def object_name(i):
         return "RAKT settings"
     if i in CF_SONG_IDS:
         return f"RAKT saved Song {i - 80}"
+    if i == CF_STUDIO_FX_ID:
+        return "RAKT Studio track FX"
     if i == CF_DRAFT_ID:
         return "RAKT working draft"
     if i == CF_REC_PREF_ID:
