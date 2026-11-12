@@ -2,44 +2,35 @@
 
 **A rack-style chord instrument and groovebox for the M-VAVE FM-1.**
 
-Play chords over a generated band of Chords, Bass, Drums and Layer. Choose a genre, give each musician its own sound and playing style, and write progressions for the whole band.
+Play chords over a generated band of Chords, Bass, Drums and Layer. The four parts share a progression and clock, and each has its own playing style and sound. Studio lets you shape the band while it plays.
+
+[Play in your browser](https://chasedeanda.github.io/rakt-fm1/play/) · [Install on your FM-1](#install-on-your-fm-1) · [Download the quick-start PDF](docs/RAKT-FM1-Quick-Start.pdf) · [Studio controls](docs/RAKT-STUDIO-CONTROLS.md)
 
 <p align="center">
   <a href="docs/RAKT-FM1-Quick-Start.pdf"><img src="docs/images/rakt-quick-start.png" width="760" alt="RAKT FM-1 quick start with first jam steps, rack navigation, sound and arp shortcuts, and the GLO keyboard map"></a>
 </p>
 
-[Download the one-page quick start (PDF)](docs/RAKT-FM1-Quick-Start.pdf)
+## How the band plays together
 
-<p align="center">
-  <img src="docs/images/rakt-boot/boot.gif" width="360" alt="RAKT power-on rack with a mixer lamp sweep and a READY output">
-</p>
+Some styles react to another musician's phrase. In **New Wave**, the Bass **Moving pulse** style accents notes that land with the kick and can pull a nearby note forward to meet it. Switch Drums from **Machine** to **Open hats** to hear the bass accents move. In **Indie**, try Chords **Chop** with Layer **Counterline**. The Layer looks for space between chord hits and shortens its reply when the next chord is close. [Musician styles](docs/RAKT-STUDIO-CONTROLS.md#musician-panel)
 
-[Play in your browser](https://chasedeanda.github.io/rakt-fm1/play/) · [Install on your FM-1](#install-on-your-fm-1) · [Studio controls](docs/RAKT-STUDIO-CONTROLS.md) · [Build the firmware](#build-the-firmware) · [Credits](#credits)
+Indie also has an eight-bar form. The Layer and hats sit out in bar 5, return in bar 6, and the drums play a turnaround near the end of bar 8. The form runs even with **Evolve** set to zero.
 
-## Make your first loop
+## Shape an arrangement
 
-1. **Start the band.** Bring up **MASTER** and press **PLAY** from the Studio overview. Play the lower keys for chord roots and the upper keys for modifiers and **HOLD**.
-2. **Pick a genre.** Turn **PRESETS** on the Studio overview. During playback, the new take starts at the next bar.
-3. **Change how the band plays.** Turn **ALGORITHM** to highlight a musician. Press **SEL** to open it and use **K1 Style** and **K2 Activity**. Press **EDIT** on the Studio overview to generate a new take or in a musician panel to regenerate that part.
-4. **Shape the sound.** Press **HOME** to back out, then turn **SELECT** to **Sound**. Open **Mix** for the four channel levels, or open a musician to edit its tone and sends.
+- **Set the pace of change.** In **Studio → Shaping**, **Energy** adjusts how busy the free parts are. At 50%, it leaves each part at its own Activity setting. **Evolve** varies one eligible part over time. Set it to 0% to keep the current phrases, or turn on **Hold** in a musician's Evolve page to keep just that phrase while the rest of the band changes. [Shaping and Hold](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
+- **Change the harmony in time.** The Harmony unit queues key and scale changes for the next chord. Meter changes land at the next bar. Studio supports 3/4, 4/4 and 6/8. [Harmony controls](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
+- **Give the band your own chords.** Open **Studio → Progression → EDIT**. Use **ALGORITHM** to choose a slot and the chord page to set its degree, quality, color and length. On the **Phrase** page, choose **Insert** or **Duplicate** with K1 and press **SEL** to add a slot. Press **PLAY** in the editor to put the draft under all four musicians. The draft keeps its chords, durations and meter when you regenerate a part. [Progression editor](docs/RAKT-STUDIO-CONTROLS.md#custom-progression)
 
-## Get around the rack
+## Give each part its own sound
 
-| Control | In Studio |
-| --- | --- |
-| **SELECT** | Switch between Studio, Sound, Record and Help from an overview. In a detail panel with multiple pages, turn SELECT to change pages. |
-| **ALGORITHM** | Move between rack units. In the ARP panel, switch between Chords and Layer. |
-| **SEL** | Open the highlighted unit or perform the action shown on screen. |
-| **K1–K4** | Adjust the controls shown along the bottom of the display. |
-| **HOME** | Back out to the overview. From an overview, return to Studio. |
-| **SEQ** | Jump to Harmony, Shaping, Genre, ARP and Progression. Press again to step through them. |
-| **GLO** | Open the live controls for mutes, momentary solos, fills and tempo. Press **SAVE** there to open Settings. |
+**Sound → Sound Library** lets you browse within the current genre or open **All sounds**. In Genre mode, **SEL Apply** loads the featured Chords, Bass, Layer and drum kit together. The originals listening pack compares the featured sounds with alternate voices for each genre. [Sound library](docs/RAKT-STUDIO-CONTROLS.md#sound) · [Studio Originals listening pack](docs/RAKT-STUDIO-ORIGINALS.md)
 
-- **Write a progression.** Open **Studio → Progression** and press **EDIT**. Turn **ALGORITHM** to choose a chord slot and **SELECT** to turn editor pages. Press **PLAY** from the editor to use the draft with the band. [Progression controls](docs/RAKT-STUDIO-CONTROLS.md#custom-progression)
-- **Shape the arrangement.** Use **Energy** for activity across the band and **Evolve** for changes over time. Use **Hold** on a musician's Evolve page to keep its phrase. [Harmony and Shaping](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
-- **Arpeggiate keys or the band.** Press **ARP** to open the panel for Chords or Layer. Choose **Keys** for held notes or **Band** for generated chords. [Arpeggiator controls](docs/RAKT-STUDIO-CONTROLS.md#arpeggiator)
-- **Choose and mix sounds.** Press **EDIT** on the Sound overview to reroll all four sounds, or apply a genre palette from **Sound → Sound Library**. Press **FX** from any rack tab for shared presets. Turn **SELECT** to reach the part's **Sends** page. [Sound controls](docs/RAKT-STUDIO-CONTROLS.md#sound) · [Studio Originals listening pack](docs/RAKT-STUDIO-ORIGINALS.md)
-- **Record a take.** Press **REC** to capture manual playing over drums for up to eight bars. The **Record** rack shows the band's phrases and gives access to the latest three saved takes. Use USB audio to capture the full generated performance. [Record controls](docs/RAKT-STUDIO-CONTROLS.md#record-and-help) · [Recording and backup guide](docs/RECORDINGS.md)
+Open a part's **Envelope** page to adjust how a pitched sound swells or fades. On **Sends**, set Drive, Chorus, Delay and Reverb for that part. The Studio **Space** control scales the chorus, delay and reverb you have sent to those effects. For example, raise Reverb on Layer and leave the Bass send low to put more depth behind the upper notes. [Sound and effects controls](docs/RAKT-STUDIO-CONTROLS.md#sound)
+
+## Capture a performance
+
+The **Record** rack shows the band's phrases and playhead. Manual takes start with a one-bar count-in, run for up to eight bars, and occupy one of three **Saved Takes** slots. Use the USB audio workflow below to capture the complete generated arrangement with live fills and effects. [Record controls](docs/RAKT-STUDIO-CONTROLS.md#record-and-help) · [Recording and backup guide](docs/RECORDINGS.md)
 
 ## Play without an FM-1
 
