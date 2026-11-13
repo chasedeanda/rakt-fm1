@@ -14,7 +14,7 @@ head = re.sub(r'href="(?!https?:|/|#)([^"]+)"', r'href="../\1"', head)
 head = head.replace('content="images/rakt-boot/boot.gif"', 'content="../images/rakt-boot/boot.gif"')
 hero = source[source.index('  <section class="hero"'):source.index('  <!-- 2 facts')]
 hero = hero.replace('<span class="brand-a">RAKT</span>', 'Install RAKT')
-hero = hero.replace('Your M-VAVE&nbsp;FM-1, made for chords.', 'Install the latest published RAKT release on your M-VAVE FM-1.')
+hero = hero.replace('Generate a band. Play it live.', 'Install the latest published RAKT release on your M-VAVE FM-1.')
 hero = hero.replace('href="play/"', 'href="../play/"').replace('src="images/', 'src="../images/')
 tools = source[source.index('        <details class="fold" id="backup"'):source.index('  <!-- 7 FAQ')]
 tools = '<section class="section"><div class="container container--narrow"><h2 class="display-2">Files, backups and recovery</h2><div class="tools">' + tools

@@ -1,8 +1,8 @@
 # RAKT · FM-1
 
-**A rack-style chord instrument and groovebox for the M-VAVE FM-1.**
+**Generate a band. Play it live.**
 
-Play chords over a generated band of Chords, Bass, Drums and Layer. The four parts share a progression and clock, and each has its own playing style and sound. Studio lets you shape the band while it plays.
+Pick a genre and press EDIT to generate a four-part band on the M-VAVE FM-1. Chords, bass, drums, and a melodic layer share the beat and harmony. The bass can lock to the kick, and the melody can answer gaps in the chords. Shape the groove in Studio, then jump into GLO Live to mix the band, cue fills and drops, and play effects from the keys.
 
 [Play in your browser](https://chasedeanda.github.io/rakt-fm1/play/) · [Install on your FM-1](#install-on-your-fm-1) · [Download the quick-start PDF](docs/RAKT-FM1-Quick-Start.pdf) · [GLO Live cheat sheet](#glo-live-cheat-sheet) · [Studio controls](docs/RAKT-STUDIO-CONTROLS.md)
 

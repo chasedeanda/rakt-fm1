@@ -19,12 +19,12 @@ sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip
 source=f'https://github.com/chasedeanda/rakt-fm1/tree/{sha}'
 text=(play/'index.html').read_text()
 head=text[:text.index('<body>')]
-head=head.replace('<title>Play RAKT in your browser</title>', '<title>RAKT · Your studio on the FM-1</title>')
-head=re.sub(r'(<meta (?:name="description"|property="og:description") content=")[^"]*(">)', r'\1A rack-style chord instrument and groovebox for the M-VAVE FM-1.\2', head)
-head=head.replace('content="Play RAKT in your browser"', 'content="RAKT · Your studio on the FM-1"')
+head=head.replace('<title>Play RAKT in your browser</title>', '<title>RAKT · Generate a band. Play it live.</title>')
+head=re.sub(r'(<meta (?:name="description"|property="og:description") content=")[^"]*(">)', r'\1Generate a band on the M-VAVE FM-1. Four parts stay in sync and play off each other. Perform with the band in GLO Live.\2', head)
+head=head.replace('content="Play RAKT in your browser"', 'content="RAKT · Generate a band. Play it live."')
 main=text[text.index('<main id="main">'):text.index('  <section class="section scope-accent final"')]
-main=main.replace('Play it in your browser','RAKT, your studio on the FM-1').replace('This is the real RAKT firmware, running in your browser with sound.','Your custom FM-1 firmware, running in your browser with sound.')
-main=main.replace('<p class="lead">Your custom FM-1 firmware, running in your browser with sound. Tap or click the keys, or use your computer keyboard.</p>', '<p class="lead">Play a progression with a four-part band. Shape the sounds and mix from the Studio racks.</p><div class="actions"><a class="btn btn--secondary btn--sm" href="#quick-start">Quick start ↓</a><a class="btn btn--secondary btn--sm" href="#keys-title">Computer controls</a><a class="btn btn--secondary btn--sm" href="../install/">Install on your FM-1</a></div>')
+main=main.replace('Play it in your browser','Generate a band. Play it live.').replace('This is the real RAKT firmware, running in your browser with sound.','Your custom FM-1 firmware, running in your browser with sound.')
+main=main.replace('<p class="lead">Your custom FM-1 firmware, running in your browser with sound. Tap or click the keys, or use your computer keyboard.</p>', '<p class="lead">Pick a style and generate a band in one press. Chords, bass, drums and melody stay in sync and play off each other. In GLO Live, use the keys to solo parts, cue fills and drops, and play effects over the groove.</p><div class="actions"><a class="btn btn--secondary btn--sm" href="#quick-start">Quick start ↓</a><a class="btn btn--secondary btn--sm" href="#keys-title">Computer controls</a><a class="btn btn--secondary btn--sm" href="../install/">Install on your FM-1</a></div>')
 assert '  <section class="section" aria-labelledby="keys-title">' in main, 'Player controls section missing'
 main=main.replace('  <section class="section" aria-labelledby="keys-title">', (root/'web/rakt-play-guide.html').read_text() + '\n  <section class="section" aria-labelledby="keys-title">')
 
