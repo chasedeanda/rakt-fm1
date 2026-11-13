@@ -9,6 +9,11 @@ play=out/'play';play.mkdir(exist_ok=True)
 for name in ('index.html','emu.js','keymap.js','worklet.js','rakt.wasm'):
     shutil.copyfile(root/'build/emu-web'/name,play/name)
 shutil.copyfile(root/'web/site.css',out/'site.css')
+guides=out/'guides'; guides.mkdir(exist_ok=True)
+for name in ('rakt-quick-start.png', 'rakt-recording.png', 'rakt-glo-live.png'):
+    shutil.copyfile(root/'docs/images'/name,guides/name)
+for name in ('RAKT-FM1-Quick-Start.pdf', 'RAKT-FM1-GLO-Live.pdf'):
+    shutil.copyfile(root/'docs'/name,guides/name)
 shutil.copytree(root/'web/fonts',out/'fonts',dirs_exist_ok=True)
 for name in ('favicon.svg','favicon-32.png','apple-touch-icon.png'):
     shutil.copyfile(root/'tools/emu/web'/name,out/name)
@@ -23,13 +28,14 @@ head=head.replace('<title>Play RAKT in your browser</title>', '<title>RAKT · Ge
 head=re.sub(r'(<meta (?:name="description"|property="og:description") content=")[^"]*(">)', r'\1Generate a band on the M-VAVE FM-1. Four parts stay in sync and play off each other. Perform with the band in GLO Live.\2', head)
 head=head.replace('content="Play RAKT in your browser"', 'content="RAKT · Generate a band. Play it live."')
 main=text[text.index('<main id="main">'):text.index('  <section class="section scope-accent final"')]
-main=main.replace('Play it in your browser','Generate a band. Play it live.').replace('This is the real RAKT firmware, running in your browser with sound.','Your custom FM-1 firmware, running in your browser with sound.')
-main=main.replace('<p class="lead">Your custom FM-1 firmware, running in your browser with sound. Tap or click the keys, or use your computer keyboard.</p>', '<p class="lead">Pick a style and generate a band in one press. Chords, bass, drums and melody stay in sync and play off each other. In GLO Live, use the keys to solo parts, cue fills and drops, and play effects over the groove.</p><div class="actions"><a class="btn btn--secondary btn--sm" href="#quick-start">Quick start ↓</a><a class="btn btn--secondary btn--sm" href="#keys-title">Computer controls</a><a class="btn btn--secondary btn--sm" href="../install/">Install on your FM-1</a></div>')
+main=main.replace('<h1 class="display-2" id="play-title">Play it in your browser</h1>', '<p class="rakt-faceplate__label">RAKT / Browser rack</p><h1 class="display-2" id="play-title">Generate a band. Play it live.</h1>')
+main=main.replace('<p class="lead">This is the real RAKT firmware, running in your browser with sound. Tap or click the keys, or use your computer keyboard.</p>', '<p class="lead">Pick a genre and bring in a band. Chords, bass, drums and melody share the groove and play off each other. Press Start to turn on audio, then use the on-screen panel or your computer keyboard to jam.</p><a href="#quick-start">First jam guide ↓</a>')
+main=main.replace('Keys, buttons and knobs', 'Play from your computer')
 assert '  <section class="section" aria-labelledby="keys-title">' in main, 'Player controls section missing'
 main=main.replace('  <section class="section" aria-labelledby="keys-title">', (root/'web/rakt-play-guide.html').read_text() + '\n  <section class="section" aria-labelledby="keys-title">')
 
-header=f'''<body class="rakt-player"><header class="site-header"><div class="container site-header__row"><a class="brand" href="#play-title">RAKT · FM-1</a><nav class="site-nav" aria-label="Play page"><a href="#quick-start">Quick start</a><a href="#explore">Features</a><a href="#keys-title">Controls</a><a href="https://github.com/chasedeanda/rakt-fm1#readme">Full guide ↗</a><a href="{source}">Source</a></nav></div></header>'''
-footer=f'''</main><footer class="site-footer"><div class="container"><p>Development preview · <a href="{source}">{sha[:7]}</a>. Browser performance does not measure device CPU headroom.</p><p>Built on CoralFlower, ChoralRoot FM-1, Felucca and Melodee. <a href="../LICENSE">GPL-3.0</a> · <a href="../LICENSING.md">Credits and licences</a>.</p></div></footer><script src="keymap.js"></script><script src="emu.js"></script></body></html>'''
+header='''<body class="rakt-player rakt-rack"><a class="skip" href="#main">Skip to content</a><header class="site-header"><div class="container site-header__row"><a class="brand" href="#play-title">RAKT · FM-1</a><nav class="site-nav" aria-label="Play page"><a href="#quick-start">First jam</a><a href="#keys-title">Computer controls</a><a href="../install/">Install on your FM-1</a></nav></div></header>'''
+footer=f'''</main><footer class="site-footer"><div class="container"><p>Browser build · <a href="{source}">{sha[:7]}</a></p><p>Built on CoralFlower, ChoralRoot FM-1, Felucca and Melodee. <a href="../LICENSE">GPL-3.0</a> · <a href="../LICENSING.md">Credits and licences</a>.</p></div></footer><script src="keymap.js"></script><script src="emu.js"></script></body></html>'''
 # Keep the build script's cache-busting query strings.
 for filename in ('keymap.js','emu.js'):
     match=re.search(r'src="('+re.escape(filename)+r'\?[^\"]+)"',text)

@@ -583,3 +583,96 @@ kbd.m { color: var(--color-text-muted); background: transparent; box-shadow: ins
 .rakt-player .play__head .actions { justify-content: center; }
 .rakt-player .site-nav { flex-wrap: wrap; }
 @media (max-width: 39.99rem) { .rakt-guide__pages { grid-template-columns: minmax(0, 1fr); gap: var(--space-3xs); } .rakt-guide__pages dd { margin-bottom: var(--space-xs); } }
+
+/* RAKT's public racks use the instrument's metal, amber and GLO color accents. */
+.rakt-rack {
+  --rakt-metal: #232526;
+  --rakt-rail: #141617;
+  --rakt-edge: #3b4040;
+  --rakt-amber: var(--c-peach-300);
+  --color-bg: var(--rakt-rail);
+  --color-surface: var(--rakt-metal);
+  --color-raised: var(--rakt-edge);
+  --color-border: var(--rakt-edge);
+  --color-accent: var(--rakt-amber);
+  --color-header: var(--rakt-rail);
+}
+.rakt-rack .site-header {
+  border-bottom: 3px solid transparent;
+  border-image: linear-gradient(90deg,
+    var(--c-peach-300) 25%, var(--c-rose-500) 25% 50%,
+    var(--c-sea-400) 50% 75%, var(--c-lime-400) 75%) 1;
+}
+.rakt-rack .brand { color: var(--rakt-amber); font-family: var(--font-mono); }
+.rakt-faceplate__label {
+  font: var(--fs-xs) / var(--lh-display) var(--font-mono);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--rakt-amber);
+}
+.rakt-rack .hero__grid, .rakt-rack .play__inner {
+  position: relative;
+  width: calc(100% - 2 * var(--space-gutter));
+  padding: clamp(1.25rem, 4vw, 3rem);
+  border: 1px solid var(--rakt-edge);
+  border-radius: var(--radius-l);
+  background: linear-gradient(165deg, var(--rakt-metal), var(--rakt-rail));
+  box-shadow: inset 0 1px 0 var(--rakt-edge), var(--shadow-m);
+}
+.rakt-rack .hero__grid::before, .rakt-rack .play__inner::before {
+  content: "";
+  position: absolute;
+  inset: .6rem .75rem auto auto;
+  width: 2.6rem;
+  height: .4rem;
+  background: repeating-linear-gradient(90deg, var(--rakt-edge) 0 2px, transparent 2px 5px);
+  pointer-events: none;
+}
+.rakt-rack .hero__lead { max-width: 42ch; }
+.rakt-rack .play { padding-block: var(--space-xl); --color-accent: var(--rakt-amber); }
+.rakt-rack .play__head .lead { max-width: 53ch; }
+.rakt-rack .play__panel { max-width: 100%; }
+.rakt-rack #quick-start, .rakt-rack #keys-title { scroll-margin-top: 6rem; }
+.rakt-rack .rakt-guide { padding-block: var(--space-l) var(--space-xl); }
+.rakt-rack .rakt-guide .section-head { margin-bottom: var(--space-m); }
+.rakt-rack .rakt-guide__steps { gap: var(--space-xs); margin-bottom: var(--space-l); }
+.rakt-guide__steps li {
+  padding: var(--space-s);
+  border: 1px solid var(--rakt-edge);
+  border-inline-start: 3px solid var(--channel, var(--rakt-amber));
+  border-radius: var(--radius-s);
+  background: var(--rakt-metal);
+}
+.rakt-guide__steps li:nth-child(2) { --channel: var(--c-sea-400); }
+.rakt-guide__steps li:nth-child(3) { --channel: var(--c-rose-500); }
+.rakt-guide__steps b { display: block; margin-bottom: var(--space-3xs); }
+.rakt-guide__steps p { color: var(--color-text-muted); }
+.rakt-guide__sheets { display: grid; gap: var(--space-l); max-width: 53rem; margin-inline: auto; }
+.rakt-guide__sheet {
+  --channel: var(--rakt-amber);
+  padding: var(--space-s);
+  border: 1px solid var(--rakt-edge);
+  border-radius: var(--radius-m);
+  background: var(--rakt-metal);
+}
+.rakt-guide__sheet:nth-child(2) { --channel: var(--c-sea-400); }
+.rakt-guide__sheet:nth-child(3) { --channel: var(--c-rose-500); }
+.rakt-guide__rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3xs) var(--space-s);
+  padding: var(--space-2xs) 0 var(--space-s);
+}
+.rakt-guide__rail h3 {
+  font: var(--fs-sm) / var(--lh-display) var(--font-mono);
+  color: var(--channel);
+}
+.rakt-guide__rail a, .rakt-guide__text { font-size: var(--fs-sm); }
+.rakt-guide__art { display: block; border-radius: var(--radius-s); }
+.rakt-guide__art img { width: 100%; border-radius: inherit; }
+.rakt-guide__text { display: inline-block; margin-top: var(--space-xs); }
+@media (max-width: 59.99rem) {
+  .rakt-install .hero__visual { display: none; }
+}
