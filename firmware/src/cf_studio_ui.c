@@ -288,8 +288,27 @@ static const cgs_clip_t *cgs_latest(unsigned p)
 }
 static int cgs_same_clip(const cgs_clip_t *a,const cgs_clip_t *b)
 {
-    return a->responds==b->responds && !memcmp(a,b,offsetof(cgs_clip_t,seed));
+    return a->responds==b->responds && a->transpose==b->transpose && a->arp_pattern==b->arp_pattern &&
+        !memcmp(a,b,offsetof(cgs_clip_t,seed));
 }
+
+static void cgs_roll_register(cgs_clip_t *clip,unsigned part,unsigned arp_blocked,
+                              int pulsed_chords,uint32_t *seed)
+{
+    if(part==CGS_DRUMS)return;
+    const cgs_profile_t *profile=&CGS_PROFILES[cgs.genre];
+    int raised=cgs_rand(seed,8)<profile->octave_odds[part];
+    clip->transpose=(int8_t)(raised?(part==CGS_BASS?-12:12):0);
+    if(part==CGS_BASS || arp_blocked || cgs_rand(seed,8)>=profile->arp_odds)return;
+    unsigned choice=cgs_rand(seed,2), layer=part==CGS_LAYER;
+    const uint8_t *patterns=profile->arp_pattern[layer];
+    if(layer && pulsed_chords)choice=(patterns[0]&0x70u)>(patterns[1]&0x70u);
+    unsigned pattern=patterns[choice];
+    unsigned rate=(pattern>>4)&7u;
+    if(cgs.meter==6 && rate==6u)pattern=(pattern&0x8fu)|(4u<<4);
+    clip->arp_pattern=(uint8_t)pattern;
+}
+
 static void cgs_reshape(cgs_clip_t *clip, unsigned p, const cgs_clip_t *reference, int reset)
 {
     uint8_t feel=cgs.feel;
@@ -297,6 +316,8 @@ static void cgs_reshape(cgs_clip_t *clip, unsigned p, const cgs_clip_t *referenc
     cgs.feel=reference->voice;
     cgs_compose(clip,p,&seed);
     cgs.feel=feel;
+    clip->transpose=reference->transpose;
+    clip->arp_pattern=reference->arp_pattern;
     if(reset)return;
     clip->edits=reference->edits;
     unsigned steps=cgs_steps(cgs.meter);
@@ -376,6 +397,13 @@ static void cgs_request(unsigned p, int action)
         cgs_cancel_auto(1u<<p);
         uint32_t revision=cgs.take_revision, seed=cgs.seed[p];
         reference=*cgs_latest(p);
+        unsigned other=p==CGS_LAYER?CGS_CHORDS:CGS_LAYER;
+        const cgs_clip_t *other_clip=cgs_latest(other);
+        unsigned arp_blocked=(cgs.arp&(1u<<other)) || ((cgs.arp_auto&(1u<<other)) && other_clip->arp_pattern) ||
+            ((cgs.arp_manual&~cgs.arp_auto)&(1u<<p));
+        unsigned pulsed=cgs_chords_pulsed(cgs_latest(CGS_CHORDS));
+        int chords_up=cgs_latest(CGS_CHORDS)->transpose!=0;
+        int layer_up=cgs_latest(CGS_LAYER)->transpose!=0;
         fm1_irq_on();
         if(action==CGS_RESHAPE || action==CGS_STYLE){
             cgs_reshape(&clip,p,&reference,action==CGS_STYLE);
@@ -396,10 +424,17 @@ static void cgs_request(unsigned p, int action)
                     (p==CGS_CHORDS?4u:CGS_FIFTH+(3u<<3));
                 cgs_prepare_response_timing(&clip,p);
             }
+            if(!cgs.custom){
+                cgs_roll_register(&clip,p,arp_blocked,pulsed,&seed);
+                if(p==CGS_LAYER && chords_up)clip.transpose=12;
+                if(p==CGS_CHORDS && !layer_up)clip.transpose=0;
+            }
         }
         fm1_irq_off();
         if(revision==cgs.take_revision){
             cgs.seed[p]=seed;
+            if(action==CGS_REROLL && !cgs.custom && (p==CGS_CHORDS || p==CGS_LAYER) && !(cgs.arp_manual&(1u<<p)))
+                cgs.arp_auto|=(uint8_t)(1u<<p);
             if(!cgs_same_clip(&reference,&clip) || clip.edits.count!=reference.edits.count)
                 cgs_publish_clip(p,&clip,0);
             fm1_irq_on();
@@ -520,6 +555,31 @@ static uint8_t cgs_shuffle_settings(cf_chord_cfg_t *cfg)
     return (uint8_t)(draw<below?min+draw:max-above+1u+draw-below);
 }
 
+static void cgs_shuffle_registers(cgs_clip_t *clip)
+{
+    uint32_t *seed=&cgs.harmony_seed;
+    unsigned chord=1u<<CGS_CHORDS, layer=1u<<CGS_LAYER;
+    unsigned available=(cgs.arp_auto|~cgs.arp_manual)&(chord|layer);
+    unsigned owner=!(available&layer) || ((available&chord) && !cgs_chords_pulsed(&clip[CGS_CHORDS]) &&
+        cgs_rand(seed,4)==0)?CGS_CHORDS:CGS_LAYER;
+    int pulsed=cgs_chords_pulsed(&clip[CGS_CHORDS]);
+    for(unsigned p=0;p<CGS_DRUMS;p++)
+        cgs_roll_register(&clip[p],p,cgs.arp || p!=owner || !(available&(1u<<p)),pulsed,seed);
+    if(clip[CGS_CHORDS].transpose)clip[CGS_LAYER].transpose=12;
+}
+
+static void cgs_compose_take(cgs_clip_t *clip,int shuffle,int preserve)
+{
+    for(unsigned p=0;p<CGS_NPART;p++){
+        const cgs_clip_t *previous=cgs_latest(p);
+        int8_t transpose=previous->transpose;
+        uint8_t pattern=previous->arp_pattern;
+        cgs_compose(&clip[p],p,&cgs.seed[p]);
+        if(preserve){clip[p].transpose=transpose;clip[p].arp_pattern=pattern;}
+    }
+    if(shuffle)cgs_shuffle_registers(clip);
+}
+
 static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
 {
     if(cr_safe || cfs_restore_lock || sqk.on || cf_sn.sq_on || cf_sn.sq_rec!=255){
@@ -572,10 +632,12 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
     if(draft && draft!=&cgs_custom_harmony)cgs_custom_harmony=*draft;
     cgs.custom=(uint8_t)(draft!=NULL);
     cgs.meter=plan.beats;
+    int preserve=!shuffle && !switching && (cgs_active()?cgs.playing_genre:cgs.queued_genre)==cgs.genre;
     if(cgs_active()){
         cgs_clip_t clip[CGS_NPART];
-        for(unsigned p=0;p<CGS_NPART;p++)cgs_compose(&clip[p],p,&cgs.seed[p]);
+        cgs_compose_take(clip,shuffle,preserve);
         fm1_irq_off();
+        if(shuffle)cgs.arp_auto|=(uint8_t)(((1u<<CGS_CHORDS)|(1u<<CGS_LAYER))&~cgs.arp_manual);
         cgs_cancel_auto((1u<<CGS_NPART)-1u);
         cgs.clear_take_hold=(uint8_t)(reroll || cgs.genre!=cgs.playing_genre);
         memcpy(cgs.take,clip,sizeof clip);
@@ -590,11 +652,12 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
     }
     int rebuilt=!cgs.ready || !play || switching || new_draft || cgs.queued_genre!=cgs.genre;
     if(rebuilt){
-        for(unsigned p=0;p<CGS_NPART;p++)cgs_compose(&cgs.active[p],p,&cgs.seed[p]);
+        cgs_compose_take(cgs.active,shuffle,preserve);
         if(reroll || cgs.genre!=cgs.playing_genre)cgs.hold=0;
         cgs.ready=1;
     }
     fm1_irq_off();
+    if(shuffle)cgs.arp_auto|=(uint8_t)(((1u<<CGS_CHORDS)|(1u<<CGS_LAYER))&~cgs.arp_manual);
     cpa_setup.plan=plan;
     cgs.setup_pitch=pitch;
     cgs.queued_genre=cgs.genre;

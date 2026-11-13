@@ -1190,26 +1190,46 @@ static void song_shuffle_studio(void)
         studio_start_profile(100,genre);
         blocks(2);
         const cgs_profile_t *profile=&CGS_PROFILES[genre];
-        unsigned meters=0,keys=0,scales=0,grid=cf_grid.gen;
+        unsigned meters=0,keys=0,scales=0,grid=cf_grid.gen,registers=0,arps=0;
         for(unsigned i=0;i<24;i++){
             unsigned bpm=cs.bpm,tonic=cpa.plan.tonic,scale=cpa.plan.scale,beats=cpa.plan.beats;
             ui_button(B_EDIT);
             cpa_plan_t next=cpa_setup.plan;
             unsigned next_bpm=cgs.queued_bpm;
+            int8_t old_shift=cgs.active[CGS_CHORDS].transpose;
+            unsigned old_arp=cgs.active[CGS_LAYER].arp_pattern;
             CHECK(cpa_setup.flags && cpa_valid(&next));
             CHECK(next_bpm>=profile->bpm_min && next_bpm<=profile->bpm_max && abs((int)next_bpm-(int)bpm)>=5);
             CHECK(next.tonic!=tonic && memchr(profile->keys,next.tonic,sizeof profile->keys));
             CHECK(next.scale!=scale && memchr(profile->scales,next.scale,sizeof profile->scales));
             ticks(beats*SQ_PPQN-cpa.t-1u);
             CHECK(cpa.plan.tonic==tonic && cpa.plan.scale==scale && cpa.plan.beats==beats && cfm.bpm==bpm && cs.bpm==bpm);
+            CHECK(cgs.active[CGS_CHORDS].transpose==old_shift && cgs.active[CGS_LAYER].arp_pattern==old_arp);
             ticks(1);
             CHECK(!cpa_setup.flags && cpa.t==0 && cf_grid.gen==grid);
             CHECK(cpa.plan.tonic==next.tonic && cpa.plan.scale==next.scale && cpa.plan.beats==next.beats);
             CHECK(cs.bpm==next_bpm && cfm.bpm==next_bpm && cfp_cfg.bpm==next_bpm);
+            CHECK(!(cgs_band_arp(CGS_CHORDS) && cgs_band_arp(CGS_LAYER)));
+            CHECK(!cgs.active[CGS_DRUMS].transpose && !cgs.active[CGS_BASS].arp_pattern);
+            for(unsigned p=0;p<CGS_DRUMS;p++){
+                const cgs_clip_t *clip=&cgs.active[p];
+                if(clip->transpose){CHECK(clip->transpose==(p==CGS_BASS?-12:12));registers|=1u<<p;}
+                if(!clip->arp_pattern)continue;
+                arps|=1u<<p;
+                cf_arp_t arp=cs.arp;
+                cgs_arp_settings(&arp,clip->arp_pattern);
+                CHECK(arp.mode<CF_ARP_NMODES && !CF_ARP_STRUMMING(arp.mode) && arp.rate<CF_ARP_NRATES);
+                CHECK(arp.oct>=1 && arp.oct<=2 && (next.beats!=6u || arp.rate!=6u));
+                const cfa_t *played=&cfa_sq[p==CGS_LAYER];
+                CHECK(played->n && played->mode==arp.mode);
+                CHECK(played->note[0]==next.slot[0].note[0]+clip->transpose+(p==CGS_LAYER?12:0));
+                CHECK(!memcmp(&cs.arp,&cfp_cfg.arp,sizeof cs.arp));
+            }
             blocks(1);
             meters|=1u<<next.beats;keys|=1u<<next.tonic;scales|=1u<<next.scale;
         }
         CHECK((meters&(meters-1u)) && (keys&(keys-1u)) && (scales&(scales-1u)));
+        CHECK(registers==7u && arps);
 
         ui_button(B_PLAY);
         blocks(2);
@@ -1231,6 +1251,43 @@ static void song_shuffle_studio(void)
     CHECK(cpa_setup.flags && !cgs.queued_bpm);
     ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
     CHECK(cs.bpm==bpm && cfm.bpm==bpm && cpa.plan.tonic!=tonic);
+    cpa_stop();
+}
+
+static void generated_arp_studio(void)
+{
+    studio_start_profile(111,studio_genre_index("new-wave"));
+    blocks(2);
+    cgs.focus=CGS_CHORDS;
+    cgu_arp_turn(CGU_ARP_BAND);
+    cf_arp_t manual=cs.arp;
+    cgs.focus=CGS_LAYER;
+    ui_button(B_SCL);
+    for(unsigned i=0;i<12;i++){
+        cgs_clip_t before=cgs.active[CGS_CHORDS];
+        ui_button(B_EDIT);
+        CHECK(!cpa_setup.flags && !cgs.next[CGS_LAYER].arp_pattern);
+        ticks(CGS_TICKS);
+        CHECK(!memcmp(&before,&cgs.active[CGS_CHORDS],sizeof before));
+        CHECK(sqp.aon==(1u<<CGS_CHORDS));
+    }
+    cgs.focus=CGS_CHORDS;
+    cgu_arp_turn(-CGU_ARP_BAND);
+    cgs.focus=CGS_LAYER;
+    unsigned generated=0;
+    for(unsigned i=0;i<12 && !generated;i++){
+        ui_button(B_EDIT);
+        ticks(CGS_TICKS);
+        generated=cgs.active[CGS_LAYER].arp_pattern;
+    }
+    CHECK(generated && cgu_arp_mode()==CGU_ARP_AUTO && sqp.aon==(1u<<CGS_LAYER));
+    ui_button(B_ARP);
+    cf_knob_t mode={0};
+    ui_knob_info(1,&mode);
+    CHECK(!strcmp(mode.val,CF_ARP_SHORT[generated&15u]) && mode.dis);
+    cgu_arp_turn(-CGU_ARP_AUTO);
+    ticks(CGS_TICKS);
+    CHECK(cgu_arp_mode()==CGU_ARP_OFF && !sqp.aon && !memcmp(&cs.arp,&manual,sizeof manual));
     cpa_stop();
 }
 
@@ -1621,14 +1678,34 @@ static void glow_live_studio(void)
     blocks(1);
     CHECK(!cfp.n); /* a note played before GLO still gets its normal note-off */
     ui_capture("glow-map");
+    unsigned bpm=cs.bpm;
+    uint8_t levels[CGS_NPART];
+    memcpy(levels,cgs.level,sizeof levels);
+    static const uint8_t mix_order[]={CGS_CHORDS,CGS_BASS,CGS_DRUMS,CGS_LAYER};
+    for(unsigned i=0;i<NELEM(mix_order);i++){
+        emu_hal.enc[panel.enc[EN_K1+i]]=panel.dir[EN_K1+i];
+        glow_scan(30,0,0);
+        levels[mix_order[i]]++;
+        CHECK(!memcmp(cgs.level,levels,sizeof levels));
+    }
+    CHECK(cs.bpm==bpm);
+    unsigned gain=cgs.gain[CGS_DRUMS];
+    blocks(1);
+    CHECK(cgs.gain[CGS_DRUMS]>gain);
+
     ui_algo(1);
     ui_capture("glow-state");
+    uint32_t header=cfs_fnv(fb+54*FB_W,38*FB_W);
+    ui_knob_turn(3,100);
+    cf_ui_draw();
+    CHECK(cgs.level[CGS_LAYER]==100 && header!=cfs_fnv(fb+54*FB_W,38*FB_W));
+    ui_knob_turn(3,-100);
+    CHECK(cgs.level[CGS_LAYER]==0);
+    cgs.level[CGS_LAYER]=levels[CGS_LAYER];
     ui_algo(1);
     CHECK(cgu_glow.view==CGU_GLO_MAP);
-    unsigned bpm=cs.bpm, level=cgs.level[CGS_DRUMS];
     ui_select(1);
-    ui_knob_turn(2,1);
-    CHECK(cs.bpm==bpm+1 && cgs.level[CGS_DRUMS]==level);
+    CHECK(cs.bpm==bpm+1 && !memcmp(cgs.level,levels,sizeof levels));
     for(unsigned i=0;i<3;i++){
         glow_scan(475,0,1u<<white[CGU_GLO_TAP]);
         glow_scan(25,0,0);
@@ -1680,7 +1757,7 @@ static void glow_live_studio(void)
         cf_knob_t knob={0};
         cgu_knob_view(i,&knob,1);
         CHECK(!strcmp(knob.name,CGS_PART_NAME[part]));
-        level=cgs.level[part];
+        unsigned level=cgs.level[part];
         ui_knob_turn(i,1);
         CHECK(cgs.level[part]==level+1);
     }
@@ -2598,6 +2675,7 @@ int main(int argc,char **argv)
         workspaces_studio();
         arrangements_studio();
         song_shuffle_studio();
+        generated_arp_studio();
         sound_shuffle_fx_studio();
         amp_performance_studio();
         indie_form_studio();

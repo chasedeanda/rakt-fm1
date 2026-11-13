@@ -5,6 +5,7 @@ typedef struct {
     uint32_t keys;
     uint16_t bpm, ready;
     uint8_t view, muted, cut, solo, drums;
+    uint8_t level[CGS_NPART];
     uint8_t paused, playing, ext, waiting, pending, fill, dropped;
     char message[48];
 } cgu_glow_model_t;
@@ -129,11 +130,15 @@ static void cgu_glow_header(const cgu_glow_model_t *m)
         unsigned part=cgu_part(i), bit=1u<<part;
         int x=4+i*58;
         uint8_t accent=CGU_INK_BASE+part;
-        fb_rbox(x,55,56,33,2,RAKT_CHORDS+part);
+        char name[16]={'K',(char)('1'+i),' ',0}, level[8];
+        str_cpy(name+3,CGS_PART_NAME[part],sizeof name-3);
+        kint(level,m->level[part],"%");
+        fb_rbox(x,54,56,38,2,RAKT_CHORDS+part);
         fb_hline(x+3,56,50,accent);
-        cfn_center(&CFN_11,x+28,69,CGS_PART_NAME[part],FL_INK);
-        cgu_lamp(x+10,79,!(m->cut&bit),accent);
-        cfn_center(&CFN_11,x+32,83,cgu_glow_part_state(m,part),FL_INK2);
+        cfn_center(&CFN_11,x+28,67,name,FL_INK);
+        cfn_center(&CFN_12,x+28,79,level,FL_INK);
+        cgu_lamp(x+10,86,!(m->cut&bit),accent);
+        cfn_center(&CFN_11,x+32,90,cgu_glow_part_state(m,part),FL_INK2);
     }
 }
 
@@ -150,6 +155,7 @@ static void cgu_glow_draw(void)
     m.cut=(uint8_t)cgs_mute_mask();
     m.solo=cgs.solo|cgs.held_solo;
     m.drums=cgs.drum_mutes;
+    memcpy(m.level,cgs.level,sizeof m.level);
     m.paused=cf_sn.ac_paused;
     m.waiting=cf_sn.ac_waiting || cf_sn.ac_lost;
     m.playing=cf_sn.running;

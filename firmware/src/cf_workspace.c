@@ -4,9 +4,9 @@ enum { CGU_STUDIO, CGU_SOUND, CGU_RECORD, CGU_HELP, CGU_NTAB };
 enum { CGU_BAND, CGU_BAND_HARMONY, CGU_BAND_SHAPING, CGU_BAND_GENRE, CGU_BAND_ARP, CGU_BAND_PROGRESSION, CGU_BAND_PANELS };
 enum { CGU_PART, CGU_PART_HARMONY, CGU_PART_EVOLVE, CGU_PART_PAGES };
 enum { CGU_TONE, CGU_ENVELOPE, CGU_SENDS, CGU_PRESETS, CGU_SOUND_PAGES };
-enum { CGU_ARP_OFF, CGU_ARP_KEYS, CGU_ARP_BAND };
+enum { CGU_ARP_OFF, CGU_ARP_KEYS, CGU_ARP_BAND, CGU_ARP_AUTO };
 static const char *const CGU_SOUND_NAMES[]={"Tone","Envelope","Sends","FX Presets"};
-static const char *const CGU_ARP_NAMES[]={"Off","Keys","Band"};
+static const char *const CGU_ARP_NAMES[]={"Off","Keys","Band","Auto"};
 enum { CGU_START, CGU_HARMONY, CGU_PLAYING, CGU_CAPTURE };
 enum { CGU_RACK_LIBRARY=1, CGU_RACK_MIX };
 enum { CGU_KNOB_NONE, CGU_KNOB_PART, CGU_KNOB_HARMONY, CGU_KNOB_SHAPING,
@@ -57,7 +57,7 @@ static int cgu_keys_arp(void)
 static unsigned cgu_arp_mode(void)
 {
     unsigned bit=1u<<cgs.focus;
-    return cgs.arp&bit?CGU_ARP_BAND:cgu.key_arp&bit?CGU_ARP_KEYS:CGU_ARP_OFF;
+    return cgs.arp_auto&bit?CGU_ARP_AUTO:cgs.arp&bit?CGU_ARP_BAND:cgu.key_arp&bit?CGU_ARP_KEYS:CGU_ARP_OFF;
 }
 static int cgu_arp_available(void)
 { return cgs.focus==CGS_CHORDS || cgs.focus==CGS_LAYER; }
@@ -67,9 +67,14 @@ static void cgu_arp_turn(int d)
     if(!cgu_arp_available())return;
     unsigned p=cgs.focus;
     unsigned bit=1u<<p;
-    unsigned mode=(unsigned)clampi((int)cgu_arp_mode()+d,0,CGU_ARP_BAND);
+    unsigned mode=(unsigned)clampi((int)cgu_arp_mode()+d,0,CGU_ARP_AUTO);
+    fm1_irq_off();
+    cgs.arp_manual|=(uint8_t)bit;
     cgu.key_arp=(uint8_t)((cgu.key_arp&~bit)|(mode==CGU_ARP_KEYS?bit:0));
     cgs.arp=(uint8_t)((cgs.arp&~bit)|(mode==CGU_ARP_BAND?bit:0));
+    cgs.arp_auto=(uint8_t)((cgs.arp_auto&~bit)|(mode==CGU_ARP_AUTO?bit:0));
+    if(cgs_active())sqp_arp_off(p);
+    fm1_irq_on();
 }
 static void cgu_sound_page(unsigned page)
 {
@@ -312,6 +317,7 @@ static unsigned cgu_band_knob_panel(unsigned band)
 
 static unsigned cgu_knob_panel(int detail)
 {
+    if(cgu_glow.active)return CGU_KNOB_MIX;
     if(cgu.tab==CGU_STUDIO){
         if(!cgu.band_panel && detail){
             if(cgu.part_page==CGU_PART_HARMONY)return CGU_KNOB_HARMONY;
@@ -582,7 +588,7 @@ static void cgu_shuffle_fx(unsigned first,unsigned end)
     const cgs_profile_t *profile=&CGS_PROFILES[cgs.genre];
     static const uint8_t order[]={CGS_LAYER,CGS_CHORDS,CGS_BASS,CGS_DRUMS};
     unsigned chords=1u<<CGS_CHORDS;
-    int busy_chords=!(cgs_mute_mask()&chords) && ((cgs.arp&chords) ||
+    int busy_chords=!(cgs_mute_mask()&chords) && (cgs_band_arp(CGS_CHORDS) ||
         (cgs_chords_pulsed(cgs_latest(CGS_CHORDS)) && cgs.activity[CGS_CHORDS]>=50u));
     unsigned tails=0;
     for(unsigned p=0;p<CGS_NPART;p++)
@@ -865,7 +871,7 @@ static void cgu_knob_turn(int k,int d)
         (panel==CGU_KNOB_HARMONY && k==1) || (panel==CGU_KNOB_PART && k!=0) ||
         (panel==CGU_KNOB_SOUND && (page==CGU_SENDS || page==CGU_ENVELOPE || (page==CGU_TONE && k!=0)));
     if(continuous)d=cgu_sweep(k,d);
-    if(cgu.tab==CGU_STUDIO && cgu.band_panel && cgs.zoom && cf_motion && !knob.dis &&
+    if(!cgu_glow.active && cgu.tab==CGU_STUDIO && cgu.band_panel && cgs.zoom && cf_motion && !knob.dis &&
         (!cgu.turn_ms || cgu.turn_knob!=k || cu.now-cgu.turn_ms>=CGU_LENS_HOLD_MS+CGU_LENS_RETURN_MS))
         cgu.lens_ms=cu.now?cu.now:1u;
     cgu.turn_ms=cu.now?cu.now:1u;
