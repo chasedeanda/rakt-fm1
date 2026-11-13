@@ -6,8 +6,6 @@ static uint8_t reply[512];static uint32_t reply_n;
 #define CRB_SEND(p,n) do {memcpy(reply,(p),(n));reply_n=(n);}while(0)
 #define FELUCCA_UAC 1
 #define FELUCCA_CDC 1
-/* Exercise classic HOME bank navigation. Native Studio routes have their own suite. */
-#define CF_STUDIO 0
 #include "../tools/emu/emu_fw.c"
 static void ua_service_paced(uint32_t t,int isr){(void)t;(void)isr;ua_service();}
 static unsigned checks,fails;
@@ -48,14 +46,12 @@ int main(int argc,char **argv)
     CHECK(cfd.hold && cfd.v[D_PEAK]==held && cf_perf.work==2100 && felucca_dbg.late==1);
     if(argc>1){FILE *f=fopen(argv[1],"wb");CHECK(f);if(f){fwrite(reply,1,reply_n,f);fclose(f);}}
     uint8_t bad[]={CRB_HDR0,CRB_HDR1,CRB_HDR2,80,1};CHECK(!crb_handle(bad,sizeof bad));
-    /* Every view is reachable, hints survive, and the fourth view survives the settings store. */
-    cu.scr=SCR_HOME;cs.seq_hint=7;home_boot_main=1;cf_home_bank=0;
-    for(unsigned i=0;i<12;i++){CHECK(home_view()==HV_FLOWER && cf_home_bank==i%CF_HB_N);ui_button(B_HOME);CHECK((cs.seq_hint&63)==7);}
-    home_boot_main=0;
-    cs.seq_hint=7|(HV_DIAG<<HV_SHIFT);CHECK(cf_settings_write(0)==1);cs.seq_hint=0;
-    CHECK(cf_settings_load() && home_view()==HV_DIAG && sizeof cs==188);
     /* GLO controls stay bounded, hold preserves collection, reset leaves transport/sounds alone. */
-    cu.scr=SCR_GLO;cu.page[SCR_GLO]=6;cu.now=1850;
+    CHECK(cgs_home());
+    ui_button(B_GLO);CHECK(cgu_glow.active);
+    ui_button(B_SAVE);CHECK(!cgu_glow.active && cu.scr==SCR_GLO);
+    ui_select(6-(int)cu.page[SCR_GLO]);CHECK(cu.page[SCR_GLO]==6);
+    cu.now=1850;
     ui_knob_turn(0,20);CHECK(cfd.page==DP_USB);ui_knob_turn(0,-20);CHECK(cfd.page==DP_OVERVIEW);
     ui_knob_turn(1,1);CHECK(cfd.hold);ui_knob_turn(1,-1);CHECK(!cfd.hold);
     for(unsigned i=0;i<5;i++)ui_knob_turn(3,1);CHECK(cfd.rate==2);
@@ -67,8 +63,9 @@ int main(int argc,char **argv)
     for(unsigned i=0;i<D_N;i++)cfd.v[i]=0xFFFFFFFFu;
     cfd.v[D_HARDWARE]=1;cfd.v[D_BUDGET]=2902;cfd.v[D_RAM]=94940;cfd.v[D_RAM_CAP]=98304;
     cfd.v[D_POOL]=329756;cfd.v[D_POOL_CAP]=344064;
-    for(cfd.page=0;cfd.page<DP_N;cfd.page++)draw_home_diag();
+    for(cfd.page=0;cfd.page<DP_N;cfd.page++)cf_ui_draw();
     cfd.page=0;cfd.hold=0;cf_diag_reset(1900);
     CHECK(cf_perf.work==0 && felucca_dbg.late==1 && shed_count==5 && cfd.start==1900);
+    ui_button(B_HOME);CHECK(cgs_home());
     printf("diagnostics: %u checks, %u failures\n",checks,fails);return fails!=0;
 }

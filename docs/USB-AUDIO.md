@@ -113,7 +113,7 @@ Reproduce the new tests after generating headers:
 
 ```sh
 ../work/venv/bin/python tools/build.py --gen-only
-sh tools/test_usb.sh
+sh tools/test_usb.sh --full
 ```
 
 The existing `.github/workflows/check.yml` now includes these host tests. The earlier

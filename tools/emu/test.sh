@@ -1,56 +1,45 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-only
-# Headless acceptance of the FM-1 emulator (no window, no audio device, deterministic):
-#   sh tools/emu/test.sh            builds build/host/emu when a source is newer, runs tools/emu/scripts/*
-# Checks: a 300 ms press of D4 (computer key S) lights its LED and renders sound; the power-on screen is written; two runs
-# give the same LCD and the same audio; then ChoralRoot's own acceptance (test_cr.sh). (scripts/sel.txt,
-# knobs.txt and acceptance.txt were Felucca's UI: no longer run.)
-set -u
-ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-cd "$ROOT"
-export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy     # (--headless opens neither; belt and braces)
-EMU=build/host/emu
-OUT=build/emu/test
-S=tools/emu/scripts
-fail=0
-ok()  { echo "  ok    $*"; }
-bad() { echo "  FAIL  $*"; fail=1; }
+set -eu
+cd "$(dirname "$0")/../.."
+out=build/emu/test
+mkdir -p "$out"
+rm -f "$out/stopped.ppm" "$out/playing.ppm"
+cat > "$out/studio.txt" <<'SCRIPT'
+shot stopped
+key C4 down
+wait 350
+dump
+key C4 up
+wait 300
+dump
+btn PLAY
+wait 400
+shot playing
+dump
+btn PLAY
+wait 300
+dump
+SCRIPT
 
-if [ ! -x "$EMU" ] || [ -n "$(find tools/emu firmware/src tests/hostsim.c -newer "$EMU" -name '*.[ch]' 2>/dev/null | head -1)" ]; then
-    sh tools/emu/build.sh || { echo "build failed"; exit 1; }
+unset CF_FLASH CF_LOADMODEL CF_RENDER_MS
+CF_BOOT_MS=1600 sh tools/emu/cf_headless.sh "$out/studio.txt" "$out" > "$out/studio.log"
+test -s "$out/stopped.ppm"
+test -s "$out/playing.ppm"
+if cmp -s "$out/stopped.ppm" "$out/playing.ppm"; then
+    echo 'Studio did not redraw after PLAY' >&2
+    exit 1
 fi
-rm -rf "$OUT"
-mkdir -p "$OUT"
-
-run() {   # run NAME SCRIPT FRAMES [more options]: the log in $OUT/NAME.log, the exit status checked
-    name=$1; script=$2; frames=$3; shift 3
-    "$EMU" --headless --script "$script" --frames "$frames" "$@" >"$OUT/$name.log" 2>&1
-    st=$?
-    if [ $st -eq 0 ]; then ok "$name: exit 0 ($(grep -c '^expect .*: ok' "$OUT/$name.log") expectations met)"
-    else bad "$name: exit $st (see $OUT/$name.log)"; grep 'FAILED\|script' "$OUT/$name.log" | sed 's/^/        /'; fi
-}
-num() { sed -n "s/.*$1 \([0-9][0-9]*\).*/\1/p" "$2" | head -1; }
-same() { cmp -s "$1" "$2"; }
-
-echo "D4 held 300 ms"
-run key_a "$S/key_a.txt" 80 --shot "$OUT/key_a_end.ppm" --wav "$OUT/key_a.wav"
-nz=$(num "non-silent blocks" "$OUT/key_a.log")
-[ "${nz:-0}" -gt 0 ] && ok "non-silent audio blocks: $nz ($(num 'non-zero samples' "$OUT/key_a.log") non-zero samples)" \
-                     || bad "no sound from the D4 press"
-grep -q 'expect led D4 on .*: ok' "$OUT/key_a.log" && ok "D4's LED lit during the press" || bad "D4's LED not lit"
-[ -s "$OUT/home.ppm" ] && ok "power-on screen written: $OUT/home.ppm" || bad "no power-on screenshot"
-[ -s "$OUT/key_a_end.ppm" ] && ok "--shot wrote $OUT/key_a_end.ppm" || bad "--shot wrote nothing"
-
-echo "determinism"
-mkdir -p "$OUT/again"
-"$EMU" --headless --script "$S/key_a.txt" --frames 80 --shot "$OUT/again/key_a_end.ppm" --wav "$OUT/again/key_a.wav" >/dev/null 2>&1
-same "$OUT/key_a_end.ppm" "$OUT/again/key_a_end.ppm" && ok "same LCD on a second run" || bad "LCD differs on a second run"
-same "$OUT/key_a.wav" "$OUT/again/key_a.wav" && ok "same audio on a second run" || bad "audio differs on a second run"
-
-echo "timing (headless, render of one 128-frame block):"
-grep '^audio: [0-9]* blocks' "$OUT/key_a.log" | sed 's/^/  /'
-echo "ChoralRoot (tools/emu/test_cr.sh)"
-sh tools/emu/test_cr.sh | sed 's/^/  /' | tee "$OUT/test_cr.txt"
-tail -1 "$OUT/test_cr.txt" | grep -q PASS || fail=1
-[ $fail -eq 0 ] && echo "PASS" || echo "FAIL"
-exit $fail
+if ! awk '
+    /^fm1_in:/ { step++ }
+    /chord: .* sounding 1 / && step == 1 { key_down = 1 }
+    /chord: .* sounding 0 / && step == 2 { key_up = 1 }
+    /part 0 gated: [0-9]/ && step == 3 { band_playing = 1 }
+    /part 0 gated:$/ && step == 4 { band_stopped = 1 }
+    /midi out:.*10 [1-9][0-9]*\)/ && step == 3 { drum_midi = 1 }
+    END { exit !(step == 4 && key_down && key_up && band_playing && band_stopped && drum_midi) }
+' "$out/studio.log"; then
+    echo "Studio input or transport check failed. See $out/studio.log" >&2
+    exit 1
+fi
+echo 'PASS: RAKT headless boot, live chord release, Studio start/stop, and drum MIDI.'

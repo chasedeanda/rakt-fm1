@@ -81,7 +81,9 @@ Select **RAKT FM-1** for USB MIDI. From Studio, press **GLO → SAVE** for Setti
 
 Clone `https://github.com/chasedeanda/rakt-fm1.git` and follow the [build guide](docs/RAKT-BUILD.md) to set up the pinned Python dependencies and JieLi toolchain. Run `./build.sh` from the checkout to produce `build/rakt.fwsc`.
 
-For host checks, run `python3 tools/build.py --gen-only` before the scripts in `tools/test_*.sh`. For a local browser build, run `sh tools/emu/web/build_web.sh` and `python3 tools/make_play_site.py`, then serve `build/play-site` over HTTP. The [emulator guide](tools/emu/README.md) covers the toolchain and test commands.
+Run `python3 tools/build.py --gen-only` and then `sh tools/test_rakt.sh` to run the same host regression suite as CI. The suite covers the Studio, Sound, Record and Help racks, GLO Live, startup, USB audio, recording and backup compatibility, and shared harmony and draft storage. Individual scripts for inherited firmware modes are available for targeted work.
+
+For a local browser build, run `sh tools/emu/web/build_web.sh` and `python3 tools/make_play_site.py`, then serve `build/play-site` over HTTP. The [emulator guide](tools/emu/README.md) covers the toolchain and test commands.
 
 ## More guides
 

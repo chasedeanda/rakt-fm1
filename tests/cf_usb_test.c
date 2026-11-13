@@ -207,9 +207,11 @@ static void diagnostics(void)
 
 static void render(int part, int clean, int effects, int capture, const char *path, uint32_t hz)
 {
+    const int studio = part == 8;
     uint32_t b, i, master_nonzero = 0, chord_nonzero = 0, bass_nonzero = 0;
     int32_t out[CTL * 2];
     FILE *f = path ? fopen(path, "wb") : NULL;
+    if (path && !f) { CHECK(f); return; }
     cf_fx_t fx = CFX_DEFAULT;
     fx.on = effects ? (1u << CFX_N) - 1u : 0u;
     cf_fx_apply(&fx); fx_output_set((uint32_t)clean, 1);
@@ -237,11 +239,20 @@ static void render(int part, int clean, int effects, int capture, const char *pa
         cfp_config();
         cfp_key(1, 1); cfp_key(1, 0); cfp_key(7, 1);
         CHECK(cfc.out.automatic && cfc.out.n == 6 && cfp.n == 6 && cfp.nb);
+    } else if (studio) {
+        cgs_init(107);
+        cgs_prepare_start();
+        cgu_home();
+        cf_snapshot();
+        CHECK(cgs_home());
+        ui_button(B_PLAY);
+        CHECK(cpa_commanded);
+        CHECK(cpa_setup.flags && cpa_valid(&cpa_setup.plan));
     }
     for (b = 0; b < 1600u; b++) {
         uint32_t w = ua.cw;
         audio_block(out, CTL);
-        if (f) fwrite(out, sizeof out, 1, f);
+        if (f) CHECK(fwrite(out, sizeof out, 1, f) == 1);
         if (capture) {
             uint32_t expected = hz == 48000u ? ((b + 1u) * CTL * 160u + 146u) / 147u : (b + 1u) * CTL;
             uint32_t count = expected - w;
@@ -257,15 +268,20 @@ static void render(int part, int clean, int effects, int capture, const char *pa
             ua.cr = ua.cw; /* the test consumes each block without waiting for the USB packet prime */
         } else CHECK(!ua_stage_on && ua.cw == w);
     }
+    if (studio) {
+        CHECK(cgs_active());
+        CHECK(cpa.q2 > 0);
+    }
     if (f) fclose(f);
     if (capture) {
         CHECK(master_nonzero > 0u);
-        CHECK((chord_nonzero > 0u) == (part == 0 || part == 6 || part == 7));
-        CHECK((bass_nonzero > 0u) == (part == 1 || part == 6 || part == 7));
+        CHECK((chord_nonzero > 0u) == (part == 0 || part == 6 || part == 7 || studio));
+        CHECK((bass_nonzero > 0u) == (part == 1 || part == 6 || part == 7 || studio));
         CHECK((ua.rs_blocks > 0u) == (hz == 48000u));
         printf("render %u Hz part %d clean %d effects %d: master/chord/bass nonzero frames %u/%u/%u\n", hz, part, clean, effects,
                master_nonzero, chord_nonzero, bass_nonzero);
         /* A part that becomes silent must clear its stem instead of retaining the preceding block. */
+        if (studio) cpa_stop();
         sqp.on = dmp.on = cfm.on = cfm.running = 0;
         for (b = 0; b < NSND; b++) {
             memset(trk[b].v, 0, sizeof trk[b].v); trk[b].tail = 0;
@@ -290,6 +306,8 @@ static void render(int part, int clean, int effects, int capture, const char *pa
 
 int main(int argc, char **argv)
 {
+    emu_fw_options(NULL, 1, 0, 1);
+    emu_hal.ready = 2;
     emu_fw_init(0);
     if (argc >= 6 && !strcmp(argv[1], "--render")) {
         render(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), argc > 6 ? argv[6] : NULL,

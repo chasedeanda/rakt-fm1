@@ -69,8 +69,8 @@ Inspect the raw reports too: edited parameter values and intermediate patch chan
 Stage profile values are valid only when `profile_enabled` is 1; they are the last completed window, not session peaks.
 Do not interpret zero disabled stage readings as free processing.
 
-Host CI automatically checks measurement fixtures, protocol decoding, reset/hold semantics, HOME persistence and
-existing library/USB regressions. `sh tools/test_diagnostics.sh` runs the new checks locally after generating headers.
+Host CI checks measurement fixtures, protocol decoding, and the hold and reset controls reached through
+**GLO → SAVE → Diagnostics** in RAKT. `sh tools/test_diagnostics.sh` runs these checks locally after generating headers.
 Host checks establish correctness; hardware execution establishes timing. Numeric hardware regression thresholds remain
 unset until repeatable physical baselines exist. The firmware link must also continue to fit each region.
 

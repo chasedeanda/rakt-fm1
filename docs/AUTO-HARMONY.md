@@ -122,6 +122,6 @@ keys/scales, all layouts, modifier pairs, retired preference migration, the
 On/Off control, normal playback when Off, HOLD, retriggering and storage.
 
 `sh tools/test_progressions.sh` checks suggestion names and uninterrupted audio.
-`sh tools/test_usb.sh` checks Auto thirteenth chords plus bass at both capture
+`sh tools/test_usb.sh --full` checks Auto thirteenth chords plus bass at both capture
 rates, with FX and output-mode variations. Hardware listening and performance
 checks remain necessary before a release; host checks do not replace them.

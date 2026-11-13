@@ -1,7 +1,37 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-#define CF_STUDIO 1
-#define CF_ENGINE_HELPERS_ONLY
-#include "cf_engine_test.c"
+#include <stdio.h>
+#include "usb_mock.h"
+#define FELUCCA_UAC 1
+#define FELUCCA_CDC 1
+#include "../tools/emu/emu_fw.c"
+
+static void ua_service_paced(uint32_t t0,int isr){(void)t0;(void)isr;ua_service();}
+static unsigned checks,failures;
+static int save_frames;
+#define CHECK(x) do{checks++;if(!(x)){failures++;if(failures<35)fprintf(stderr,"FAIL %d: %s\n",__LINE__,#x);}}while(0)
+
+static void blocks(unsigned n)
+{
+    int32_t out[CTL*2];
+    while(n--){
+        audio_block(out,CTL);
+        ua.cr=ua.cw;
+    }
+    cf_snapshot();
+    cpa_ui_poll();
+    cge_poll();
+}
+
+static void ticks(unsigned n)
+{
+    while(n--){
+        cpa_tick1();
+        mo_r=mo_w;
+    }
+    cf_snapshot();
+    cpa_ui_poll();
+    cge_poll();
+}
 
 static unsigned studio_genre_index(const char *id)
 {
@@ -175,6 +205,7 @@ static void controls_studio(void)
 
 static void ui_save_frame(const char *name)
 {
+    if(!save_frames)return;
     char path[96];
     snprintf(path,sizeof path,"build/studio/ui/%s.ppm",name);
     FILE *file=fopen(path,"wb");
@@ -561,13 +592,34 @@ static void workspaces_studio(void)
     ui_button(B_HOME);
     ui_button(B_HOME);
     CHECK(cgs_home() && cgu.tab==CGU_STUDIO && !cgs.zoom);
+    blocks(2);
+    ui_button(B_PLAY);
+    blocks(2);
+    CHECK(cgs_active());
     ui_select(-1);
     cgu.topic=CGU_HARMONY;
     ui_button(B_SCL);
     ui_button(B_EDIT);
     CHECK(cu.scr==SCR_LAB);
+    unsigned writes=emu_flash_writes, slot=cpa.slot;
+    uint32_t playhead=cpa.q2;
+    cpa_plan_t playing=cpa.plan;
+    ui_note_key_aged(7,1,0);
+    blocks(2);
+    cfl_poll();
+    CHECK(clu.now_on && clu.info.n && clu.info.name[0]);
+    ui_note_key_aged(7,0,0);
+    blocks(2);
+    cfl_poll();
+    ui_algo(1);
+    CHECK(clu.tab==CFL_INTERVALS);
+    ui_capture("help-chord-lab");
+    CHECK(cgs_active() && cpa.slot==slot && cpa.q2>=playhead);
+    CHECK(!memcmp(&playing,&cpa.plan,sizeof playing));
+    CHECK(emu_flash_writes==writes);
     ui_button(B_HOME);
     CHECK(cgs_home());
+    cpa_stop();
 }
 
 static void evolve_memory_studio(void)
@@ -2277,7 +2329,16 @@ static void custom_progression_studio(void)
     CHECK(cpa_setup.flags && cpa.plan.idea==CF_P_DRAFT);
     ticks(CGS_BAR-cpa.t);
     CHECK(cpa.plan.idea!=CF_P_DRAFT && cf_grid.gen==grid && cfwd.song.n==2);
+    unsigned writes=emu_flash_writes;
+    CHECK(cfds.pending && !cfd_checkpoint() && emu_flash_writes==writes);
     cpa_stop();
+    for(unsigned seconds=0;seconds<12 && !cfd_audio_quiet();seconds++)blocks(FS/CTL);
+    CHECK(cfd_audio_quiet());
+    CHECK(!cfs_restore_lock && !cfds.unavailable);
+    CHECK(cfd_checkpoint() && !cfds.pending && emu_flash_writes>writes);
+    cf_song_t draft=cfwd.song;
+    cfd_load();
+    CHECK(cfwd.have && cfds.checkpoint==CFD_RECOVERED && !memcmp(&draft,&cfwd.song,sizeof draft));
 }
 
 static void punk_takes_studio(void)
@@ -2847,7 +2908,8 @@ int main(int argc,char **argv)
         unsigned genre=studio_render_genre(argv[2]),part=(unsigned)atoi(argv[3]);
         CHECK(genre<CGS_NGENRE && part<CGS_DRUMS);
         if(genre<CGS_NGENRE && part<CGS_DRUMS)render_voice(genre,part,atoi(argv[4]),argv[5]);
-    } else {
+    } else if(argc==1 || (argc==2 && !strcmp(argv[1],"--shots"))){
+        save_frames=argc==2;
         genre_registry_studio();
         controls_studio();
         evolve_memory_studio();
@@ -2881,6 +2943,9 @@ int main(int argc,char **argv)
         quick_start_shortcuts();
         track_fx_studio();
         glow_effects_studio();
+    } else {
+        fprintf(stderr,"Unknown Studio test arguments\n");
+        return 2;
     }
     printf("RAKT Studio: %u checks, %u failures\n",checks,failures);
     return failures!=0;

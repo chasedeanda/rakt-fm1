@@ -12,7 +12,9 @@ hooks of `emu_hooks.h`. Three programs run it:
 
 ```sh
 sh tools/emu/web/build_web.sh                 # -> build/emu-web/{index.html, emu.js, keymap.js, worklet.js, rakt.wasm}
-node tools/emu/web/test_web_emu.mjs           # the browser build's checks, against cf_headless.sh: PASS / FAIL
+node tools/emu/web/test_keymap.mjs            # computer keyboard mapping
+node tools/emu/web/smoke_play.mjs             # the built WASM boots, renders and plays
+sh tools/emu/test.sh                         # native headless RAKT input and transport
 sh tools/emu/cf_headless.sh SCRIPT [OUTDIR]   # a script natively: OUTDIR/*.ppm (and .png with Pillow), out.wav
 node tools/emu/web/cf_run.mjs SCRIPT [OUTDIR] # a script on the wasm
 ```
@@ -41,19 +43,15 @@ second after the last erase / program). The page (`index.html`, `emu.js`): the L
 (pointer, multi-touch, right-click latches, wheel / drag on the knobs), the computer keyboard of `web/keymap.js` (a
 tracker's piano: its own map, not `keymap.c`'s), Web MIDI in and out, Clear saved data, a load meter.
 
-`test_web_emu.mjs` (`--no-native` and `--no-page` skip its second and third parts):
-1. the wasm in node plays the test's own script (Top + Lock, the default layout: M + C4, then M7 + C4) and checks the
-   LEDs, the sound, the chord's name on the screen, the dump's notes, the MIDI out, the settings saved by
-   themselves and read back by a second module booted from the flash image;
-2. the same script through `cf_headless.sh`, compared sample for sample and dump for dump;
-3. the site from `make_site.sh` in `build/emu-web-test/site`, its `/play/?demo` in headless Chromium or Chrome
-   (`CHROME=path`): the page's status line must say Ready, then a screenshot.
+The Browser playground workflow checks the keyboard map and runs the built WASM in Node. The host suite
+runs the native headless smoke test and the full rack integration tests. Run `sh tools/test_studio.sh --shots`
+to save the rack test frames under `build/studio/ui/`.
 
 ## ChoralRoot's window app (inherited)
 
 Everything below describes ChoralRoot's SDL emulator as CoralFlower inherited it. `build.sh` still builds it, with
 CoralFlower's firmware and version, where SDL2 is installed (Homebrew; not on every Mac). Its scripts are gone
-(`tools/emu/scripts/`, `test_cr.sh`), so `test.sh`, `perf.sh` and `keylat.py` have nothing to run, and the screens,
+(`tools/emu/scripts/`, `test_cr.sh`), so the inherited examples for `perf.sh` and `keylat.py` refer to absent scripts. The screens,
 layers, button roles and dump lines named below are ChoralRoot's: CoralFlower's are in docs/SPEC.md. The docs it
 cites (docs/INTEGRATION.md, LOOPER.md, SETTINGS.md and the rest) stayed in ChoralRoot's repository.
 
@@ -84,7 +82,7 @@ compiled from has changed (hashes, not dates), so a second `build.sh` takes a fr
 | `perf.sh`, `scripts/perf_*.txt`, `wavclicks.py` | the worst cases for the CPU and the pops (docs/INTEGRATION.md, Performance): the audio block's cost and its device estimate, the UI frame's, voices stolen, flash erases, and the WAV checked for jumps, silent holes and clicks |
 | `keylat.py`, `scripts/cr_keylat.txt` | a key's way to the engine while the screen draws (below, "A redraw in simulated time"; docs/INTEGRATION.md "Keys while a frame draws"): `keylat.py` strikes 40 keys at random times in a script and prints the latency with the keys read inside the redraw and between frames only (perf.sh's "keys" lines) |
 | `seed_settings.py` | puts a unit's ChoralRoot settings record (192 bytes of hex, a backup's ChoralRoot block) into a `--flash` file that already holds a settings object, so a headless run starts from the unit's own settings (`python3 tools/emu/seed_settings.py FLASH HEX`; test_cr.sh "the arp screen from the owner's own settings record") |
-| `scripts/`, `test.sh`, `test_cr.sh` | headless scripts and their checks (`sel.txt`, `knobs.txt`, `acceptance.txt`: Felucca's UI, no longer run) |
+| `test.sh` | RAKT headless smoke test using `cf_headless.sh` |
 
 ## Windowed mode: never in front by default
 
@@ -245,12 +243,9 @@ python3 tools/emu/keylat.py tools/emu/scripts/perf_d.txt     # 40 keys at random
 
 ### test.sh
 
-`sh tools/emu/test.sh` rebuilds when a source is newer, then checks in headless mode: D4 held 300 ms
-lights key D4's LED and gives non-silent blocks; the power-on screen is written; a second run gives the same
-LCD and WAV; then `test_cr.sh`: MAJ + D4 (D major: sound, the D4 F#4 A4 LEDs, the chord screen), KNOB 1
-(voicing), KEY tap / hold (Key Mode, select-key), PERF hold (the Perform picker), PRESETS (another sound),
-ALGORITHM (the bass on part 1), End (PANIC), idle (the stripes), Options and the other layers' screens, no
-stuck notes (every part silent 2 s after the release). Outputs and logs go to `build/emu/test/`.
+`sh tools/emu/test.sh` builds the native headless runner and checks that C4 plays and releases a chord, PLAY
+starts the band and sends drum MIDI, and PLAY again stops the band. The stopped and playing LCD frames and the
+state log go to `build/emu/test/`.
 
 ## Realtime smoke test without a window
 
