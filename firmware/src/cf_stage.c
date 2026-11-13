@@ -106,6 +106,7 @@ static void cfn_fit(const cfn_font_t *f,int x,int baseline,const char *s,int wid
     }
     cfn_text(f,x,baseline,b,ink);
 }
+static void cfn_squeezed(const cfn_font_t *f,int x,int baseline,const char *s,int width,uint8_t ink);
 #include "cf_style.c"
 /* Translate a freshly composed panel in place, never a second framebuffer.
  * Used only for the finite workspace arrival; controls and header stay fixed. */
@@ -131,7 +132,7 @@ typedef struct {
     uint8_t moment,build,bloom,engine_page,engine_bar,beat,focus,level[4],pin_mask;
     uint8_t workspace,zoom,genre,solo,muted,held_parts,shaping,sound_page,knob[4],part_level[4];
     uint8_t signal_peak,drum_groups,phrase_steps,layer_reply,bass_reply,section;
-    uint8_t rack_knob[CGU_BAND_PANELS-1][4], amp_knob[CGS_NPART][4];
+    uint8_t rack_knob[CGU_BAND_PROGRESSION][4], amp_knob[CGS_NPART][4];
     uint8_t fx_send_shape[4][2];
     uint8_t rack_beat, rack_meter, rack_level, rack_arp_step, rack_arp_mode, rack_lens, rack_draft;
     uint16_t steps[4][2],bass_delays[2],drum_hits,matches;
