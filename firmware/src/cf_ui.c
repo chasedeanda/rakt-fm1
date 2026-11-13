@@ -1304,11 +1304,11 @@ static void ui_button(uint32_t b)
         }
         if(b==B_PLAY && cgu.tab==CGU_RECORD){
             if(sqk.on){sq_home_end(0);return;}
-            if(cpa_commanded){cpa_ui_play();return;}
             if(cf_sn.sq_on || sqp.on){cf_post(CFE_SEQ,0,0,0);return;}
             unsigned slot=sq_view_slot(cgu.take_slot);
-            if(!sq_has(slot)){cf_message("No recording selected");return;}
-            sq_play_take(slot);
+            if(sq_has(slot) && (cgu.rack_controls || !cpa_commanded))sq_play_take(slot);
+            else if(cpa_commanded)cpa_ui_play();
+            else cf_message("No recording selected");
             return;
         }
         if(b==B_ARP){
@@ -1364,7 +1364,11 @@ static void ui_button(uint32_t b)
             return;
         }
         if(b==B_EDIT){cgu_edit();return;}
-        if(b==B_REC && cgu.tab!=CGU_RECORD)cgu_tab_turn(CGU_RECORD-cgu.tab);
+        if(b==B_REC){
+            if(cgu.tab!=CGU_RECORD)cgu_tab_turn(CGU_RECORD-cgu.tab);
+            cgu.rack_controls=1;
+            cgu.rack_ms=0;
+        }
     }
     if(cgs_home() && b==B_PLAY && !cpa_running() && !cpa_commanded && !sqp.on && !sqk.on){
         cgs_new_take(1);
