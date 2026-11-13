@@ -29,7 +29,7 @@ The right-side rack index shows which units are visible. Tabs slide into the cab
 
 ### Genre
 
-On **Generator** or **Song**, turn **K1** to choose a genre. **PRESETS** also works from the Studio overview. Genre changes the harmonic and rhythmic vocabulary of the whole band, including the two playing styles available for each musician. A genre change queues a new take for the next bar during playback. Your current tempo continues while the band plays. Open **Sound → Sound Library** in Genre mode and press **SEL** to load the curated palette, or press **EDIT** on the Sound overview to cycle through its alternatives.
+On **Generator** or **Song**, turn **K1** to choose a genre. **PRESETS** also works from the Studio overview. Genre changes the harmonic and rhythmic vocabulary of the whole band, including the two playing styles available for each musician. Changing genre generates a fresh arrangement with a key, scale, meter and tempo drawn from that genre. It also loads the featured Chords, Bass and Layer sounds and drum kit. The change happens at the next bar during playback and immediately when Studio is stopped. External MIDI clock and custom drafts follow the same rules as Studio EDIT. Open **Sound → Sound Library** in Genre mode and press **SEL** to load the curated palette, or press **EDIT** on the Sound overview to cycle through its alternatives.
 
 | Genre | Playing character |
 | --- | --- |
@@ -59,7 +59,7 @@ Open **Generator** with **SEL** and turn **SELECT** to **Groove**. **K1 Swing** 
 
 **K2 Drums**, **K3 Bass**, and **K4 Chords** change the same Style settings you see on the musician panels. For example, in Lo-Fi you can choose **Half-time** drums, **Late pocket** bass, and **Held keys** from the Groove page.
 
-Press **EDIT** on the Studio overview to shuffle the band’s progression, parts, key, scale, meter and tempo within the selected genre. The whole take lands at the next bar, or loads immediately with the band stopped. External MIDI clock supplies the tempo when selected. With a custom draft active, the band plays the draft’s harmony and meter at the current tempo.
+Press **EDIT** on the Studio overview to shuffle the band’s progression, parts, key, scale, meter and tempo within the selected genre. The whole take lands at the next bar, or loads immediately with the band stopped. Studio EDIT keeps your current sounds and drum kit. External MIDI clock supplies the tempo when selected. With a custom draft active, the band plays the draft’s harmony and meter at the current tempo.
 
 Generated takes can move Bass down an octave and raise Chords or Layer. Chords or Layer may also pick up an arpeggio from the genre’s palette. The generator leaves space for the other musician and uses wider, slower patterns for Ambient Soundscape and tighter patterns for New Wave.
 

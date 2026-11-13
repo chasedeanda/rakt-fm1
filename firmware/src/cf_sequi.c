@@ -1449,6 +1449,10 @@ static void sq_snd_poll(void)
             if (s->tw)
                 cu.edited[part] = 1;
             if(CF_STUDIO && cgs_studio_patch(s->pat)){
+                if(s->pat==CGS_GENRE_PATCH_STAGE){
+                    cu.edited[part]=0;
+                    cfk_drop(0,part);
+                }
                 if(part==CF_PART_LAYER)cs.snd_layer=(uint16_t)cf_snd_pos(part);
                 else cs.snd[part]=(uint16_t)cf_snd_pos(part);
             }

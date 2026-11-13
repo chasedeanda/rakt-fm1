@@ -1232,8 +1232,6 @@ static void arrangements_studio(void)
     CHECK(families==15u);
     cgs_harmony_turn(3,(cgs.meter==3?1:cgs.meter==6?-1:0));
     ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
-    unsigned tonic=cpa.plan.tonic, scale=cpa.plan.scale;
-
     cgs.focus=CGS_BASS;
     ui_button(B_GLO);
     CHECK(cgu_glow.active);
@@ -1256,18 +1254,23 @@ static void arrangements_studio(void)
         ui_presets(1);
         CHECK(cgs.genre==genre && cpa_setup.flags);
         ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
-        CHECK(cgs.playing_genre==genre && cf_grid.gen==grid && cpa.plan.tonic==tonic);
+        CHECK(cgs.playing_genre==genre && cf_grid.gen==grid);
         if(!CGS_PROFILES[genre].write_progressions)
-            CHECK(cpa.plan.slot[0].ticks==CGS_PROFILES[genre].bank_duration_scale*CGS_BAR);
+            CHECK(cpa.plan.slot[0].ticks==CGS_PROFILES[genre].bank_duration_scale*cpa.plan.beats*SQ_PPQN);
         for(unsigned p=0;p<CGS_DRUMS;p++)
             for(unsigned pick=0;pick<2;pick++)CHECK(cgs_profile_voice(p,pick)<VA_NPRESETS);
     }
     unsigned ambient=studio_genre_index("ambient");
     if(cgs.playing_genre!=ambient){
         ui_presets((int)ambient-(int)cgs.playing_genre);
-        ticks(CGS_BAR-cpa.t);
+        ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
     }
     CHECK(cgs.playing_genre==ambient);
+    if(cgs.meter!=4){
+        cgs_harmony_turn(3,cgs.meter==3?1:-1);
+        ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
+    }
+    unsigned tonic=cpa.plan.tonic, scale=cpa.plan.scale;
     ui_algo((int)cgu_studio_tile(0,CGU_BAND_SONG)-(int)cgu_active_rack_tile());
     ui_button(B_SCL);
     ui_select(1);
@@ -1303,6 +1306,92 @@ static void arrangements_studio(void)
     }
     ui_button(B_HOME);
     cpa_stop();
+}
+
+static void genre_palette_studio(void)
+{
+    studio_start(100);
+    blocks(2);
+    sq_snd_poll();
+    ui_button(B_SEQ);
+    CHECK(cgu.band_panel==CGU_BAND_SHAPING);
+    unsigned before[CGS_DRUMS], bpm=cfm.bpm, kit=cpa.plan.kit, grid=cf_grid.gen;
+    for(unsigned p=0;p<CGS_DRUMS;p++){
+        before[p]=trk[p].preset;
+        trk[p].p[P_REV]=20+p;
+    }
+    cf_edited(CGS_BASS);
+    cf_fx_t fx=cs.fx;
+    unsigned key=cpa.plan.tonic, scale=cpa.plan.scale;
+    uint32_t seed=cgs.active[CGS_BASS].seed;
+
+    /* Rapid turns replace the whole pending take, including its sounds. */
+    unsigned wave=studio_genre_index("new-wave"), lofi=studio_genre_index("lo-fi");
+    ui_knob_turn(0,(int)wave-cgs.genre);
+    ui_knob_turn(0,(int)lofi-cgs.genre);
+    const cgs_profile_t *profile=&CGS_PROFILES[lofi];
+    cpa_plan_t next=cpa_setup.plan;
+    unsigned next_bpm=cgs.queued_bpm;
+    CHECK(cpa_setup.flags && cgs.queued_genre==lofi && cpa_valid(&next));
+    CHECK(next.tonic!=key && memchr(profile->keys,next.tonic,sizeof profile->keys));
+    CHECK(next.scale!=scale && memchr(profile->scales,next.scale,sizeof profile->scales));
+    CHECK(next_bpm>=profile->bpm_min && next_bpm<=profile->bpm_max && next_bpm!=bpm);
+    ticks(cpa.plan.beats*SQ_PPQN-cpa.t-1u);
+    CHECK(cfm.bpm==bpm && cpa.plan.tonic==key && cpa.plan.kit==kit);
+    for(unsigned p=0;p<CGS_DRUMS;p++)CHECK(trk[p].preset==before[p]);
+    ticks(1);
+    sq_snd_poll();
+    CHECK(cgs.playing_genre==lofi && cpa.plan.kit==profile->kit[1] && cf_grid.gen==grid);
+    CHECK(cfm.bpm==next_bpm && cs.bpm==next_bpm && cpa.plan.beats==next.beats);
+    CHECK(cpa.plan.tonic==next.tonic && cpa.plan.scale==next.scale && cgs.active[CGS_BASS].seed!=seed);
+    CHECK(!cu.edited[CGS_BASS] && cfx_equal(&cs.fx,&fx));
+    for(unsigned p=0;p<CGS_DRUMS;p++){
+        before[p]=cgs_featured_voice(p);
+        CHECK(trk[p].preset==before[p] && cf_snd[p].fk==before[p] && trk[p].p[P_REV]==20+p);
+    }
+
+    before[CGS_CHORDS]=cgs_profile_voice(CGS_CHORDS,0);
+    cgu_load_sound_for(CGS_CHORDS,ENGI_VA,pool_pos_factory(ENGI_VA,before[CGS_CHORDS]),0);
+    cgu_set_kit(profile->kit[0]);
+    ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
+    ui_button(B_EDIT);
+    ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
+    CHECK(cgs.playing_genre==lofi && cpa.plan.kit==profile->kit[0]);
+    for(unsigned p=0;p<CGS_DRUMS;p++)CHECK(trk[p].preset==before[p]);
+
+    /* Stopping before the boundary keeps the new take for the next PLAY. */
+    ui_knob_turn(0,(int)wave-cgs.genre);
+    next=cpa_setup.plan;
+    next_bpm=cgs.queued_bpm;
+    ui_button(B_PLAY);
+    blocks(2);
+    CHECK(!cpa.on);
+    ui_button(B_PLAY);
+    blocks(2);
+    sq_snd_poll();
+    CHECK(cgs.playing_genre==wave && cpa.plan.tonic==next.tonic && cpa.plan.scale==next.scale);
+    CHECK(cpa.plan.beats==next.beats && cpa.plan.kit==next.kit && cfm.bpm==next_bpm);
+    for(unsigned p=0;p<CGS_DRUMS;p++)CHECK(cf_snd[p].fk==cgs_featured_voice(p));
+
+    ui_button(B_PLAY);
+    blocks(2);
+    unsigned ambient=studio_genre_index("ambient");
+    profile=&CGS_PROFILES[ambient];
+    ui_knob_turn(0,(int)ambient-cgs.genre);
+    CHECK(!cpa.on && cgs.genre==ambient && cpa_setup.plan.kit==profile->kit[1]);
+    CHECK(memchr(profile->keys,cs.chord.tonic,sizeof profile->keys));
+    CHECK(memchr(profile->scales,cs.chord.scale,sizeof profile->scales));
+    CHECK(cs.bpm>=profile->bpm_min && cs.bpm<=profile->bpm_max);
+    for(unsigned p=0;p<CGS_DRUMS;p++)CHECK(cf_snd[p].fk==cgs_featured_voice(p));
+
+    cs.clock_in=1;
+    cf_send_config();
+    bpm=cs.bpm;
+    ui_knob_turn(0,(int)lofi-cgs.genre);
+    CHECK(cgs.genre==lofi && cs.bpm==bpm);
+    for(unsigned p=0;p<CGS_DRUMS;p++)CHECK(cf_snd[p].fk==cgs_featured_voice(p));
+    cpa_stop();
+    cgu_home();
 }
 
 static void song_shuffle_studio(void)
@@ -3113,6 +3202,7 @@ int main(int argc,char **argv)
         hover_controls_studio();
         workspaces_studio();
         arrangements_studio();
+        genre_palette_studio();
         song_shuffle_studio();
         generated_arp_studio();
         sound_shuffle_fx_studio();

@@ -577,7 +577,7 @@ static void cf_apply(const cf_ev_in_t *e)
         if (e->a >= CGS_PLAY_PAUSE) cgs_live_transport(e->a);
         else if (e->a) cpa_start(e->b);
         else {
-            if(cgs_active() && cpa_setup.flags && cpa_setup.plan.studio){
+            if(cgs_active() && cpa_setup.flags && cpa_setup.plan.studio && !cgs.queued_palette){
                 cpa_setup.plan=cpa.plan;
                 cgs.setup_pitch=cgs.pitch;
             }

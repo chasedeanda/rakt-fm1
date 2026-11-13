@@ -101,13 +101,18 @@ static void cpa_stop(void)
     if(CF_STUDIO){
         cgs.take_revision++;
         cgs.pending=cgs.pending_auto=cgs.clear_take_hold=0;
-        cgs.queued_bpm=0;
+        if(!cgs.queued_palette)cgs.queued_bpm=0;
     }
     cla_cancel(0);
     if (!cpa.on) return;
     if(cgs_active() && cpa_setup.flags){
-        cgs.ready=0;
-        cgs.meter=cpa.plan.beats;
+        if(cgs.queued_palette){
+            memcpy(cgs.active,cgs.take,sizeof cgs.active);
+            cgs.hold=0;
+        } else {
+            cgs.ready=0;
+            cgs.meter=cpa.plan.beats;
+        }
     }
     cpa_release(); dmp_stop();
     cpa.on = cpa.paused = cpa.clock_wait = cpa.clock_lost = 0;

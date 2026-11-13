@@ -669,14 +669,12 @@ static void cgu_apply_palette(void)
     }
     unsigned pos[CGS_DRUMS];
     for(unsigned p=0;p<CGS_DRUMS;p++){
-        unsigned count=cgs_profile_tone_count(p);
-        if(!count)return;
-        unsigned voice=cgs_profile_voice(p,count-1u);
+        unsigned voice=cgs_featured_voice(p);
         if(voice==PF_NONE)return;
         pos[p]=pool_pos_factory(ENGI_VA,voice);
     }
     for(unsigned p=0;p<CGS_DRUMS;p++)cgu_load_sound(p,ENGI_VA,pos[p]);
-    cgu_set_kit(CGS_PROFILES[cgs.genre].kit[1]%SQ_NKIT);
+    cgu_set_kit(cgs_featured_kit());
 }
 #endif
 

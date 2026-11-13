@@ -102,6 +102,12 @@ static void cpa_publish(const cpa_plan_t *p, unsigned flags, int setup)
     if(!setup && cgs_active() && (flags&CPA_NOTES) && cpa_setup.flags && cpa_setup.plan.studio &&
         (p->tonic!=cpa.plan.tonic || p->scale!=cpa.plan.scale)){
         cpa_setup.flags=0;
+        if(cgs.queued_palette){
+            cgs.queued_palette=0;
+            for(unsigned part=0;part<CGS_DRUMS;part++)
+                if(cf_stage[part].pat==CGS_GENRE_PATCH_STAGE)cf_stage[part].ready=0;
+            cpa_setup.plan.kit=(cpa_edit.flags&CPA_GROOVE)?cpa_edit.plan.kit:cpa.plan.kit;
+        }
         cgs.queued_bpm=0;
         cgs.meter=cpa.plan.beats;
     }

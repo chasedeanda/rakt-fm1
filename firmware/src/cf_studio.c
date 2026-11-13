@@ -4,7 +4,7 @@
  */
 enum { CGS_CHORDS, CGS_BASS, CGS_LAYER, CGS_DRUMS, CGS_NPART };
 enum { CGS_ANCHOR=1, CGS_THIRD, CGS_FIFTH, CGS_OCTAVE, CGS_PICKUP, CGS_UPPER, CGS_STEP_IN };
-enum { CGS_PATCH_STAGE=252 };
+enum { CGS_PATCH_STAGE=252, CGS_GENRE_PATCH_STAGE=253 };
 enum { CGS_STEPS=16, CGS_TICKS=SQ_PPQN/4, CGS_BAR=4*SQ_PPQN };
 enum { CGS_KICK=1, CGS_SNARE=2, CGS_HAT=4, CGS_OPEN=8, CGS_RIM=16, CGS_LOW_TOM=32, CGS_MID_TOM=64 };
 enum { CGS_KICK_REPLY=10, CGS_FOLLOW, CGS_ANSWER, CGS_FLOAT };
@@ -41,7 +41,7 @@ static struct {
     uint32_t develop_seed[CGS_NPART], next_develop_seed[CGS_NPART], take_revision;
     uint8_t style[CGS_NPART], activity[CGS_NPART], level[CGS_NPART], touch[CGS_NPART];
     uint8_t gate[CGS_NPART], muted, mute_applied, focus, zoom, space, ready, mix_idle;
-    uint8_t defaults_offered, boot_sound_gen[3];
+    uint8_t defaults_offered, boot_sound_gen[3], queued_palette;
     uint8_t genre, queued_genre, playing_genre, energy, evolution, solo, kit_pinned, feel, queued_feel, playing_feel, meter;
     uint8_t custom, bank_meter;
     uint8_t swing, swing_delay;
@@ -58,8 +58,9 @@ static struct {
     uint16_t gain[CGS_NPART];
 } cgs;
 static void cgs_start_sounds(void);
+static void cgs_apply_genre_sounds(void);
 static int cgs_studio_patch(unsigned tag)
-{ return tag==CGS_PATCH_STAGE; }
+{ return tag==CGS_PATCH_STAGE || tag==CGS_GENRE_PATCH_STAGE; }
 static int cgs_active(void)
 { return CF_STUDIO && cpa.on && cpa.plan.studio; }
 static unsigned cgs_rand(uint32_t *seed, unsigned limit)
@@ -605,6 +606,7 @@ static void cgs_commit_take(void)
     cgs.pending=(1u<<CGS_NPART)-1u;
     cgs.playing_genre=cgs.queued_genre;
     cgs.playing_feel=cgs.queued_feel;
+    cgs_apply_genre_sounds();
     cgs.harmony_generation++;
 }
 
