@@ -15,13 +15,6 @@ static int cgu_unit_knob_x(cgu_face_t f,int i)
 static int cgu_unit_knob_y(cgu_face_t f,int zoom)
 { return f.y+cgu_unit_blend(f.h-15,f.h*64/100,zoom); }
 
-static cgu_face_t cgu_unit_lens(cgu_face_t f,int knob,int scale)
-{
-    int x=cgu_unit_knob_x(f,knob), y=cgu_unit_knob_y(f,100);
-    return (cgu_face_t){f.x+(f.x-x)*scale/100,f.y+(f.y-y)*scale/100,
-        f.w+f.w*scale/100,f.h+f.h*scale/100};
-}
-
 static void cgu_unit_screw(int x,int y,int large)
 {
     if(large){
@@ -262,14 +255,8 @@ static void cgu_amp_head(const cf_stage_model_t *m,unsigned part,cgu_face_t f,in
         cgu_amp_dial(part,cx,cy,radius,position,marker);
         if(!selected || zoom<=74)continue;
         char label[12];
-        cfn_center(&CFN_11,cx,cy+radius+11,cgu_unit_label(m->label[i],label),FL_INK2);
-        if(i==0 && ((!sound && !m->shaping) || (sound && m->sound_page==CGU_TONE) || presets))continue;
-        int cell=w/4-6;
-        const cfn_font_t *font=cfn_width(&CFN_12,m->value[i])<=cell?&CFN_12:&CFN_11;
-        unsigned text_ink=m->disabled[i]?FL_INK2:FL_INK;
-        if(cfn_width(font,m->value[i])<=cell)
-            cfn_center(font,cx,cy+radius+24,m->value[i],text_ink);
-        else cfn_fit(font,cx-cell/2,cy+radius+24,m->value[i],cell,text_ink);
+        cgu_knob_caption(cgu_unit_label(m->label[i],label),m->value[i],cx,cy+radius+24,w/4-6,
+            FL_INK2,m->disabled[i]?FL_INK2:FL_INK);
     }
     if(selected && zoom>82 && !sound && m->shaping==CGU_PART_EVOLVE){
         int start=x+w/4+5;
@@ -286,17 +273,47 @@ static void cgu_amp_head(const cf_stage_model_t *m,unsigned part,cgu_face_t f,in
     if(dx)fb_clip(clip_l,clip_t,clip_r,clip_b);
 }
 
+static int cgu_wave(int phase,int amplitude)
+{
+    return (int)(osc_sine((uint32_t)phase<<24)*amplitude/32768);
+}
+
+static void cgu_panel_waves(int left,int top,int w,int h,unsigned genre,unsigned density,
+                            unsigned swing,unsigned drift,uint8_t ink)
+{
+    int right=left+w;
+    int x0=left>fb_cx0?left:fb_cx0, x1=right<fb_cx1?right:fb_cx1;
+    if(x1<=x0)return;
+    int y0=clampi(fb_cy0-top,0,h), y1=clampi(fb_cy1-top,0,h);
+    int spacing=28-(int)density/8;
+    int phase=(int)genre*47, bend=17+(int)swing/5;
+    int motion=(int)drift;
+    for(int row=y0;row<y1;row++){
+        int flow=row*3/4+cgu_wave(row*2+phase+motion,bend)+cgu_wave(row*5-phase-motion,8);
+        int stripe=0;
+        for(int center=left-76-h*3/4;center<right+48;center+=spacing,stripe++){
+            int ripple=row*4+stripe*(24+(int)genre*3)+phase-motion;
+            int x=center+flow+cgu_wave(ripple,8+(int)swing/16);
+            int width=spacing/4+cgu_wave(ripple+56,3);
+            int start=x>x0?x:x0, end=x+width<x1?x+width:x1;
+            if(end>start)fb_hline(start,top+row,end-start,ink);
+        }
+        if((row&15)==15)CF_PUMP();
+    }
+}
+
 static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,int zoom,int selected)
 {
     unsigned ink=cgu_module_ink(CGS_NPART+band-1u);
     int count=cgu_unit_controls(band);
     int shaping=band==CGU_BAND_SHAPING;
     int groove=selected && shaping && m->shaping;
-    int lens=selected && !groove?m->rack_lens:0;
-    if(lens && !shaping)f=cgu_unit_lens(f,cgu.turn_knob,lens);
+    int lens=selected?m->rack_lens:0;
     int x=f.x,y=f.y,w=f.w,h=f.h;
     static const uint8_t surfaces[]={RAKT_HARMONY,RAKT_SHAPING,RAKT_ARP,RAKT_PROGRESSION};
     cf_rack_plate(x,y,w,h,RAKT_EAR,surfaces[band-1u]);
+    if(shaping)cgu_panel_waves(x+RAKT_EAR,y+1,w-2*RAKT_EAR,h-3,m->genre,m->generator_density,
+        m->generator_swing,selected?m->generator_phase:0,RAKT_GENERATOR_WAVE);
 
     const char *title=CGU_BAND_NAMES[band-1u];
     int left=x+16, title_top=y+6;
@@ -317,85 +334,49 @@ static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,i
     int meter_h=cgu_unit_blend(8,13,zoom);
     cgu_unit_lamps(m,band,meter_x,meter_y,meter_w,meter_h,zoom,ink);
 
-    if(shaping){
+    if(shaping || band==CGU_BAND_ARP){
         int tab_height=cgu_unit_blend(12,16,zoom);
         int tab_y=meter_y-(tab_height-meter_h)/2;
-        cgu_page_tab(left-2,tab_y,75,tab_height,"Arrangement",!groove,ink);
-        cgu_page_tab(left+73,tab_y,47,tab_height,"Groove",groove,ink);
+        int first_width=shaping?75:46, second_width=shaping?47:46;
+        int second=selected && m->shaping;
+        cgu_page_tab(left-2,tab_y,first_width,tab_height,shaping?"Arrangement":"Pattern",!second,ink);
+        cgu_page_tab(left-2+first_width,tab_y,second_width,tab_height,shaping?"Groove":"Timing",second,ink);
     } else if(zoom>70){
-        if(band==CGU_BAND_ARP){
-            const char *page=m->shaping?"Timing":"Pattern";
-            cfn_text(&CFN_12,left,meter_y+11,page,FL_INK2);
-        } else {
-            int badge=left+1, vent=badge+46;
-            fb_rbox(badge,meter_y,36,14,1,CGU_METAL+1);
-            fb_hline(badge+1,meter_y,34,CGU_METAL+5);
-            fb_hline(badge+1,meter_y+13,34,CGU_METAL+10);
-            cgu_unit_screw(badge+2,meter_y+6,0);
-            cgu_unit_screw(badge+33,meter_y+6,0);
-            cfn_center(&CFN_11,badge+18,meter_y+11,"RAKT",FL_INK);
-            cgu_unit_vents(vent,meter_y,meter_x-vent-10,14,5);
-        }
+        int badge=left+1, vent=badge+46;
+        fb_rbox(badge,meter_y,36,14,1,CGU_METAL+1);
+        fb_hline(badge+1,meter_y,34,CGU_METAL+5);
+        fb_hline(badge+1,meter_y+13,34,CGU_METAL+10);
+        cgu_unit_screw(badge+2,meter_y+6,0);
+        cgu_unit_screw(badge+33,meter_y+6,0);
+        cfn_center(&CFN_11,badge+18,meter_y+11,"RAKT",FL_INK);
+        cgu_unit_vents(vent,meter_y,meter_x-vent-10,14,5);
     }
 
     int detail_radius=count==1?19:15;
-    int radius=cgu_unit_blend(8,detail_radius,zoom)+lens*detail_radius/100;
-    cgu_face_t controls=lens && shaping?cgu_unit_lens(f,cgu.turn_knob,lens):f;
-    int cy=cgu_unit_knob_y(controls,zoom);
+    int radius=cgu_unit_blend(8,detail_radius,zoom);
+    int cy=cgu_unit_knob_y(f,zoom);
     int clearance=meter_y+meter_h+(zoom>68?11:0)+radius+4;
     if(cy<clearance)cy=clearance;
     if(zoom<=38 && cy+radius>y+h-3)cy=y+h-radius-3;
-    int value_y=cy+radius+29;
-    if(value_y>fb_cy1-4)value_y=fb_cy1-4;
-    if(band==CGU_BAND_SHAPING){
-        cgu_unit_grille(x+14,cy-radius-2,w-28,2*radius+5,1);
-    } else if(band==CGU_BAND_PROGRESSION){
+    int value_y=clampi(cy+radius+29,0,fb_cy1-4);
+    if(band==CGU_BAND_PROGRESSION){
         int start=x+w/4+12;
         cgu_unit_grille(start,cy-radius+1,x+w-start-20,2*radius+2,0);
         if(zoom>74)cgu_unit_readout(start,value_y,x+w-start-19,m->applied,FL_INK);
     }
     for(int i=0;i<count;i++){
-        int cx=cgu_unit_knob_x(controls,i)+(selected && (band==CGU_BAND_ARP || shaping)?m->control_dx:0);
+        int cx=cgu_unit_knob_x(f,i)+(selected && (band==CGU_BAND_ARP || shaping)?m->control_dx:0);
         unsigned pos=selected?m->knob[i]:m->rack_knob[band-1u][i];
         int active=selected && m->emphasis[i] && !m->disabled[i];
-        cgu_unit_dial(band,cx,cy,radius,pos,active?ink:selected && m->disabled[i]?CGU_METAL+6:FL_INK);
+        int dial_radius=radius+(active?lens*4/CGU_LENS_SCALE:0);
+        cgu_unit_dial(band,cx,cy,dial_radius,pos,active?ink:selected && m->disabled[i]?CGU_METAL+6:FL_INK);
         if(zoom<74 || !selected || !m->label[i][0] || value_y>y+h-3)continue;
-        if(active && band!=CGU_BAND_PROGRESSION)cfn_circle(cx,cy,radius+5,ink);
-        int available=(cx-fb_cx0<fb_cx1-cx?cx-fb_cx0:fb_cx1-cx)*2;
-        int cell=w/4-4;
+        if(active && band!=CGU_BAND_PROGRESSION)cfn_circle(cx,cy,dial_radius+3,ink);
         char label[12];
-        const char *name=cgu_unit_label(m->label[i],label);
-        int label_width=cfn_width(&CFN_12,name);
-        if(label_width<=available)
-            cfn_center(&CFN_12,cx,value_y-(groove?23:16),name,active?ink:FL_INK2);
-        if(band==CGU_BAND_SHAPING && !groove && i==0)continue;
-        const cfn_font_t *font=active?&CFN_16:&CFN_14;
-        if(groove)font=&CFN_11;
-        unsigned value_ink=m->disabled[i]?FL_INK2:FL_INK;
-        if(groove && cfn_width(font,m->value[i])>cell){
-            char first[14];
-            str_cpy(first,m->value[i],sizeof first);
-            char *second=first;
-            while(*second && *second!=' ')second++;
-            if(*second){
-                *second++=0;
-                if(cfn_width(font,first)<=cell && cfn_width(font,second)<=cell && cell<=available){
-                    cfn_center(font,cx,value_y-11,first,value_ink);
-                    cfn_center(font,cx,value_y,second,value_ink);
-                    continue;
-                }
-            }
-            if(cell<=available){
-                cfn_squeezed(font,cx-cell/2,value_y,m->value[i],cell,value_ink);
-                continue;
-            }
-        }
-        if(cfn_width(font,m->value[i])>cell)font=&CFN_12;
-        if(cfn_width(font,m->value[i])>cell)font=&CFN_11;
-        int width=cfn_width(font,m->value[i]);
-        if(width<=cell && width<=available)
-            cfn_center(font,cx,value_y,m->value[i],value_ink);
-        else if(cell<=available && width>cell)
-            cfn_fit(font,cx-cell/2,value_y,m->value[i],cell,FL_INK);
+        const char *setting=shaping && !groove && i==0?CGS_PROFILES[m->genre].name:m->value[i];
+        int cell=w/4-6;
+        int caption_x=clampi(cx,fb_cx0+cell/2,fb_cx1-cell/2);
+        cgu_knob_caption(cgu_unit_label(m->label[i],label),setting,caption_x,value_y,cell,
+            active?ink:FL_INK2,m->disabled[i]?FL_INK2:FL_INK);
     }
 }

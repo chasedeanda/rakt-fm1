@@ -13,6 +13,7 @@ enum { CGU_KNOB_NONE, CGU_KNOB_PART, CGU_KNOB_HARMONY, CGU_KNOB_SHAPING,
     CGU_KNOB_EVOLVE, CGU_KNOB_ARP, CGU_KNOB_PROGRESSION, CGU_KNOB_LIBRARY, CGU_KNOB_SOUND,
     CGU_KNOB_TAKES, CGU_KNOB_LESSON, CGU_KNOB_MIX, CGU_KNOB_SONG, CGU_KNOB_FX_SPACE, CGU_KNOB_GROOVE };
 enum { CGU_RACK_COUNT=1+CGS_NPART+CGU_BAND_PROGRESSION };
+static const uint8_t CGU_STUDIO_ORDER[]={CGU_BAND_SHAPING,CGU_BAND_SONG,CGU_BAND_HARMONY,CGU_BAND_PROGRESSION,CGU_BAND_ARP};
 static const char *const CGU_TABS[]={"Studio","Sound","Record","Help"};
 static const char *const CGU_BAND_NAMES[]={"Harmony","Generator","ARP","Progression"};
 static const char *const CGU_TOPICS[]={"Start here","Harmony","Playing","Capture"};
@@ -169,10 +170,11 @@ static void cgu_home(void)
 {
     cu.pop=POP_NONE;
     cgu.action=cgu.part_page=0;
-    cgu.band_panel=CGU_BAND_SONG;
+    cgu.band_panel=CGU_BAND_SHAPING;
     cgu.rack_controls=0;
     memset(cgu.rack_first,0,sizeof cgu.rack_first);
     memset(cgu.rack_panel,0,sizeof cgu.rack_panel);
+    cgu.rack_panel[CGU_STUDIO]=CGU_BAND_SHAPING;
     cgu.rack_panel[CGU_RECORD]=1;
     cgu.tab_ms=cgu.rack_ms=cgu.page_ms=0;
     cgu.turn_ms=cgu.return_screen=0;
@@ -215,14 +217,14 @@ static unsigned cgu_part(unsigned tile)
 
 static unsigned cgu_studio_tile(unsigned part,unsigned band_panel)
 {
-    if(band_panel==CGU_BAND_SONG)return 0;
-    return band_panel?CGS_NPART+band_panel:1u+cgu_part(part);
+    for(unsigned tile=0;tile<NELEM(CGU_STUDIO_ORDER);tile++)
+        if(CGU_STUDIO_ORDER[tile]==band_panel)return tile;
+    return NELEM(CGU_STUDIO_ORDER)+cgu_part(part);
 }
 
 static unsigned cgu_studio_panel(unsigned tile)
 {
-    if(!tile)return CGU_BAND_SONG;
-    return tile<=CGS_NPART?CGU_BAND:tile-CGS_NPART;
+    return tile<NELEM(CGU_STUDIO_ORDER)?CGU_STUDIO_ORDER[tile]:CGU_BAND;
 }
 
 enum { CGU_RACK_Y=53, CGU_BAY_H=132, CGU_RACK_SCROLL_MS=RAKT_SLIDE_STEP_MS*RAKT_SLIDE_STEPS };
@@ -231,16 +233,15 @@ static int cgu_rack_height(unsigned tab,unsigned tile)
 {
     /* The tallest neighboring units, including their seam, fit the bay. */
     static const uint8_t amps[]={68,54,72,56};
-    static const uint8_t outboard[]={64,60,68,56};
+    static const uint8_t outboard[]={58,58,60,56};
     static const uint8_t record[]={70,58,60,68,58};
     static const uint8_t help[]={60,64,58,62};
     if(tab==CGU_RECORD)return record[tile];
     if(tab==CGU_HELP)return help[tile];
     if(tab==CGU_STUDIO){
         unsigned panel=cgu_studio_panel(tile);
-        if(panel==CGU_BAND_SONG)return 76;
-        if(tile==1u)return 52;
-        return panel?outboard[panel-1u]:amps[tile-1u];
+        if(panel==CGU_BAND_SONG)return 70;
+        return panel?outboard[panel-1u]:amps[tile-NELEM(CGU_STUDIO_ORDER)];
     }
     if(tile>=CGS_NPART)return tile==CGS_NPART?62:RAKT_UNIT_H;
     return amps[tile];
@@ -332,8 +333,9 @@ static void cgu_studio_page_turn(int d)
 static void cgu_studio_seq(void)
 {
     int previous=cgu_rack_scroll();
-    unsigned panel=cgu.band_panel;
-    cgu_band_focus(panel>=CGU_BAND_PROGRESSION?CGU_BAND_HARMONY:panel+1u);
+    unsigned tile=cgu_studio_tile(cgs.focus,cgu.band_panel);
+    unsigned next=tile+1u<NELEM(CGU_STUDIO_ORDER)?tile+1u:0;
+    cgu_band_focus(CGU_STUDIO_ORDER[next]);
     cgu_rack_arrive(previous);
 }
 
@@ -419,7 +421,7 @@ static void cgu_focus(int d)
     else if(cgu.tab==CGU_STUDIO){
         unsigned panel=cgu_studio_panel(tile);
         cgu_band_focus(panel);
-        if(!panel)cgu_focus_part(cgu_part(tile-1u));
+        if(!panel)cgu_focus_part(cgu_part(tile-NELEM(CGU_STUDIO_ORDER)));
     } else if(cgu.tab==CGU_RECORD){
         cgu.rack_controls=(uint8_t)(tile==0);
         if(tile)cgu_focus_part(cgu_part(tile-1u));

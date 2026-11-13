@@ -7,6 +7,7 @@ typedef struct {
     uint8_t view, muted, cut, solo, drums;
     uint8_t level[CGS_NPART];
     uint8_t paused, playing, ext, waiting, pending, fill, dropped, repeat;
+    uint8_t wave_phase, wave_genre, wave_density, wave_bend;
     char message[48];
 } cgu_glow_model_t;
 static uint8_t cgu_glow_valid;
@@ -63,18 +64,23 @@ static void cgu_glow_map(const cgu_glow_model_t *m)
                 if(p==CGU_GLO_DROP && (m->dropped || m->pending==CFPERF_DROP))label="Bring back", on=1;
                 str_cpy(name,label,sizeof name);
                 enabled=(m->ready>>p)&1u;
+                if(p>=CGU_GLO_RISER){
+                    static const uint8_t colors[]={CGS_CHORDS,CGS_BASS,CGS_DRUMS,CGS_LAYER};
+                    accent=CGU_INK_BASE+colors[p-CGU_GLO_RISER];
+                } else if(p>=CGU_GLO_FILL)accent=RAKT_GREEN;
             }
             if(black){
                 x-=5;width=10;
                 fb_rbox(x-1,CGU_GLOW_TOP-1,12,60,2,CGU_METAL+10);
                 fill=name[0]?CGU_GLASS:CGU_METAL+1;
-            } else if(!name[0])fill=CGU_METAL+2;
+            }
             if(on){
                 fill=black?CGU_INK_BASE+CGS_DRUMS:accent;
                 ink=CGU_METAL+10;
             } else if(!enabled)ink=FL_INK2;
             int height=black?58:CGU_GLOW_BOTTOM-CGU_GLOW_TOP;
-            fb_rbox(x,CGU_GLOW_TOP,width,height,1,fill);
+            if(black || on)fb_rbox(x,CGU_GLOW_TOP,width,height,1,fill);
+            else fb_vline(x+width,CGU_GLOW_TOP,height,CGU_METAL+2);
             if(name[0]){
                 if(!on)fb_hline(x+1,CGU_GLOW_TOP,width-2,enabled?accent:CGU_METAL+5);
                 cgu_glow_text_up(x+width/2+4,black?CGU_GLOW_TOP+53:207,name,ink);
@@ -95,7 +101,6 @@ static const char *cgu_glow_part_state(const cgu_glow_model_t *m,unsigned part)
 
 static void cgu_glow_state(const cgu_glow_model_t *m)
 {
-    fb_rbox(4,CGU_GLOW_TOP,232,CGU_GLOW_BOTTOM-CGU_GLOW_TOP,2,CGU_METAL+1);
     for(unsigned i=0;i<NELEM(CGU_GLO_DRUMS);i++){
         int x=9+i*56, muted=(m->drums>>i)&1u;
         uint8_t ink=muted?CGU_INK_BASE+CGS_DRUMS:FL_INK;
@@ -167,13 +172,26 @@ static void cgu_glow_draw(void)
     m.fill=cgs.fill_held?CFPERF_FILL_MANUAL:cf_sn.perf_fill;
     m.dropped=cf_sn.perf_dropped;
     m.repeat=cfx_repeat_request?(uint8_t)(8u<<cgu_glow.repeat_rate):0;
+    m.wave_genre=cgs_active()?cgs.playing_genre:cgs.genre;
+    m.wave_density=cgs.energy;
+    unsigned swing=cgs.meter==6u?0:cgs.swing;
+    int effect=cfx_riser_step || cfx_repeat_request || cfx_echo_request || cfx_sweep_step;
+    m.wave_bend=(uint8_t)clampi((int)swing+(effect?30:0),0,100);
+    if(cf_motion)m.wave_phase=(uint8_t)(cu.now/100u);
     if(cu.pop==POP_MSG)str_cpy(m.message,cu.msg,sizeof m.message);
     if(cgu_glow_valid && !fb_full && !memcmp(&m,&last,sizeof m))return;
     last=m;cgu_glow_valid=1;
     cgu_glow_header(&m);
+    int left=m.view==CGU_GLO_MAP?8:4, width=240-left*2;
+    int height=CGU_GLOW_BOTTOM-CGU_GLOW_TOP;
+    fb_rbox(left,CGU_GLOW_TOP,width,height,2,CGU_METAL+3);
+    cgu_panel_waves(left+1,CGU_GLOW_TOP+1,width-2,height-2,m.wave_genre,
+        m.wave_density,m.wave_bend,m.wave_phase,CGU_METAL+1);
     if(m.view==CGU_GLO_MAP)cgu_glow_map(&m);
     else cgu_glow_state(&m);
-    fb_hline(8,226,224,CGU_METAL+4);
+    static const uint8_t rainbow[]={CGU_INK_BASE+CGS_CHORDS,CGU_INK_BASE+CGS_BASS,
+        CGU_INK_BASE+CGS_LAYER,RAKT_GREEN};
+    for(unsigned i=0;i<NELEM(rainbow);i++)fb_hline(8+56*(int)i,226,56,rainbow[i]);
     char repeat[28]="Repeat 1/";
     if(m.repeat)kint(repeat+9,m.repeat,0);
     if(m.repeat)str_cpy(repeat+str_len(repeat),"   PRESETS Rate",sizeof repeat-str_len(repeat));

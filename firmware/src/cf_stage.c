@@ -135,6 +135,7 @@ typedef struct {
     uint8_t rack_knob[CGU_BAND_PROGRESSION][4], amp_knob[CGS_NPART][4];
     uint8_t fx_send_shape[4][2];
     uint8_t rack_beat, rack_meter, rack_level, rack_arp_step, rack_arp_mode, rack_lens, rack_draft;
+    uint8_t generator_phase, generator_density, generator_swing;
     uint16_t steps[4][2],bass_delays[2],drum_hits,matches;
     int16_t bank_dx;
     int8_t chord_dy,control_dx;

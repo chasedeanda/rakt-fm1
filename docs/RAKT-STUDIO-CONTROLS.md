@@ -6,7 +6,7 @@ The arrow and the light strip on the right show the selected unit and its positi
 
 ## Studio
 
-**PLAY** starts or stops the band. Studio opens on **Song**, which shows the current chord name and Roman numeral above the key, scale, meter and tempo. The progression name is beside the panel title. A held manual chord takes over the readout until you release it. Use **K1** for Genre, **K2** for Key, **K3** for Tempo and **K4** for Meter. Press **SEL** for a larger chord display and knob readouts.
+**PLAY** starts or stops the band. Studio opens on **Generator**. Turn **ALGORITHM** one step to **Song**, which shows the current chord name and Roman numeral above the key, scale, meter and tempo. The progression name is beside the panel title. A held manual chord takes over the readout until you release it. Use **K1** for Genre, **K2** for Key, **K3** for Tempo and **K4** for Meter. Press **SEL** for a larger chord display and knob readouts.
 
 ### Rack design
 
@@ -40,7 +40,7 @@ On **Generator** or **Song**, turn **K1** to choose a genre. **PRESETS** also wo
 
 ### Harmony and Generator
 
-Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. Highlight **Generator** to change how the band plays. The **Arrangement** tab holds Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
+Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. The Studio rack runs from **Generator**, **Song**, **Harmony**, **Progression**, and **ARP** down to the four musicians. **SEQ** cycles through the first five panels. Highlight **Generator** to change how the band plays. The **Arrangement** tab holds Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
 
 | Page | Knob | What it changes |
 | --- | --- | --- |
