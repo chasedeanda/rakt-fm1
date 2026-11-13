@@ -30,13 +30,15 @@ static struct {
 enum { CGU_GLO_MAP, CGU_GLO_STATE, CGU_GLO_VIEWS };
 enum {
     CGU_GLO_PAUSE=4, CGU_GLO_RESTART, CGU_GLO_UNMUTE, CGU_GLO_TAP,
-    CGU_GLO_FILL, CGU_GLO_FILL_BAR, CGU_GLO_DROP
+    CGU_GLO_FILL, CGU_GLO_FILL_BAR, CGU_GLO_DROP,
+    CGU_GLO_RISER, CGU_GLO_REPEAT, CGU_GLO_ECHO, CGU_GLO_SWEEP
 };
 static const char *const CGU_GLO_DRUMS[]={"KICK","SNARE","HATS","PERC"};
 static struct {
     uint32_t keys, taps[4];
-    uint8_t active, view, ntap;
-} cgu_glow;
+    uint16_t repeat_bpm;
+    uint8_t active, view, ntap, repeat_rate, repeat_generation;
+} cgu_glow={.repeat_rate=1};
 
 static void cf_arp_controls_info(int k,cf_knob_t *o,int timing,int studio);
 static void cf_arp_controls_turn(int k,int d,int timing,int studio);
@@ -723,10 +725,32 @@ static void cgu_perform_turn(int d)
     cgu_perform(action);
 }
 
+static unsigned cgu_glow_bpm(void)
+{
+    return cf_sn.ext_clock?cf_sn.ext_bpm:cs.bpm;
+}
+
+static void cgu_glow_repeat(int turn)
+{
+    unsigned bpm=cgu_glow.repeat_bpm;
+    /* At very low tempos an eighth note exceeds the slice buffer. */
+    unsigned frames=FS*30u/CFX_REPEAT_DS/bpm, slowest=0;
+    while((frames>>slowest)>CFX_REPEAT_CAP)slowest++;
+    unsigned rate=clampi((int)cgu_glow.repeat_rate+turn,slowest,3);
+    cgu_glow.repeat_rate=(uint8_t)rate;
+    cfx_repeat_request=(uint16_t)(frames>>rate) |
+        (cgu_glow.repeat_generation?CFX_REPEAT_NEW:0u);
+}
+
 static void cgu_glow_open(int on)
 {
     cgu_glow.active=(uint8_t)on;
     cgs.held_solo=cgs.fill_held=0;
+    cfx_riser_step=0;
+    cfx_repeat_request=0;
+    cfx_echo_request=0;
+    cfx_echo_listen=(uint8_t)on;
+    cfx_sweep_step=0;
     cgu.turn_ms=0;
     cu.pop=POP_NONE;
     if(on)cgu_glow.view=CGU_GLO_MAP;
@@ -763,7 +787,7 @@ static void cgu_glow_transport(unsigned action)
 
 static int cgu_glow_ready(unsigned place)
 {
-    if(place<CGS_NPART || place==CGU_GLO_UNMUTE)return 1;
+    if(place<CGS_NPART || place==CGU_GLO_UNMUTE || (place>=CGU_GLO_RISER && place<=CGU_GLO_SWEEP))return 1;
     if(place==CGU_GLO_TAP)return cs.clock_in!=1u;
     if(place==CGU_GLO_PAUSE || place==CGU_GLO_RESTART)return cgs_active() && cs.clock_in!=1u;
     return place<=CGU_GLO_DROP && cgu_perform_ready() &&
@@ -782,6 +806,10 @@ static int cgu_glow_key(unsigned key,int down)
         cgu_glow.keys&=~bit;
         if(!black && place<CGS_NPART)cgs.held_solo&=(uint8_t)~(1u<<cgu_part(place));
         if(!black && place==CGU_GLO_FILL)cgs.fill_held=0;
+        if(!black && place==CGU_GLO_RISER)cfx_riser_step=0;
+        if(!black && place==CGU_GLO_REPEAT)cfx_repeat_request=0;
+        if(!black && place==CGU_GLO_ECHO)cfx_echo_request=0;
+        if(!black && place==CGU_GLO_SWEEP)cfx_sweep_step=0;
         return 1;
     }
     cgu_glow.keys|=bit;
@@ -799,6 +827,27 @@ static int cgu_glow_key(unsigned key,int down)
         break;
     case CGU_GLO_FILL_BAR:cgu_perform(CFPERF_FILL);break;
     case CGU_GLO_DROP:cgu_perform_turn(1);break;
+    case CGU_GLO_RISER:{
+        unsigned bpm=cgu_glow_bpm();
+        cfx_riser_step=(uint16_t)(((CFX_RISER_TOP/4u)*bpm+FS*30u)/(FS*60u));
+        break;
+    }
+    case CGU_GLO_REPEAT:
+        cgu_glow.repeat_generation^=1u;
+        cgu_glow.repeat_bpm=(uint16_t)cgu_glow_bpm();
+        cgu_glow_repeat(0);
+        break;
+    case CGU_GLO_ECHO:{
+        unsigned frames=FS*15u/CFX_ECHO_DS/cgu_glow_bpm();
+        while(frames>CFX_ECHO_CAP)frames>>=1;
+        cfx_echo_request=(uint16_t)frames;
+        break;
+    }
+    case CGU_GLO_SWEEP:{
+        unsigned bpm=cgu_glow_bpm();
+        cfx_sweep_step=(uint16_t)(((CFX_RISER_TOP/2u)*bpm+FS*30u)/(FS*60u));
+        break;
+    }
     }
     return 1;
 }

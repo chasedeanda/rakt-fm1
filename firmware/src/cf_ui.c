@@ -1044,7 +1044,11 @@ static void ui_select(int d)                     /* SELECT: the bass sound, or a
 }
 static void ui_presets(int d)                    /* PRESETS: the chord sound (a sequencer's track open: its sound) */
 {
-    if(cgu_glow.active){cgu_perform_turn(d);return;}
+    if(cgu_glow.active){
+        if(cfx_repeat_request)cgu_glow_repeat(d);
+        else cgu_perform_turn(d);
+        return;
+    }
     if(cgs_home()){
         if(cgu.tab==CGU_STUDIO && cgs.zoom && !cgu.band_panel && cgs.focus==CGS_DRUMS)cgu_perform_turn(d);
         else if(cgu.tab==CGU_SOUND){

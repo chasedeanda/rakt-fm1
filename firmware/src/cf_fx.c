@@ -774,12 +774,190 @@ static void cfx_master(int32_t *l, int32_t *r, uint32_t n)
 
 #include "cf_fx_studio.c"
 
+/* GLO's hold gesture publishes the attack step, or zero to release. The audio
+ * thread owns the envelope and filter, so opening or closing GLO never cuts a sample. */
+#define CFX_RISER_TOP (1u<<24)
+static volatile uint16_t cfx_riser_step;
+static uint32_t cfx_riser_phase, cfx_riser_noise;
+static int32_t cfx_riser_low;
+
+static __attribute__((noinline)) void cfx_riser_mix(int32_t *l,int32_t *r,uint32_t n)
+{
+    unsigned step=cfx_riser_step, phase=cfx_riser_phase;
+    if(!step && !phase)return;
+    for(unsigned i=0;i<n;i++){
+        const unsigned release=CFX_RISER_TOP/(FS/20u);
+        if(step)phase=phase+step<CFX_RISER_TOP?phase+step:CFX_RISER_TOP;
+        else phase=phase>release?phase-release:0;
+
+        int32_t level=phase>>16;
+        int32_t gain=(level*level)>>8;
+        cfx_riser_noise=cfx_riser_noise*1664525u+1013904223u;
+        int32_t white=(int32_t)(cfx_riser_noise>>16)-32768;
+        cfx_riser_low+=((white-cfx_riser_low)*(12+(gain*3>>2)))>>8;
+        int32_t sample=(cfx_riser_low*gain)/2048;
+        l[i]+=sample;
+        r[i]+=sample;
+    }
+    cfx_riser_phase=phase;
+}
+
+/* Record a mono slice at 1/8 sample rate. The 8-bit encoding keeps more
+ * resolution near zero. The live mix keeps running beneath the loop. */
+#define CFX_REPEAT_DS 8u
+#define CFX_REPEAT_CAP 3072u
+#define CFX_REPEAT_FADE 128u
+#define CFX_REPEAT_NEW (1u<<15)
+static volatile uint16_t cfx_repeat_request;
+static int8_t cfx_repeat_buf[CFX_REPEAT_CAP];
+static unsigned cfx_repeat_count, cfx_repeat_pos, cfx_repeat_len, cfx_repeat_wet;
+static unsigned cfx_repeat_generation;
+static int32_t cfx_repeat_sum;
+
+static int8_t cfx_slice_encode(int32_t sample)
+{
+    int32_t mag=sample<0?-sample:sample;
+    int32_t code=mag<1024?mag>>5:mag<7168?24+(mag>>7):66+(mag>>9);
+    code=clamp(code,0,127);
+    return (int8_t)(sample<0?-code:code);
+}
+
+static int32_t cfx_slice_decode(int32_t code)
+{
+    int32_t mag=code<0?-code:code;
+    int32_t sample=mag<32?mag<<5:mag<80?(mag-24)<<7:(mag-66)<<9;
+    return code<0?-sample:sample;
+}
+
+static __attribute__((noinline)) void cfx_repeat_mix(int32_t *l,int32_t *r,uint32_t n)
+{
+    unsigned command=cfx_repeat_request;
+    unsigned generation=command&CFX_REPEAT_NEW;
+    unsigned request=(command&~CFX_REPEAT_NEW)*CFX_REPEAT_DS;
+    if(cfx_repeat_wet && generation!=cfx_repeat_generation)request=0;
+    if(!cfx_repeat_wet && (!request || generation!=cfx_repeat_generation)){
+        cfx_repeat_count=cfx_repeat_pos=cfx_repeat_len=0;
+        cfx_repeat_sum=0;
+        if(!request)return;
+    }
+    if(request)cfx_repeat_generation=generation;
+    for(unsigned i=0;i<n;i++){
+        if(request && cfx_repeat_count<CFX_REPEAT_CAP*CFX_REPEAT_DS){
+            unsigned capture=cfx_repeat_count++;
+            cfx_repeat_sum+=(l[i]+r[i])>>1;
+            if(!(cfx_repeat_count&(CFX_REPEAT_DS-1u))){
+                cfx_repeat_buf[capture/CFX_REPEAT_DS]=cfx_slice_encode(cfx_repeat_sum>>3);
+                cfx_repeat_sum=0;
+            }
+        }
+        unsigned pos=cfx_repeat_pos, len=cfx_repeat_len;
+        if(!pos && request && cfx_repeat_count>=request)len=cfx_repeat_len=request;
+        if(!len)continue;
+        unsigned frame=pos/CFX_REPEAT_DS;
+        int32_t sample=cfx_slice_decode(cfx_repeat_buf[frame]);
+        if(pos+CFX_REPEAT_DS<len)
+            sample+=((cfx_slice_decode(cfx_repeat_buf[frame+1])-sample)*(int32_t)(pos&(CFX_REPEAT_DS-1u)))>>3;
+        unsigned edge=pos<len-1u-pos?pos:len-1u-pos;
+        if(edge<CFX_REPEAT_FADE)sample=(sample*(int32_t)edge)>>7;
+        if(request && cfx_repeat_wet<CFX_REPEAT_FADE)cfx_repeat_wet++;
+        if(!request && cfx_repeat_wet)cfx_repeat_wet--;
+        int32_t wet=(int32_t)cfx_repeat_wet;
+        l[i]+=((sample-l[i])*wet)>>7;
+        r[i]+=((sample-r[i])*wet)>>7;
+        cfx_repeat_pos=pos+1u==len?0:pos+1u;
+        if(!request && !wet){
+            cfx_repeat_count=cfx_repeat_pos=cfx_repeat_len=0;
+            cfx_repeat_sum=0;
+            break;
+        }
+    }
+}
+
+/* Echo Out uses a short, dark mono delay. In GLO the ring follows the mix.
+ * Holding the key cuts the dry signal and replaces the input with decaying feedback. */
+#define CFX_ECHO_DS 16u
+#define CFX_ECHO_CAP 384u
+#define CFX_ECHO_FADE 128
+static volatile uint16_t cfx_echo_request;
+static volatile uint8_t cfx_echo_listen;
+static int8_t cfx_echo_buf[CFX_ECHO_CAP];
+static unsigned cfx_echo_pos, cfx_echo_filled, cfx_echo_len, cfx_echo_sub;
+static int32_t cfx_echo_sum, cfx_echo_from, cfx_echo_to, cfx_echo_wet;
+
+static __attribute__((noinline)) void cfx_echo_mix(int32_t *l,int32_t *r,uint32_t n)
+{
+    unsigned request=cfx_echo_request;
+    int32_t wet=cfx_echo_wet;
+    if(!cfx_echo_listen && !wet){
+        cfx_echo_filled=cfx_echo_sub=0;
+        cfx_echo_sum=cfx_echo_from=cfx_echo_to=0;
+        return;
+    }
+    if(request)cfx_echo_len=request;
+    for(unsigned i=0;i<n;i++){
+        unsigned pos=cfx_echo_pos, sub=cfx_echo_sub;
+        if(!sub && (request || wet)){
+            cfx_echo_from=cfx_echo_to;
+            unsigned read=pos+CFX_ECHO_CAP-cfx_echo_len;
+            if(read>=CFX_ECHO_CAP)read-=CFX_ECHO_CAP;
+            cfx_echo_to=cfx_echo_len<=cfx_echo_filled?cfx_slice_decode(cfx_echo_buf[read]):0;
+        }
+        int32_t live=(l[i]+r[i])>>1;
+        if(request)wet+=wet<CFX_ECHO_FADE;
+        else wet-=wet>0;
+        if(wet){
+            int32_t echo=cfx_echo_from+((cfx_echo_to-cfx_echo_from)*(int32_t)sub>>4);
+            int32_t tail=echo*3/4;
+            live+=((tail*3/4-live)*wet)>>7;
+            l[i]+=((tail-l[i])*wet)>>7;
+            r[i]+=((tail-r[i])*wet)>>7;
+        }
+        cfx_echo_sum+=live;
+        cfx_echo_sub=(sub+1u)&(CFX_ECHO_DS-1u);
+        if(!cfx_echo_sub){
+            cfx_echo_buf[pos]=cfx_slice_encode(cfx_echo_sum>>4);
+            cfx_echo_sum=0;
+            cfx_echo_pos=pos+1u==CFX_ECHO_CAP?0:pos+1u;
+            cfx_echo_filled+=cfx_echo_filled<CFX_ECHO_CAP;
+        }
+    }
+    cfx_echo_wet=wet;
+}
+
+static volatile uint16_t cfx_sweep_step;
+static uint32_t cfx_sweep_phase;
+static int32_t cfx_sweep_low[2];
+
+/* Raise the high-pass cutoff over two beats, then ease its low end back in. */
+static __attribute__((noinline)) void cfx_sweep_mix(int32_t *l,int32_t *r,uint32_t n)
+{
+    const unsigned release=CFX_RISER_TOP/(FS/30u);
+    unsigned step=cfx_sweep_step,phase=cfx_sweep_phase;
+    for(unsigned i=0;i<n;i++){
+        if(step)phase=phase+step<CFX_RISER_TOP?phase+step:CFX_RISER_TOP;
+        else phase=phase>release?phase-release:0;
+        int32_t level=phase>>16;
+        int32_t coeff=2+(level*level>>9);
+        int32_t wet=level<32?level*8:256;
+        cfx_sweep_low[0]+=(l[i]-cfx_sweep_low[0])*coeff>>8;
+        cfx_sweep_low[1]+=(r[i]-cfx_sweep_low[1])*coeff>>8;
+        l[i]-=cfx_sweep_low[0]*wet>>8;
+        r[i]-=cfx_sweep_low[1]*wet>>8;
+    }
+    cfx_sweep_phase=phase;
+    if(!phase)cfx_sweep_low[0]=cfx_sweep_low[1]=0;
+}
+
 static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n)
 {
     uint32_t i;
     int ready = cfx_route(cfx_studio);
     if (cfx_studio) cfx_studio_mix(l, r, n, ready);
     else if (ready) cfx_master(l, r, n);
+    if(cfx_repeat_request || cfx_repeat_count)cfx_repeat_mix(l,r,n);
+    if(cfx_sweep_step || cfx_sweep_phase)cfx_sweep_mix(l,r,n);
+    if(cfx_echo_listen || cfx_echo_wet || cfx_echo_filled || cfx_echo_sub)cfx_echo_mix(l,r,n);
+    if(cfx_riser_step || cfx_riser_phase)cfx_riser_mix(l,r,n);
 #if CF_VLOAD
     {
         uint32_t vl0 = VL_NOW();

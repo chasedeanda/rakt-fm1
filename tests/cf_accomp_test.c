@@ -349,7 +349,9 @@ static void browsing(void)
     /* Sound-only SAVE remains explicit on the sound editor. */
     cu.scr=SCR_EDIT;cu.edit_part=0;ui_button(B_SAVE);CHECK(cu.scr==SCR_SAVE && cf_save_part()==0);
     cu.scr=SCR_HOME; fm1_in.buttons=1u<<panel.btn[B_GLO]; ui_button(B_GLO); cu.now+=701;
-    cpb_hold_poll(); CHECK(cpb_page()); fm1_in.buttons=0; cpb_hold_poll();
+    cpb_hold_poll();
+    if(cgu_glow.active){ui_button(B_SAVE);cu.page[SCR_GLO]=CF_GLO_BROWSE;}
+    CHECK(cpb_page()); fm1_in.buttons=0; cpb_hold_poll();
     /* Direct jumps and shuffled browsing retain active setup until the bar. */
     setup(0,CPA_OFF); ui_button(B_PLAY); flush(); cu.scr=SCR_GLO; cu.page[SCR_GLO]=CF_GLO_BROWSE;
     ui_knob_turn(0,7); ui_knob_turn(1,2); CHECK(cpa_setup.plan.idea==72 && cpg.idea==0);

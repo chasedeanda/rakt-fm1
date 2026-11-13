@@ -55,7 +55,9 @@ static void controls(void)
     cf_set_t original=cs;cf_harmony_t harmony=ch;
     uint32_t patterns=cfs_fnv(&sq_st,sizeof sq_st),bank=cfs_fnv(&up_bank,sizeof up_bank),flash=emu_flash_writes;
     CHECK(sizeof(cs)==188 && sizeof(sq_ev_t)==22);
-    cu.scr=SCR_ARP;ui_button(B_GLO);CHECK(cvr.context==CV_ARP);
+    cu.scr=SCR_ARP;ui_button(B_GLO);
+    if(cgu_glow.active)ui_button(B_SAVE);
+    CHECK(cu.scr==SCR_GLO && cvr.context==CV_ARP);
     cu.page[SCR_GLO]=CF_GLO_VARIATION;cvr.level=1;
     cf_arp_t before=cs.arp;
     ui_knob_turn(2,1);cf_arp_t generated=cs.arp;CHECK(cvr.have_previous);
