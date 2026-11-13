@@ -11,7 +11,7 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 read = lambda p: (root / p).read_text()
 meta = json.loads(read('fmhub.json'))
-assert set(meta) <= {'what', 'author', 'kinds', 'play', 'editor', 'cheat', 'image', 'color'}
+assert set(meta) <= {'what', 'author', 'kinds', 'play', 'editor', 'cheat', 'image', 'color', 'sounds'}
 assert 20 <= len(meta['what']) <= 300 and not re.search(r'[<>{}`]|https?://|www\.', meta['what'])
 assert 2 <= len(meta['author']) <= 60
 assert meta['kinds'] and all(k in ['synth','groove','drums','chords','tracker','other'] for k in meta['kinds'])
