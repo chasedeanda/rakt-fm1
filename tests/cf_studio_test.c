@@ -1650,6 +1650,101 @@ static void glow_scan(unsigned elapsed,uint32_t buttons,uint32_t keys)
     cf_ui_input();
 }
 
+static void glow_effects_studio(void)
+{
+    unsigned c5=60u+12u-53u, d5=c5+2u;
+    uint32_t glo=1u<<panel.btn[B_GLO], riser=1u<<c5, repeat=1u<<d5;
+    uint32_t echo=1u<<(d5+2u), sweep=1u<<(d5+3u);
+    int32_t l[CTL],r[CTL];
+    studio_start(101);
+    blocks(2);
+    cs.bpm=120;
+    glow_scan(30,glo,riser);
+    CHECK(cgu_glow.active && cfx_riser_step && !cfp.n);
+    blocks(FS/CTL);
+    CHECK(cfx_riser_phase>CFX_RISER_TOP/3u && cfx_riser_phase<CFX_RISER_TOP*2u/3u);
+    blocks(FS/CTL+4u);
+    CHECK(cfx_riser_phase==CFX_RISER_TOP);
+    glow_scan(30,0,0);
+    blocks(FS/20u/CTL+2u);
+    CHECK(!cfx_riser_step && !cfx_riser_phase);
+
+    glow_scan(30,0,repeat);
+    CHECK(cgu_glow.repeat_rate==1 && cfx_repeat_request && !cfp.n);
+    unsigned len=(FS/8u/CFX_REPEAT_DS)*CFX_REPEAT_DS;
+    for(unsigned j=0;j<len/CTL+2u;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=2304;r[i]=1792;}
+        cfx_repeat_mix(l,r,CTL);
+    }
+    CHECK(cfx_repeat_len==len);
+    ui_capture("glow-repeat");
+    ui_presets(1);
+    CHECK(cgu_glow.repeat_rate==2 && !cf_moment.pending);
+    int repeated=0;
+    for(unsigned j=0;j<len/CTL+2u;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
+        cfx_repeat_mix(l,r,CTL);
+        for(unsigned i=0;i<CTL;i++)if(l[i]==2048 && r[i]==2048)repeated=1;
+    }
+    CHECK(cfx_repeat_len==(FS/16u/CFX_REPEAT_DS)*CFX_REPEAT_DS && repeated);
+    unsigned phase=cpa.q2;
+    blocks(10);
+    CHECK(cpa.q2>phase);
+
+    glow_scan(30,glo,repeat);
+    CHECK(!cgu_glow.active && !cfx_repeat_request);
+    for(unsigned j=0;j<CFX_REPEAT_FADE/CTL+1u;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
+        cfx_repeat_mix(l,r,CTL);
+    }
+    CHECK(!cfx_repeat_wet && !cfx_repeat_count && l[CTL-1]==-3000 && r[CTL-1]==1000);
+    glow_scan(30,0,0);
+    CHECK(!cgu_glow.keys && !cfp.n);
+
+    glow_scan(30,glo,0);
+    glow_scan(30,0,0);
+    for(unsigned j=0;j<CFX_ECHO_CAP*CFX_ECHO_DS/CTL;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=2304;r[i]=1792;}
+        cfx_echo_mix(l,r,CTL);
+    }
+    CHECK(l[CTL-1]==2304 && r[CTL-1]==1792);
+    glow_scan(30,0,echo);
+    CHECK(cfx_echo_request==FS/8u/CFX_ECHO_DS);
+    for(unsigned j=0;j<CFX_ECHO_FADE/CTL;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
+        cfx_echo_mix(l,r,CTL);
+    }
+    int32_t first_echo=l[CTL-1];
+    CHECK(first_echo>0 && r[CTL-1]==first_echo);
+    for(unsigned j=0;j<FS/CTL;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
+        cfx_echo_mix(l,r,CTL);
+    }
+    CHECK(l[CTL-1]>=0 && l[CTL-1]<first_echo);
+    glow_scan(30,0,0);
+    for(unsigned j=0;j<CFX_ECHO_FADE/CTL;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
+        cfx_echo_mix(l,r,CTL);
+    }
+    CHECK(!cfx_echo_request && !cfx_echo_wet && l[CTL-1]==-3000 && r[CTL-1]==1000);
+
+    glow_scan(30,0,sweep);
+    CHECK(cfx_sweep_step && !cfp.n);
+    for(unsigned j=0;j<FS/CTL+4u;j++){
+        for(unsigned i=0;i<CTL;i++){l[i]=2000;r[i]=4000;}
+        cfx_sweep_mix(l,r,CTL);
+    }
+    CHECK(cfx_sweep_phase==CFX_RISER_TOP && abs(l[CTL-1])<8 && abs(r[CTL-1])<8);
+    glow_scan(30,glo,sweep);
+    CHECK(!cgu_glow.active && !cfx_sweep_step && !cfx_echo_listen);
+    blocks(FS/30u/CTL+2u);
+    CHECK(!cfx_sweep_phase && !cfx_echo_filled);
+    glow_scan(30,0,0);
+    cgu_glow.repeat_rate=1;
+    cpa_stop();
+    cgu_home();
+}
+
 static void glow_live_studio(void)
 {
     studio_start(101);
@@ -2648,7 +2743,9 @@ int main(int argc,char **argv)
     emu_fw_options(NULL,1,0,1);
     emu_hal.ready=2;
     emu_fw_init(0);
-    if(argc>=8 && argc<=10 && !strcmp(argv[1],"--render")){
+    if(argc==2 && !strcmp(argv[1],"--glow-effects")){
+        glow_effects_studio();
+    } else if(argc>=8 && argc<=10 && !strcmp(argv[1],"--render")){
         unsigned genre=argc>=9?studio_render_genre(argv[8]):CGS_DEFAULT_GENRE;
         if(genre>=CGS_NGENRE){
             fprintf(stderr,"Unknown Studio genre: %s\n",argv[8]);
@@ -2692,6 +2789,7 @@ int main(int argc,char **argv)
         native_controls_studio();
         quick_start_shortcuts();
         track_fx_studio();
+        glow_effects_studio();
     }
     printf("RAKT Studio: %u checks, %u failures\n",checks,failures);
     return failures!=0;
