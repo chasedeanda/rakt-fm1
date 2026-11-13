@@ -99,8 +99,7 @@ typedef struct {
 
 static cf_set_t cs;
 static cf_browser_t cpb;
-/* Appearance v5 ties the whole palette to the selected mascot. Old appearance
- * IDs remain named for record migration; they are not additional UI choices. */
+/* Appearance v5 selects a palette. Keep the older IDs for record migration. */
 enum { CF_SKIN_EMBER, CF_SKIN_PLUM, CF_SKIN_N };
 enum { CF_SKIN_TEAL=0, CF_SKIN_STUDIO=1, CF_SKIN_EDITORIAL=2, CF_SKIN_LEGACY_N=3 };
 static const char *const CF_SKIN_NAME[] = {
@@ -226,17 +225,21 @@ static flc_t fl_cv = {fl_px, FLW, FLH};
  * apart, they share the one colour) */
 #define C_ACC(s) ((uint8_t)(48 + (s)))
 #define C_SEC(s) ((uint8_t)(52 + (s)))
+#if !CF_STUDIO || CF_SCENES
 #include "cf_mascot_art.h"
+#endif
 enum { CGU_INK_BASE=57, CFN_HALO_0=64, CFN_HALO_1, CFN_HALO_2, CFN_HALO_3, CFM_PAL_BASE=68, CGU_GLASS=83, CGU_GLASS_AA=84,
+    CGU_CONTOUR_BASE=100,
+    CGU_ARP_GLOSS=94, CGU_ARP_SHEEN, CGU_ARP_FLECK, CGU_ARP_SPARKLE, CGU_ARP_TICK,
     CFN_AA_BASE=128, CFN_AA_ROLES=5, CFN_AA_SURFACES=4,
     CGU_BAND_INK_BASE=CFN_AA_BASE+CFN_AA_ROLES*CFN_AA_SURFACES*2,
+    CGU_SPACE_GLOSS=CGU_BAND_INK_BASE, CGU_SPACE_SHEEN=CGU_BAND_INK_BASE+2,
     CGU_RACK_PALETTE=CGU_BAND_INK_BASE+4,
     CGU_METAL=CGU_RACK_PALETTE+20,
     CGU_GRILLE=CGU_METAL+12, CGU_PROGRESSION_INK=CGU_GRILLE+6, CGU_MATERIAL_AA=CGU_GRILLE+8,
     CGU_FACE_AA=CGU_MATERIAL_AA+8, CFN_PAL_N=256 };
 _Static_assert(CGU_FACE_AA+9*4 <= CFN_PAL_N, "Studio material palette fits");
 static uint32_t cf_pal[CFN_PAL_N];
-#include "cf_rack_style.c"
 static uint32_t cfn_blend(uint32_t bg,uint32_t fg,unsigned alpha)
 {
     unsigned r=((bg>>16&255)*(100-alpha)+(fg>>16&255)*alpha)/100;
@@ -244,6 +247,7 @@ static uint32_t cfn_blend(uint32_t bg,uint32_t fg,unsigned alpha)
     unsigned b=((bg&255)*(100-alpha)+(fg&255)*alpha)/100;
     return r<<16|g<<8|b;
 }
+#include "cf_rack_style.c"
 
 #ifndef CF_EMU
 /* The FM-1's panel lifts the dark tones and washes out soft colours: the palette, made on a monitor, came out pale and
@@ -329,19 +333,25 @@ static void cf_palette_build(void)
     cf_pal[52] = skin[5]; cf_pal[53] = skin[4]; cf_pal[54] = skin[2]; cf_pal[55] = skin[1];
     cf_pal[56] = skin[6];
     for(unsigned i=0;i<4;i++)cf_pal[CFN_HALO_0+i]=cfn_blend(skin[0],skin[5],12+12*i);
-    const uint32_t *mascot_rgb=CF_STUDIO && !CF_SCENES?
-        CFM_STICKERS[cf_skin%CF_SKIN_N].rgb:CFM_ART[cf_skin%CF_SKIN_N].rgb;
+#if !CF_STUDIO || CF_SCENES
+    const uint32_t *mascot_rgb=CFM_ART[cf_skin%CF_SKIN_N].rgb;
     for(unsigned i=0;i<CFM_ART_COLORS;i++)cf_pal[CFM_PAL_BASE+i]=mascot_rgb[i];
+#endif
     cf_pal[CGU_INK_BASE]=0xffb464;   /* Chords */
     cf_pal[CGU_INK_BASE+1]=0x79d5ea; /* Bass */
     cf_pal[CGU_INK_BASE+2]=0xc6acff; /* Layer */
     cf_pal[CGU_INK_BASE+3]=0xfb878d; /* Drums */
-    cf_pal[CGU_BAND_INK_BASE]=0xb8e59a;   /* Harmony */
+    cf_pal[CGU_SPACE_GLOSS]=0x345773;
     cf_pal[CGU_BAND_INK_BASE+1]=0x72deda; /* Shaping */
-    cf_pal[CGU_BAND_INK_BASE+2]=0xeac889; /* Genre */
+    cf_pal[CGU_SPACE_SHEEN]=0x5b87a9;
     cf_pal[CGU_BAND_INK_BASE+3]=0xb7afff; /* ARP */
     if(CF_STUDIO && !CF_SCENES){
         cf_rack_colors();
+        cf_pal[CGU_ARP_GLOSS]=0x594364;
+        cf_pal[CGU_ARP_SHEEN]=0x795989;
+        cf_pal[CGU_ARP_FLECK]=0x9b648e;
+        cf_pal[CGU_ARP_SPARKLE]=0xf7afda;
+        cf_pal[CGU_ARP_TICK]=0xabc3d0;
         cf_pal[48]=cf_pal[49]=cf_pal[52]=cf_skin==CF_SKIN_PLUM?skin[5]:cf_pal[RAKT_AMBER];
         cf_pal[50]=cf_pal[53]=cf_pal[FL_INK2];
         cf_pal[51]=cf_pal[55]=cf_pal[FL_BG1];
@@ -365,7 +375,7 @@ static void cf_palette_build(void)
                 cf_pal[CGU_MATERIAL_AA+surface*4+ink*2+level]=
                     cfn_blend(cf_pal[bg],cf_pal[ink?FL_INK2:FL_INK],(level+1)*100/3);
         }
-        for(unsigned face=RAKT_CHORDS;face<=RAKT_PROGRESSION;face++){
+        for(unsigned face=RAKT_CHORDS;face<=RAKT_FX_SPACE;face++){
             for(unsigned ink=0;ink<2;ink++)for(unsigned level=0;level<2;level++)
                 cf_pal[CGU_FACE_AA+(face-RAKT_CHORDS)*4+ink*2+level]=
                     cfn_blend(cf_pal[face],cf_pal[FL_INK+ink],(level+1)*100/3);

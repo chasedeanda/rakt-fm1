@@ -34,7 +34,7 @@ static void cfn_coverage(int x,int y,unsigned coverage,uint8_t ink)
         if(entry%CFN_AA_ROLES==role){surface=entry/CFN_AA_ROLES;unsigned old=(bg-CFN_AA_BASE)%2+1;if(old>coverage)coverage=old;}
     }
     if(role<CFN_AA_ROLES && surface<CFN_AA_SURFACES)fb[y*FB_W+x]=(uint8_t)(CFN_AA_BASE+(surface*CFN_AA_ROLES+role)*2+coverage-1);
-    else if(CF_STUDIO && !CF_SCENES && role<2 && bg>=RAKT_CHORDS && bg<=RAKT_PROGRESSION)
+    else if(CF_STUDIO && !CF_SCENES && role<2 && bg>=RAKT_CHORDS && bg<=RAKT_FX_SPACE)
         fb[y*FB_W+x]=(uint8_t)(CGU_FACE_AA+(bg-RAKT_CHORDS)*4+role*2+coverage-1);
     else if(CF_STUDIO && !CF_SCENES && role<2 && bg>=CGU_METAL && bg<CGU_MATERIAL_AA)
         fb[y*FB_W+x]=(uint8_t)(CGU_MATERIAL_AA+(bg>=CGU_GRILLE?4:0)+role*2+coverage-1);
@@ -120,7 +120,9 @@ static void cfn_shift_panel(int dx,int y0,int y1)
         if((y&15)==15)CF_PUMP();
     }
 }
+#if !CF_STUDIO || CF_SCENES
 #include "cf_mascot.c"
+#endif
 #include "cf_keyboard_learn.c"
 typedef struct {
     char chord[24],degree[12],notes[48],idea[40],sound[16],context[48],status[24],pending[48],next_setup[48],applied[64];
@@ -132,15 +134,17 @@ typedef struct {
     uint8_t moment,build,bloom,engine_page,engine_bar,beat,focus,level[4],pin_mask;
     uint8_t workspace,zoom,genre,solo,muted,held_parts,shaping,sound_page,knob[4],part_level[4];
     uint8_t signal_peak,drum_groups,phrase_steps,layer_reply,bass_reply,section;
-    uint8_t rack_knob[CGU_BAND_PROGRESSION][4], amp_knob[CGS_NPART][4];
+    uint8_t rack_knob[CGU_BAND_ARP][4], amp_knob[CGS_NPART][4];
     uint8_t fx_send_shape[4][2];
-    uint8_t rack_beat, rack_meter, rack_level, rack_arp_step, rack_arp_mode, rack_lens, rack_draft;
-    uint8_t generator_phase, generator_density, generator_swing;
+    uint8_t rack_level, rack_arp_step, rack_arp_mode, rack_lens;
+    uint8_t generator_phase, generator_density, generator_swing, glitter_phase;
     uint16_t steps[4][2],bass_delays[2],drum_hits,matches;
     int16_t bank_dx;
     int8_t chord_dy,control_dx;
     uint16_t rack_scroll;
+#if !CF_STUDIO || CF_SCENES
     cfm_pose_t mascot;
+#endif
     cf_learn_model_t learn;
 } cf_stage_model_t;
 static cf_stage_model_t cf_stage_last;
@@ -384,11 +388,15 @@ static void cf_stage_model(cf_stage_model_t *m)
             if(cfn_moment_ms && age<650u)m->bloom=1+(uint8_t)(age*15u/650u);
         }
     }
+#if !CF_STUDIO || CF_SCENES
     cfm_model(&m->mascot,cf_stage_chord_ms);
     m->pulse=m->mascot.ring;m->halo_ink=m->mascot.ring_ink;
+#endif
     if(m->bank==CF_HB_LEARN) {
         m->bank_dx=m->chord_dy=0;m->halo=m->pulse=m->halo_ink=m->build=m->bloom=0;
+#if !CF_STUDIO || CF_SCENES
         memset(&m->mascot,0,sizeof m->mascot);
+#endif
         memset(m->emphasis,0,sizeof m->emphasis);m->cursor_width=0;
     }
     int engine=cf_sn.ac_on && cf_sn.ac_idea==CF_P_ENGINE;
@@ -463,12 +471,14 @@ static void cf_stage_engine_draw(const cf_stage_model_t *m)
     cfn_fit(&CFN_12,10,56,m->context,157,FL_INK2);
     cfn_text(&CFN_12,230-cfn_width(&CFN_12,m->sound),56,m->sound,FL_INK2);
 
+#if !CF_STUDIO || CF_SCENES
     cfm_pose_t pose=m->mascot;
     pose.sx=pose.sx*5/8;pose.sy=pose.sy*5/8;pose.y-=21*256;
     pose.burst=0;
     fb_clip(0,60,115,109);
     cfm_draw(&pose);
     fb_unclip();
+#endif
     if(m->engine_bar || m->live) {
         fb_clip(116,57,238,108);
         cf_stage_chord(m->chord,103,m->live?FL_INK:FL_INK2);
@@ -568,12 +578,14 @@ static void cf_stage_draw(void)
         return;
     }
     int queued=m.next_setup[0]!=0,cue=m.pending[0]!=0;
+#if !CF_STUDIO || CF_SCENES
     cfm_pose_t pose=m.mascot;
     if(cue){pose.sx=pose.sx*3/4;pose.sy=pose.sy*3/4;pose.y+=9*256;}
     int ring_y=cue?114:105;
     cfn_circle(57,ring_y,cue?33:44,CFN_HALO_0);
     if(m.pulse){unsigned r=cue?m.pulse*3u/4u:m.pulse;cfn_circle(57,ring_y,(int)r,m.halo_ink);}
     cfm_draw(&pose);
+#endif
     char window[20],status[48],bank[24];
     if(m.engine_bar)kint(window,m.engine_bar,"/16");
     else if(m.slot<m.total){kint(window,m.slot+1,"/");kint(window+str_len(window),m.total,0);}

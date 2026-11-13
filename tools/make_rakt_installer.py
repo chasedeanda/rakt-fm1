@@ -31,7 +31,18 @@ page_script = source[source.index('<script>\n/* The page:'):source.index('</body
 header = '<body class="rakt-player rakt-rack rakt-install"><a class="skip" href="#main">Skip to content</a><header class="site-header"><div class="container site-header__row"><a class="brand" href="../play/">RAKT · FM-1</a><nav class="site-nav" aria-label="Install page"><a href="#quick-start">First jam</a><a href="../play/">Play in browser</a><a href="https://github.com/chasedeanda/rakt-fm1/releases">Releases</a></nav></div></header><main id="main">'
 footer = '</main><footer class="site-footer"><div class="container"><p>Installer by CoralFlower / ChoralRoot / Felucca contributors. <a href="../LICENSE">GPL-3.0</a> · <a href="../LICENSING.md">Credits and licences</a></p></div></footer>'
 guide = (root / 'web/rakt-play-guide.html').read_text()
-text = head + header + hero + guide + tools + footer + module + page_script + '</body></html>'
+rack_preview = """
+<section class="section" aria-labelledby="rack-preview-title">
+  <div class="container container--narrow">
+    <h2 class="display-2" id="rack-preview-title">RAKT on screen</h2>
+    <a class="rakt-guide__art" href="../images/rakt-rack-ui.png">
+      <img src="../images/rakt-rack-ui.png" width="960" height="720" loading="lazy"
+           alt="Twelve RAKT FM-1 screens showing Song, musician panels, Mix, Saved Takes, Help, Generator, ARP, FX Space and Sound Library">
+    </a>
+  </div>
+</section>
+"""
+text = head + header + hero + rack_preview + guide + tools + footer + module + page_script + '</body></html>'
 for filename in ('fm1pkg.js', 'fm1ota.js', 'fm1backup.js'):
     shutil.copyfile(root / 'web' / filename, out / filename)
     digest = hashlib.sha256((out / filename).read_bytes()).hexdigest()[:10]
@@ -44,4 +55,5 @@ assert set(re.findall(r'\$\("([^"]+)"\)', module + page_script)) <= set(ids), 'M
 (out / 'images').mkdir(exist_ok=True)
 (out / 'images/rakt-boot').mkdir(exist_ok=True)
 shutil.copyfile(root / 'docs/images/rakt-boot/boot.gif', out / 'images/rakt-boot/boot.gif')
+shutil.copyfile(root / 'docs/images/rakt-rack-ui.png', out / 'images/rakt-rack-ui.png')
 print('Packaged RAKT installer with all updater, file, backup and recovery controls')

@@ -318,15 +318,18 @@ static void hover_controls_studio(void)
     cf_ui_draw();
     CHECK(!strcmp(cf_stage_last.label[0],"KEY"));
     ui_button(B_SCL);
-    ui_algo((int)cgu_studio_tile(0,CGU_BAND_HARMONY)-(int)cgu_active_rack_tile());
-    CHECK(cgu.band_panel==CGU_BAND_HARMONY && !cgs.zoom);
+    ui_algo((int)cgu_studio_tile(0,CGU_BAND_SONG)-(int)cgu_active_rack_tile());
+    ui_button(B_SCL);
+    ui_select(1);
+    CHECK(cgu.band_panel==CGU_BAND_SONG && cgs.zoom && cgu.song_page==CGU_SONG_HARMONY);
     ui_knob_turn(0,1);
     CHECK(cpa_edit.flags&CPA_NOTES);
-    ui_capture("hover-harmony");
+    ui_capture("studio-song-harmony");
     char queued_key[14];
     kpc(queued_key,(key+1)%12);
     CHECK(!strcmp(cf_stage_last.value[0],queued_key) && !strcmp(cf_stage_last.label[3],"METER"));
 
+    ui_button(B_HOME);
     ui_select(1);
     CHECK(cgu.tab==CGU_SOUND && cgs.focus==CGS_BASS && !cgs.zoom);
     unsigned bass=cf_snd_pos(CGS_BASS), layer=cf_snd_pos(CGS_LAYER);
@@ -1265,8 +1268,10 @@ static void arrangements_studio(void)
         ticks(CGS_BAR-cpa.t);
     }
     CHECK(cgs.playing_genre==ambient);
-    ui_algo((int)cgu_studio_tile(0,CGU_BAND_HARMONY)-(int)cgu_active_rack_tile());
-    CHECK(cgu.band_panel==CGU_BAND_HARMONY && !cgs.zoom);
+    ui_algo((int)cgu_studio_tile(0,CGU_BAND_SONG)-(int)cgu_active_rack_tile());
+    ui_button(B_SCL);
+    ui_select(1);
+    CHECK(cgu.band_panel==CGU_BAND_SONG && cgu.song_page==CGU_SONG_HARMONY);
     ui_knob_turn(3,1);
     CHECK(cgs.meter==6 && cpa.plan.beats==4);
     ticks(CGS_BAR-cpa.t);
@@ -1283,6 +1288,7 @@ static void arrangements_studio(void)
     CHECK(cpa_edit.flags&CPA_NOTES);
     ticks(cpa.plan.slot[cpa.slot].ticks-cpa.elapsed);
     CHECK(cpa.plan.scale!=scale && cf_grid.gen==grid);
+    ui_button(B_HOME);
     ui_select(1);
     cgs.focus=CGS_CHORDS;
     ui_button(B_SCL);
@@ -1620,16 +1626,21 @@ static void play_and_mixer_studio(void)
     cu.now+=180;
     ui_capture("arp-pattern");
     CHECK(!cf_stage_last.shaping && !strcmp(cf_stage_last.label[0],"ARP FOR"));
+    char readout[20];
+    CHECK(!strcmp(cgu_module_value(&cf_stage_last,CGU_BAND_ARP,cf_stage_last.focus,readout),"Chords / Off"));
     ui_button(B_ARP);
     cu.now+=180;
     ui_capture("arp-timing");
     CHECK(cgu.arp_timing && !strcmp(cf_stage_last.label[0],"GATE"));
     ui_select(1);
     CHECK(cgs.focus==CGS_LAYER && cgu.arp_timing);
-    ui_select(-1);
-    CHECK(cgs.focus==CGS_CHORDS && cgu.arp_timing);
+    cu.now+=180;
+    ui_capture("arp-layer-timing");
+    CHECK(!strcmp(cgu_module_value(&cf_stage_last,CGU_BAND_ARP,cf_stage_last.focus,readout),"Layer / Off"));
     ui_button(B_ARP);
-    CHECK(cgs.zoom && !cgu.arp_timing);
+    CHECK(cgs.zoom && cgs.focus==CGS_LAYER && !cgu.arp_timing);
+    ui_select(-1);
+    CHECK(cgs.focus==CGS_CHORDS && !cgu.arp_timing);
     ui_knob_turn(0,1);
     blocks(1);
     CHECK(cgu_arp_mode()==CGU_ARP_KEYS && cfa_k.on && !cfa_k.n);
@@ -1706,7 +1717,7 @@ static void quick_start_shortcuts(void)
     ui_select(-1);
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_CHORDS);
     ui_algo(-1);
-    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_PROGRESSION);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_SONG);
     ui_algo(1);
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
     ui_algo(1);
@@ -1751,7 +1762,7 @@ static void quick_start_shortcuts(void)
     CHECK(cu.scr==SCR_HOME && cgu.tab==CGU_SOUND && cgs.zoom && cgu.sound_page==CGU_PRESETS);
 
     ui_button(B_HOME);
-    ui_algo(-1);
+    ui_algo(-2);
     CHECK(cgu.rack_controls==CGU_RACK_MIX && !cgs.zoom);
     unsigned patch=cf_snd_pos(CGS_CHORDS), level=cgs.level[CGS_CHORDS];
     ui_button(B_EDIT);
@@ -2006,15 +2017,16 @@ static void glow_live_studio(void)
     unsigned space=cgs.space, density=cgs.energy;
     uint32_t mix_revision=cgs.take_revision;
     cu.now+=200;
-    ui_select(1);
+    ui_algo(1);
     ui_capture("sound-fx-space");
-    CHECK(cgu.tab==CGU_SOUND && cgs.zoom && !strcmp(cf_stage_last.label[0],"FX SPACE") &&
+    CHECK(cgu.tab==CGU_SOUND && cgs.zoom && cgu.rack_controls==CGU_RACK_FX_SPACE &&
+        !strcmp(cf_stage_last.label[0],"FX SPACE") &&
         !cf_stage_last.label[1][0]);
     ui_knob_turn(0,1);
     blocks(2);
     CHECK(cgs.space==space+1 && cfx_space==(space+1u)*32768u/100u &&
         cgs.energy==density && cgs.take_revision==mix_revision);
-    ui_select(-1);
+    ui_algo(-1);
     cf_knob_t level={0};
     cgu_knob_info(0,&level);
     CHECK(!strcmp(level.name,CGS_PART_NAME[CGS_CHORDS]));
@@ -2324,9 +2336,10 @@ static void custom_progression_studio(void)
     memset(&cfds,0,sizeof cfds);
     cfd_view_update();
     unsigned original=cpa.plan.idea,grid=cf_grid.gen;
-    ui_algo((int)cgu_studio_tile(0,CGU_BAND_PROGRESSION)-(int)cgu_active_rack_tile());
+    ui_algo((int)cgu_studio_tile(0,CGU_BAND_SONG)-(int)cgu_active_rack_tile());
     ui_button(B_SCL);
-    CHECK(cgu_progression_panel() && !cgs.custom);
+    ui_select(-1);
+    CHECK(cgu_progression_page() && !cgs.custom);
     ui_button(B_EDIT);
     CHECK(cu.scr==SCR_PEDIT && cfdu.studio && cfwd.have && cfwd.song.n==1);
     ui_select(-1);
@@ -2351,7 +2364,7 @@ static void custom_progression_studio(void)
     cpa_plan_t expected;
     CHECK(cfd_prepare(&expected,cs.chord,CPA_OFF,CPA_BOTH,0,0));
     ui_button(B_PLAY);
-    CHECK(cgu_progression_panel() && !cfdu.studio && cgs.custom && cpa_setup.flags && cpa.plan.idea==original);
+    CHECK(cgu_progression_page() && !cfdu.studio && cgs.custom && cpa_setup.flags && cpa.plan.idea==original);
     CHECK(cpa_setup.plan.studio && cpa_setup.plan.idea==CF_P_DRAFT);
     ticks(CGS_BAR-cpa.t);
     CHECK(cpa.plan.idea==CF_P_DRAFT && cpa.plan.n==2 && cf_grid.gen==grid && cpa.plan.rhythm<DM_N);
@@ -2362,14 +2375,14 @@ static void custom_progression_studio(void)
     ui_capture("studio-custom-progressions");
 
     ui_button(B_HOME);
-    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_PROGRESSION);
+    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_SONG);
     ui_button(B_SCL);
     ui_button(B_EDIT);
     CHECK(cu.scr==SCR_PEDIT);
     ticks(CGS_TICKS);
     CHECK(cpa.plan.idea==CF_P_DRAFT && cpa.slot==1 && cf_grid.gen==grid);
     ui_button(B_HOME);
-    CHECK(cgu_progression_panel() && cgu.progression_pick);
+    CHECK(cgu_progression_page() && cgu.progression_pick);
     ui_knob_turn(0,-1);
     ui_button(B_SCL);
     CHECK(cpa_setup.flags && cpa.plan.idea==CF_P_DRAFT);
@@ -2471,18 +2484,17 @@ static void rack_units_studio(void)
     cf_motion_epoch=0;
     cu.now+=500;
     unsigned part=cgs.focus;
-    ui_algo((int)cgu_studio_tile(0,CGU_BAND_HARMONY)-(int)cgu_active_rack_tile());
+    ui_algo((int)cgu_studio_tile(0,CGU_BAND_ARP)-(int)cgu_active_rack_tile());
     for(unsigned i=0;i<20;i++){
         cu.now+=40;
         blocks(FS/(25u*CTL));
         cf_ui_draw();
     }
     unsigned grid=cf_grid.gen;
-    CHECK(cgu.band_panel==CGU_BAND_HARMONY && cf_stage_last.rack_beat>0 && cf_stage_last.rack_level>0);
-    unsigned harmony_tile=cgu_studio_tile(0,CGU_BAND_HARMONY);
-    int harmony_top=cgu_rack_top(CGU_STUDIO,harmony_tile);
-    CHECK(cf_stage_last.rack_scroll==harmony_top);
-    ui_save_frame("rack-harmony");
+    unsigned arp_tile=cgu_studio_tile(0,CGU_BAND_ARP);
+    CHECK(cgu.band_panel==CGU_BAND_ARP && cf_stage_last.rack_level>0);
+    CHECK(cf_stage_last.rack_scroll==cgu_rack_top(CGU_STUDIO,arp_tile));
+    ui_save_frame("rack-arp");
 
     ui_algo(-1);
     cu.now+=CGU_RACK_SCROLL_MS;
@@ -2537,17 +2549,18 @@ static void rack_units_studio(void)
     ui_button(B_HOME);
     ui_algo(-1);
     ui_button(B_SCL);
-    CHECK(cgu.band_panel==CGU_BAND_PROGRESSION && cgs.zoom && cf_grid.gen==grid);
+    ui_select(-1);
+    CHECK(cgu_progression_page() && cf_grid.gen==grid);
     ui_button(B_HOME);
-    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_PROGRESSION);
+    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_SONG);
 
     cf_motion=0;
     ui_algo(-1);
     ui_button(B_SCL);
     ui_knob_turn(0,1);
     cf_ui_draw();
-    CHECK(cgu.band_panel==CGU_BAND_HARMONY && cf_stage_last.zoom==100 &&
-        !cf_stage_last.rack_lens && !cf_stage_last.rack_beat && !cf_stage_last.rack_level);
+    CHECK(cgu.band_panel==CGU_BAND_SHAPING && cf_stage_last.zoom==100 &&
+        !cf_stage_last.rack_lens);
     cpa_stop();
     cgu_home();
 }
@@ -2728,13 +2741,13 @@ static void rack_navigation(void)
         snprintf(name,sizeof name,"walk-layer-%u",i);
         ui_capture(name);
     }
-    ui_algo((int)cgu_studio_tile(0,CGU_BAND_HARMONY)-(int)cgu_active_rack_tile());
+    ui_algo((int)cgu_studio_tile(0,CGU_BAND_SONG)-(int)cgu_active_rack_tile());
     cu.now+=CGU_RACK_SCROLL_MS;
     int before=cgu_rack_scroll();
     ui_button(B_SCL);
     cu.now+=CGU_RACK_SCROLL_MS;
     ui_button(B_HOME);
-    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_HARMONY && cgu_rack_scroll()==before);
+    CHECK(!cgs.zoom && cgu.band_panel==CGU_BAND_SONG && cgu_rack_scroll()==before);
     ui_select(1);
     CHECK(cgu.tab==CGU_SOUND && !cgs.zoom);
     CHECK(cf_rack_arrival(cgu.tab_ms,RAKT_W*cgu.tab_dir)==RAKT_W);
@@ -2746,11 +2759,12 @@ static void rack_navigation(void)
     cu.now+=CGU_RACK_SCROLL_MS;
     ui_capture("walk-mix");
     CHECK(cgs.zoom);
-    ui_select(-1);
-    CHECK(cgu.tab==CGU_SOUND && cgs.zoom && cgu.mix_fx);
+    ui_algo(1);
+    CHECK(cgu.tab==CGU_SOUND && cgs.zoom && cgu.rack_controls==CGU_RACK_FX_SPACE);
+    ui_algo(-1);
     ui_button(B_SCL);
     ui_select(-1);
-    CHECK(cgu.tab==CGU_STUDIO && !cgs.zoom && cgu.band_panel==CGU_BAND_HARMONY);
+    CHECK(cgu.tab==CGU_STUDIO && !cgs.zoom && cgu.band_panel==CGU_BAND_SONG);
     ui_select(1);
     CHECK(cgu.tab==CGU_SOUND && !cgs.zoom && cgu.rack_controls==CGU_RACK_MIX);
     for(unsigned i=0;i<=6;i++){

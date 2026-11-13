@@ -1052,7 +1052,7 @@ static void ui_presets(int d)                    /* PRESETS: the chord sound (a 
     if(cgs_home()){
         if(cgu.tab==CGU_STUDIO && cgs.zoom && !cgu.band_panel && cgs.focus==CGS_DRUMS)cgu_perform_turn(d);
         else if(cgu.tab==CGU_SOUND){
-            if(cgu.rack_controls==CGU_RACK_MIX)return;
+            if(cgu.rack_controls>=CGU_RACK_MIX)return;
             if(cgs.zoom && !cgu.rack_controls && cgu.sound_page==CGU_PRESETS)cfx_select(d);
             else cgu_sound_step(cgs.focus,d);
         }
@@ -1328,7 +1328,7 @@ static void ui_button(uint32_t b)
             return;
         }
         if(b==B_SEQ && cgu.tab==CGU_SOUND){
-            if(cgu.rack_controls==CGU_RACK_MIX)return;
+            if(cgu.rack_controls>=CGU_RACK_MIX)return;
             if(cgs.zoom && !cgu.rack_controls)cgu_sound_page_turn(1);
             else cgu.all_sounds^=1u;
             return;
@@ -1358,7 +1358,7 @@ static void ui_button(uint32_t b)
             if(cgu.tab==CGU_SOUND && cgs.zoom && cgu.rack_controls==CGU_RACK_LIBRARY && !cgu.all_sounds){cgu_apply_palette();return;}
 #endif
             if(cgu.tab==CGU_SOUND && cgs.zoom && !cgu.rack_controls && cgu.sound_page==CGU_PRESETS)cfx_recall();
-            else if(cgu_progression_panel())(void)cgs_select_progression(cgu.progression_pick,0);
+            else if(cgu_progression_page())(void)cgs_select_progression(cgu.progression_pick,0);
             else cgu_set_zoom(!cgs.zoom);
             return;
         }

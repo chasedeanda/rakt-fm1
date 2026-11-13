@@ -770,7 +770,7 @@ typedef struct {
     uint32_t ac_revision,ac_mask[CF_P_MAX];
     uint8_t ac_n,ac_root[CF_P_MAX],ac_degree[CF_P_MAX];
     int8_t ac_bass_pc[CF_P_MAX];
-    uint8_t ac_waiting, ac_lost, ac_beat, studio_arp_step;
+    uint8_t ac_waiting, ac_lost, studio_arp_step;
     uint8_t ac_kit, ac_swing, ac_repeat_off, ac_next_beats, ac_next_mode, ac_next_kit, ac_next_swing, ac_next_repeat_off;
     uint8_t ac_on, ac_paused, ac_slot, ac_idea, ac_tonic, ac_scale, ac_beats, ac_rhythm, ac_mode, ac_next, ac_edits, ac_next_tonic, ac_next_scale, ac_next_rhythm;
     cf_chord_out_t out;          /* the chord model's answer */
@@ -854,7 +854,6 @@ static void cf_snapshot(void)
     cf_sn.ac_next_kit=next->kit; cf_sn.ac_next_swing=next->swing; cf_sn.ac_next_repeat_off=next->repeat_off;
     cf_sn.studio_keys=CF_STUDIO && cgs.focus<CGS_DRUMS?cf_sounding_panel_keys(cgs.focus):0;
     if(CF_STUDIO){
-        cf_sn.ac_beat=(uint8_t)(cpa.t/SQ_PPQN);
         const cfa_t *arp=cgs_band_arp(cgs.focus)?&cfa_sq[cgs.focus==CGS_LAYER]:&cfa_k;
         cf_sn.studio_arp_step=arp->on && arp->n && arp->seen?(uint8_t)(1u+((arp->count-1u)&15u)):0;
     }

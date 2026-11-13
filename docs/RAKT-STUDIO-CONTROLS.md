@@ -10,7 +10,7 @@ The arrow and the light strip on the right show the selected unit and its positi
 
 ### Rack design
 
-The rack shares the startup screen's graphite rails, slotted screws, recessed displays, and four-pixel gaps. The units have their own faceplate heights, finishes, and controls.
+The rack shares the startup screen's graphite rails, slotted screws, recessed displays, and four-pixel gaps. Faceplates use distinct waves and contour patterns alongside woven grilles and glitter.
 
 | Unit | Hardware | Readout |
 | --- | --- | --- |
@@ -19,11 +19,13 @@ The rack shares the startup screen's graphite rails, slotted screws, recessed di
 | Bass | Dark slate face and inset rubber knobs | Style or patch and a green activity display |
 | Drums | Taller steel-grey face with a row of trigger lamps | Style or kit, plus Kick, Snare, Hats and Percussion hits |
 | Layer | Slim plum face with horizontal faders | Style or patch and the part's level |
-| Harmony, Generator, ARP and Progression | Separate nickel, green, violet and graphite plates | Beat, output, arpeggiator step and chord slot |
+| Generator | Green face with a wave pattern | Arrangement, Groove and output level |
+| ARP | Violet glitter face | Chords or Layer, Pattern or Timing, and arpeggiator step |
 | Mix | Four-channel fader bank from the startup rack | Set levels and muted channels |
+| FX Space | Blue glitter face with a single amount knob | Scale the band's chorus, delay and reverb |
 | Record | Full-width, two-bar lanes and a Saved Takes unit | Notes, hits, playhead and take slots |
 
-The right-side rack index shows which units are visible. Tabs slide into the cabinet. A detail page slides its controls beneath the fixed faceplate. Motion Off settles the layout immediately.
+The right-side rack index shows which units are visible. Tabs slide into the cabinet. A detail page slides its controls beneath the fixed faceplate. The ARP and FX Space faces twinkle while selected. Motion Off settles the layout immediately and keeps the glitter still.
 
 ### Genre
 
@@ -38,9 +40,9 @@ On **Generator** or **Song**, turn **K1** to choose a genre. **PRESETS** also wo
 | Lo-Fi | Soft keys, a late bass pocket, half-time drums and short melodic fragments |
 | Ambient Soundscape | Slow harmony, pedal bass, sparse percussion and evolving swells |
 
-### Harmony and Generator
+### Song pages and Generator
 
-Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. The Studio rack runs from **Generator**, **Song**, **Harmony**, **Progression**, and **ARP** down to the four musicians. **SEQ** cycles through the first five panels. Highlight **Generator** to change how the band plays. The **Arrangement** tab holds Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
+The Studio rack runs from **Generator**, **Song**, and **ARP** down to the four musicians. **SEQ** cycles through the first three panels. Press **SEL** on **Song**, then turn **SELECT** through **Overview**, **Harmony**, and **Progression**. On **Generator**, the **Arrangement** tab holds Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
 
 | Page | Knob | What it changes |
 | --- | --- | --- |
@@ -65,9 +67,9 @@ Zoom into a musician and press **EDIT** to regenerate that part on the next sixt
 
 ### Custom progression
 
-Highlight **Progression** and press **SEL** to open it. Press **EDIT** to open your draft. The first draft starts with a one-bar tonic chord. In the editor, **ALGORITHM** picks a chord slot and **SELECT** changes pages. The chord page edits degree, quality, color and length. The other pages expose timing, inversion, bass and phrase actions. On **Phrase**, choose Insert or Duplicate with **K1** and press **SEL** to add a slot.
+Press **SEL** on **Song** and turn **SELECT** to **Progression**. Press **EDIT** to open your draft. The first draft starts with a one-bar tonic chord. In the editor, **ALGORITHM** picks a chord slot and **SELECT** changes pages. The chord page edits degree, quality, color and length. The other pages expose timing, inversion, bass and phrase actions. On **Phrase**, choose Insert or Duplicate with **K1** and press **SEL** to add a slot.
 
-Press **PLAY** in the editor to use the draft for all four musicians. If the band is already playing, the new progression starts at the next bar. The band keeps the draft’s chords, durations and meter when you regenerate a part. Drafts support 3/4, 4/4 and 6/8 in Studio and checkpoint using the existing draft storage when the unit is idle. To switch sources, open the **Progression** faceplate, turn **K1** to Bank or My draft, and press **SEL**.
+Press **PLAY** in the editor to use the draft for all four musicians. If the band is already playing, the new progression starts at the next bar. The band keeps the draft’s chords, durations and meter when you regenerate a part. Drafts support 3/4, 4/4 and 6/8 in Studio and checkpoint using the existing draft storage when the unit is idle. To switch sources, open **Song → Progression**, turn **K1** to Bank or My draft, and press **SEL**.
 
 ### Musician panel
 
@@ -148,13 +150,15 @@ A highlighted Sound musician shows the Tone controls. Zoom in and turn **SELECT*
 
 Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit. Sends shows a preview of the selected musician’s drive curve, chorus sweep, delay taps and reverb tail. Each graph responds to that musician’s knob. Press **FX** from any rack tab to open FX Presets. Turn **K1** or **PRESETS** to highlight a preset and press **SEL** to apply it to the highlighted musician. Turn **ALGORITHM** to switch musicians. Each musician keeps its own FX chain through patch changes, new takes, and restarts. Use **SELECT** to turn to Sends or another Sound page. **SAVE** opens preset management. Press **EDIT** on FX Presets to open the EQ and effects editor for the loaded preset. **LFO** from a zoomed pitched musician opens its detailed synth editor.
 
-Highlight **Mix** in Sound and press **SEL**. Use **K1–K4** for part levels, or turn **SELECT** to **FX Space** and use **K1** to scale the band’s chorus, delay and reverb together. Use the individual **Sends** pages to set which parts get each effect.
+In Sound, highlight **Mix** to set part levels with **K1–K4**. Turn **ALGORITHM** one step past Mix to **FX Space** and use **K1** to scale the band’s chorus, delay and reverb together. Use the individual **Sends** pages to set which parts get each effect.
 
 ## Arpeggiator
 
-Press **ARP** to open the Pattern page directly, or find the ARP unit with **SEQ** and open it with **SEL**. The panel starts on Chords when Bass or Drums was selected. Turn **SELECT** to switch between Chords and Layer. **K1 Arp For** chooses Off, Keys, Band or Auto. Keys arpeggiates the notes you hold. Band plays that musician’s chord tones with your ARP settings. Auto shows the mode, octave span and rate chosen by the generator when the musician has an arpeggio. Selecting Off, Keys or Band overrides Auto for that musician. In Keys and Band, **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
+Press **ARP** to open **Pattern**. Press **ARP** again to switch to **Timing**, and again to return to **Pattern**. Turn **SELECT** on either page to switch between Chords and Layer. The highlighted name on the faceplate shows whose arpeggiator you’re controlling. If Bass or Drums was selected, the panel opens on Chords. You can also find the ARP unit with **SEQ** and open it with **SEL**.
 
-Press **ARP** while zoomed in to switch between the **Pattern** and **Timing** tabs. **K1 Gate** sets how much of each step a note occupies, **K2 Swing** shifts alternating steps, **K3 Latch** keeps the arpeggio going after key release, and **K4 Glide** sets the Chords glide time.
+On **Pattern**, **K1 Trigger** sets the selected musician to Off, Keys, Band or Auto. Keys arpeggiates the notes you hold. Band plays that musician’s chord tones with your ARP settings. Auto shows the mode, octave span and rate chosen by the generator when the musician has an arpeggio. Selecting Off, Keys or Band overrides Auto for that musician. Chords and Layer share the manual pattern and timing settings. **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
+
+On **Timing**, **K1 Gate** sets how much of each step a note occupies, **K2 Swing** shifts alternating steps, **K3 Latch** keeps the arpeggio going after key release, and **K4 Glide** sets the Chords glide time.
 
 ## Record and Help
 
