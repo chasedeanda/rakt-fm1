@@ -1316,7 +1316,7 @@ static void ui_button(uint32_t b)
             return;
         }
         if(b==B_ARP){
-            cgu_open_arp();return;
+            cgu_arp_button();return;
         }
         if(b==B_FX){
             if(cgu.tab!=CGU_SOUND)cgu_tab_turn(CGU_SOUND-cgu.tab);
