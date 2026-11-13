@@ -32,12 +32,13 @@ static void cgu_glow_map(const cgu_glow_model_t *m)
 {
     static const char notes[]="FGABCDEFGABCDEFG";
     static const char *const actions[]={
-        "Pause","Restart","Unmute","Tap","Fill hold","Fill bar","Drop","Riser","Repeat","Echo out","HP sweep"
+        "Unmute","Tap","Fill hold","Fill bar","Drop","Riser","Repeat","Ambience","Radio","Low Pass"
     };
     for(int black=0;black<=1;black++){
         for(unsigned key=0;key<CF_NKEYS;key++){
             if(cf_key_is_upper(key)!=black)continue;
             unsigned p=cgu_glow_place(key,black);
+            unsigned drum=black?cgu_glow_drum(p):NELEM(CGU_GLO_DRUMS);
             unsigned white=black?cgu_glow_place(key,0):p;
             int x=8+(int)white*224/16;
             int width=13;
@@ -52,13 +53,14 @@ static void cgu_glow_map(const cgu_glow_model_t *m)
                 unsigned length=black?0:5;
                 str_cpy(name+length,CGS_PART_NAME[part],sizeof name-length);
                 on=black?(m->muted&bit)!=0:(m->solo&bit)!=0;
-            } else if(black && p>=6u && p<10u){
-                str_cpy(name,CGU_GLO_DRUMS[p-6u],sizeof name);
+            } else if(black && drum<NELEM(CGU_GLO_DRUMS)){
+                str_cpy(name,CGU_GLO_DRUMS[drum],sizeof name);
                 accent=CGU_INK_BASE+CGS_DRUMS;
-                on=(m->drums>>(p-6u))&1u;
-            } else if(!black && p<=CGU_GLO_SWEEP){
-                const char *label=actions[p-CGU_GLO_PAUSE];
-                if(p==CGU_GLO_PAUSE && m->paused)label="Resume", on=1;
+                on=(m->drums>>drum)&1u;
+            } else if(black && (p==CGU_GLO_HYPE || p==CGU_GLO_PHASER)){
+                str_cpy(name,p==CGU_GLO_HYPE?"Hype":"Phaser",sizeof name);
+            } else if(!black && p>=CGU_GLO_UNMUTE && p<=CGU_GLO_LOW_PASS){
+                const char *label=actions[p-CGU_GLO_UNMUTE];
                 if(p==CGU_GLO_FILL_BAR && m->pending==CFPERF_FILL)on=1;
                 if(p==CGU_GLO_DROP && (m->dropped || m->pending==CFPERF_DROP))label="Bring back", on=1;
                 str_cpy(name,label,sizeof name);
@@ -104,12 +106,16 @@ static void cgu_glow_state(const cgu_glow_model_t *m)
         cfn_center(&CFN_11,x+26,118,CGU_GLO_DRUMS[i],ink);
     }
     fb_hline(12,136,216,CGU_METAL+4);
-    cfn_text(&CFN_12,13,150,"C4 Pause / resume    D4 Restart",FL_INK2);
-    cfn_text(&CFN_12,13,163,"E4 Unmute all    F4 Tap tempo",FL_INK2);
-    cfn_text(&CFN_12,13,176,"G4 Fill held    A4 Fill next bar",FL_INK2);
-    cfn_text(&CFN_12,13,189,"B4 Drop / bring back drums",FL_INK2);
-    cfn_text(&CFN_12,13,202,"C5 Riser    D5 Beat Repeat",FL_INK2);
-    cfn_text(&CFN_12,13,215,"E5 Echo Out    F5 High-pass sweep",FL_INK2);
+    static const char *const keys[]={
+        "E4 Unmute all    F4 Tap tempo",
+        "G4 Fill held    A4 Fill next bar",
+        "B4 Drop / bring back drums",
+        "C5 Riser    D5 Beat Repeat",
+        "E5 Ambience   F5 Radio   G5 LP",
+        "D#5 Hype    F#5 Phaser",
+    };
+    for(unsigned i=0;i<sizeof keys/sizeof keys[0];i++)
+        cfn_text(&CFN_12,13,150+13*(int)i,keys[i],FL_INK2);
 }
 
 static void cgu_glow_header(const cgu_glow_model_t *m)
@@ -154,7 +160,7 @@ static void cgu_glow_draw(void)
     m.ext=cs.clock_in==1u;
     m.bpm=m.ext?cf_sn.ext_bpm:cs.bpm;
     m.view=cgu_glow.view;
-    for(unsigned i=0;i<=CGU_GLO_SWEEP;i++)m.ready|=(uint16_t)(cgu_glow_ready(i)<<i);
+    for(unsigned i=0;i<=CGU_GLO_LOW_PASS;i++)m.ready|=(uint16_t)(cgu_glow_ready(i)<<i);
     m.muted=cgs.muted;
     m.cut=(uint8_t)cgs_mute_mask();
     m.solo=cgs.solo|cgs.held_solo;

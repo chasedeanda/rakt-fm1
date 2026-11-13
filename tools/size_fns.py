@@ -26,8 +26,8 @@ SIZE_FILES = ["ui.c", "favorites.c", "icons.c", "ui_graph.c", "ui_draw.c", "ui_m
               "cf_rack_units.c", "cf_rack_style.c", "cf_boot_rakt.c", "cf_glow_view.c", "cf_style.c",
               "cf_arp_ui.c", "cf_keyboard_learn.c", "cf_library_screen.c", "cf_seqv.c", "cf_dmv.c",
               "cf_views.c", "cf_diag_view.c", "cf_variation_view.c", "cf_draw.c", "cf_mascot.c",
-              "cf_sequi.c", "cf_dmui.c", "cf_library_ui.c", "cf_library_store.c", "cf_settings.c",
-              "cf_acc_screen.c", "cf_workspace.c", "cf_workspace_view.c", "cf_studio_ui.c",
+              "cf_sequi.c", "cf_dmui.c", "cf_library_ui.c", "cf_library_store.c", "cf_record_store.c", "cf_settings.c",
+              "cf_acc_screen.c", "cf_workspace.c", "cf_workspace_view.c", "cf_studio_ui.c", "cf_engine_ui.c",
               "cf_accomp_ui.c", "cf_home_banks.c", "cf_ui.c", "cf_acc_ui.c",
               "cf_edit.c", "cf_fxui.c", "cf_fx_presets_ui.c", "cf_lab_ui.c",
               "cf_browser_ui.c", "cf_draft_ui.c"]

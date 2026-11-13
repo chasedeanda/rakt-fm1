@@ -239,31 +239,31 @@ static void cfx_filter_coefs(cfx_dsp_t *dsp)
     dsp->fa3 = CFX_MUL(g, dsp->fa2, 16);
 }
 
+static void cfx_filter_side(cfx_dsp_t *dsp, unsigned c, unsigned type, int32_t *b, uint32_t n)
+{
+    int32_t a1=dsp->fa1, a2=dsp->fa2, a3=dsp->fa3, k=dsp->fk;
+    int32_t s0=dsp->fs[c][0], s1=dsp->fs[c][1];
+    for(unsigned i=0;i<n;i++){
+        int32_t x=b[i], v3=x-s1;
+        int32_t v1=(int32_t)(((int64_t)a1*s0+(int64_t)a2*v3)>>15);
+        int32_t v2=s1+(int32_t)(((int64_t)a2*s0+(int64_t)a3*v3)>>15);
+        s0=2*v1-s0;
+        s1=2*v2-s1;
+        b[i]=type==0?v2:type==1?CFX_MUL(k,v1,14):x-CFX_MUL(k,v1,14)-v2;
+    }
+    dsp->fs[c][0]=s0;
+    dsp->fs[c][1]=s1;
+}
+
 static void cfx_filter(cfx_dsp_t *dsp, unsigned type, int32_t *l, int32_t *r, uint32_t n)
 {
-    int32_t a1, a2, a3, k = dsp->fk;
-    uint32_t c, i;
-    if (dsp->fg != dsp->fg_t || !dsp->fa1) {               /* the cutoff glides: a quarter of the way a block */
-        int32_t d = dsp->fg_t - dsp->fg;
-        dsp->fg += d / 4 ? d / 4 : d;
+    if(dsp->fg!=dsp->fg_t || !dsp->fa1){
+        int32_t d=dsp->fg_t-dsp->fg;
+        dsp->fg+=d/4?d/4:d;
         cfx_filter_coefs(dsp);
     }
-    a1 = dsp->fa1;
-    a2 = dsp->fa2;
-    a3 = dsp->fa3;
-    for (c = 0; c < 2u; c++) {
-        int32_t *b = c ? r : l, s0 = dsp->fs[c][0], s1 = dsp->fs[c][1];
-        for (i = 0; i < n; i++) {
-            int32_t x = b[i], v3 = x - s1;
-            int32_t v1 = (int32_t)(((int64_t)a1 * s0 + (int64_t)a2 * v3) >> 15);
-            int32_t v2 = s1 + (int32_t)(((int64_t)a2 * s0 + (int64_t)a3 * v3) >> 15);
-            s0 = 2 * v1 - s0;
-            s1 = 2 * v2 - s1;
-            b[i] = type == 0 ? v2 : type == 1 ? CFX_MUL(k, v1, 14) : x - CFX_MUL(k, v1, 14) - v2;
-        }
-        dsp->fs[c][0] = s0;
-        dsp->fs[c][1] = s1;
-    }
+    cfx_filter_side(dsp,0,type,l,n);
+    cfx_filter_side(dsp,1,type,r,n);
 }
 
 static void cfx_dist(cfx_dsp_t *dsp, int32_t *l, int32_t *r, uint32_t n)
@@ -873,79 +873,163 @@ static __attribute__((noinline)) void cfx_repeat_mix(int32_t *l,int32_t *r,uint3
     }
 }
 
-/* Echo Out uses a short, dark mono delay. In GLO the ring follows the mix.
- * Holding the key cuts the dry signal and replaces the input with decaying feedback. */
-#define CFX_ECHO_DS 16u
-#define CFX_ECHO_CAP 384u
-#define CFX_ECHO_FADE 128
-static volatile uint16_t cfx_echo_request;
-static volatile uint8_t cfx_echo_listen;
-static int8_t cfx_echo_buf[CFX_ECHO_CAP];
-static unsigned cfx_echo_pos, cfx_echo_filled, cfx_echo_len, cfx_echo_sub;
-static int32_t cfx_echo_sum, cfx_echo_from, cfx_echo_to, cfx_echo_wet;
+/* Four input diffusers feed four damped delay lines. Reads are gated
+ * by the age of the room, so the rings need no boot-time clear. */
+#define CFX_AMBIENCE_DS 4u
+#define CFX_AMBIENCE_TAIL (FS*4u/CFX_AMBIENCE_DS)
+#define CFX_AMBIENCE_MAX_DELAY 2237u
+static volatile uint8_t cfx_ambience_held;
+static int16_t cfx_ambience_buf[73+113+163+223+641+1093+1549+CFX_AMBIENCE_MAX_DELAY] __attribute__((section(".glo_echo")));
+static const uint16_t CFX_AMBIENCE_LEN[]={73,113,163,223,641,1093,1549,CFX_AMBIENCE_MAX_DELAY};
+static unsigned cfx_ambience_pos[8], cfx_ambience_age, cfx_ambience_tail;
+static int32_t cfx_ambience_damp[4], cfx_ambience_last[2], cfx_ambience_mix;
+static struct { int32_t x1,x2,y1,y2; } cfx_ambience_eq[4];
 
-static __attribute__((noinline)) void cfx_echo_mix(int32_t *l,int32_t *r,uint32_t n)
+/* Butterworth sections at FS/4, in Q14. The send uses a 125 Hz high-pass
+ * and a 2.3 kHz low-pass. The stereo return rolls off above 2 kHz. */
+static __attribute__((noinline)) int32_t cfx_ambience_filter(unsigned i,int32_t x)
 {
-    unsigned request=cfx_echo_request;
-    int32_t wet=cfx_echo_wet;
-    if(!cfx_echo_listen && !wet){
-        cfx_echo_filled=cfx_echo_sub=0;
-        cfx_echo_sum=cfx_echo_from=cfx_echo_to=0;
-        return;
-    }
-    if(request)cfx_echo_len=request;
-    for(unsigned i=0;i<n;i++){
-        unsigned pos=cfx_echo_pos, sub=cfx_echo_sub;
-        if(!sub && (request || wet)){
-            cfx_echo_from=cfx_echo_to;
-            unsigned read=pos+CFX_ECHO_CAP-cfx_echo_len;
-            if(read>=CFX_ECHO_CAP)read-=CFX_ECHO_CAP;
-            cfx_echo_to=cfx_echo_len<=cfx_echo_filled?cfx_slice_decode(cfx_echo_buf[read]):0;
-        }
-        int32_t live=(l[i]+r[i])>>1;
-        if(request)wet+=wet<CFX_ECHO_FADE;
-        else wet-=wet>0;
-        if(wet){
-            int32_t echo=cfx_echo_from+((cfx_echo_to-cfx_echo_from)*(int32_t)sub>>4);
-            int32_t tail=echo*3/4;
-            live+=((tail*3/4-live)*wet)>>7;
-            l[i]+=((tail-l[i])*wet)>>7;
-            r[i]+=((tail-r[i])*wet)>>7;
-        }
-        cfx_echo_sum+=live;
-        cfx_echo_sub=(sub+1u)&(CFX_ECHO_DS-1u);
-        if(!cfx_echo_sub){
-            cfx_echo_buf[pos]=cfx_slice_encode(cfx_echo_sum>>4);
-            cfx_echo_sum=0;
-            cfx_echo_pos=pos+1u==CFX_ECHO_CAP?0:pos+1u;
-            cfx_echo_filled+=cfx_echo_filled<CFX_ECHO_CAP;
-        }
-    }
-    cfx_echo_wet=wet;
+    static const int16_t coefs[][3]={{15579,31119,-14814},{3615,5005,-3082},{2904,8335,-3567}};
+    const int16_t *k=coefs[i>2u?2u:i];
+    __typeof__(cfx_ambience_eq[0]) *s=&cfx_ambience_eq[i];
+    int32_t sum=x+s->x2+(i==0?-2:2)*s->x1;
+    int32_t y=(int32_t)(((int64_t)k[0]*sum+(int64_t)k[1]*s->y1+(int64_t)k[2]*s->y2)/16384);
+    s->x2=s->x1;
+    s->x1=x;
+    s->y2=s->y1;
+    s->y1=y;
+    return y;
 }
 
-static volatile uint16_t cfx_sweep_step;
-static uint32_t cfx_sweep_phase;
-static int32_t cfx_sweep_low[2];
+static __attribute__((noinline)) void cfx_ambience_render(int32_t *l,int32_t *r,uint32_t n,int studio)
+{
+    int held=cfx_ambience_held;
+    for(unsigned i=0;i<n;i+=CFX_AMBIENCE_DS){
+        int32_t sum=0, z[8];
+        for(unsigned j=0;j<CFX_AMBIENCE_DS;j++)sum+=l[i+j]+r[i+j];
+        if(studio){
+            /* Drums are the last Studio mixer part. Feed 36% into the room. */
+            const int32_t (*drum_bus)[CTL]=cfx_part_mix[CF_FX_PARTS-1u];
+            int32_t drums=0;
+            for(unsigned j=0;j<CFX_AMBIENCE_DS;j++)
+                drums+=drum_bus[0][i+j]+drum_bus[1][i+j];
+            sum-=(drums*41)>>6;
+        }
+        cfx_ambience_mix+=clamp((held?384:0)-cfx_ambience_mix,-1,1);
+        if(held)cfx_ambience_tail=CFX_AMBIENCE_TAIL;
+        else if(cfx_ambience_tail)cfx_ambience_tail--;
+        int32_t source=cfx_ambience_filter(1,cfx_ambience_filter(0,sum>>3));
+        int32_t feed=(source*clamp(cfx_ambience_mix,0,224))/1024;
+        int16_t *ring=cfx_ambience_buf;
+        for(unsigned k=0;k<8;k++){
+            unsigned len=CFX_AMBIENCE_LEN[k];
+            z[k]=cfx_ambience_age>=len?ring[cfx_ambience_pos[k]]:0;
+            ring+=len;
+        }
+        int32_t wet_l=z[4]+z[5]-z[6]+z[7];
+        int32_t wet_r=z[4]-z[5]+z[6]+z[7];
+        int32_t scale=(cfx_ambience_tail>4096u?4096:(int32_t)cfx_ambience_tail)*584>>12;
+        wet_l=cfx_ambience_filter(2,wet_l*scale>>8);
+        wet_r=cfx_ambience_filter(3,wet_r*scale>>8);
+        int32_t dl=wet_l-cfx_ambience_last[0], dr=wet_r-cfx_ambience_last[1];
+        int32_t dry=256-((cfx_ambience_mix*11)>>7);
+        for(unsigned j=0;j<CFX_AMBIENCE_DS;j++){
+            unsigned at=i+j;
+            l[at]=(l[at]*dry>>8)+cfx_ambience_last[0]+(dl*(int32_t)(j+1u)>>2);
+            r[at]=(r[at]*dry>>8)+cfx_ambience_last[1]+(dr*(int32_t)(j+1u)>>2);
+        }
+        cfx_ambience_last[0]=wet_l;
+        cfx_ambience_last[1]=wet_r;
+        int32_t house=(z[4]+z[5]+z[6]+z[7])/2;
+        ring=cfx_ambience_buf;
+        for(unsigned k=0;k<8;k++){
+            unsigned pos=cfx_ambience_pos[k], len=CFX_AMBIENCE_LEN[k];
+            int32_t x;
+            if(k<4){
+                x=feed-z[k]/2;
+                feed=z[k]+x/2;
+            }else{
+                int32_t *d=&cfx_ambience_damp[k-4];
+                *d+=(house-z[k]-*d)/2;
+                x=(k&1u?-feed:feed)+*d*13/16;
+            }
+            ring[pos]=(int16_t)clamp(x,-32767,32767);
+            cfx_ambience_pos[k]=pos+1u==len?0:pos+1u;
+            ring+=len;
+        }
+        if(cfx_ambience_age<CFX_AMBIENCE_MAX_DELAY)cfx_ambience_age++;
+    }
+    if(!cfx_ambience_tail){
+        cfx_ambience_age=0;
+        cfx_ambience_last[0]=cfx_ambience_last[1]=0;
+        memset(cfx_ambience_damp,0,sizeof cfx_ambience_damp);
+        memset(cfx_ambience_eq,0,sizeof cfx_ambience_eq);
+    }
+}
 
-/* Raise the high-pass cutoff over two beats, then ease its low end back in. */
+static volatile uint32_t cfx_sweep_request;
+static uint32_t cfx_sweep_phase, cfx_sweep_step;
+static int32_t cfx_sweep_wet;
+static unsigned cfx_sweep_type;
+static cfx_dsp_t cfx_sweep;
+static volatile uint8_t cfx_hype_held, cfx_glo_phase_held;
+static int32_t cfx_hype_wet;
+
+static __attribute__((noinline)) void cfx_hype_render(int32_t *l,int32_t *r,uint32_t n)
+{
+    int32_t wet=cfx_hype_wet, target=cfx_hype_held?32768:0;
+    int32_t *side[]={l,r};
+    for(unsigned c=0;c<2;c++){
+        int32_t *out=side[c];
+        wet=cfx_hype_wet;
+        for(unsigned i=0;i<n;i++){
+            int32_t x=out[i], driven=softclip(clamp(x,-65536,65536)*13)/3;
+            wet+=clamp(target-wet,-140,140);
+            out[i]=x+CFX_MUL(driven-x,wet,15);
+        }
+    }
+    cfx_hype_wet=wet;
+}
+
+/* Cycle the cutoff once a beat, with opposite motion in each ear.
+ * Build to full depth over one beat, then return to dry on release. */
 static __attribute__((noinline)) void cfx_sweep_mix(int32_t *l,int32_t *r,uint32_t n)
 {
-    const unsigned release=CFX_RISER_TOP/(FS/30u);
-    unsigned step=cfx_sweep_step,phase=cfx_sweep_phase;
-    for(unsigned i=0;i<n;i++){
-        if(step)phase=phase+step<CFX_RISER_TOP?phase+step:CFX_RISER_TOP;
-        else phase=phase>release?phase-release:0;
-        int32_t level=phase>>16;
-        int32_t coeff=2+(level*level>>9);
-        int32_t wet=level<32?level*8:256;
-        cfx_sweep_low[0]+=(l[i]-cfx_sweep_low[0])*coeff>>8;
-        cfx_sweep_low[1]+=(r[i]-cfx_sweep_low[1])*coeff>>8;
-        l[i]-=cfx_sweep_low[0]*wet>>8;
-        r[i]-=cfx_sweep_low[1]*wet>>8;
+    unsigned request=cfx_sweep_request;
+    unsigned type=request&3u;
+    int32_t target=request && type==cfx_sweep_type?32768:0;
+    if(!cfx_sweep_wet && request){
+        cfx_sweep_type=type;
+        cfx_sweep_step=request&~3u;
+        target=32768;
     }
-    cfx_sweep_phase=phase;
-    if(!phase)cfx_sweep_low[0]=cfx_sweep_low[1]=0;
+    int32_t wet=cfx_sweep_wet;
+    cfx_sweep_phase+=cfx_sweep_step*n;
+    int32_t swing=osc_sine(cfx_sweep_phase)>>3;
+    int32_t attack=(int32_t)(cfx_sweep_step>>17)+1;
+    unsigned radio=cfx_sweep_type==2u;
+    unsigned center=radio?48u:26u;
+    cfx_sweep.fk=CFX_K[18];
+    for(unsigned c=0;c<2;c++){
+        int32_t *out=c?r:l;
+        memcpy(cfx_dry[c],out,n*sizeof(*out));
+        unsigned cutoff=(int32_t)(center*256)+(c?swing:-swing);
+        unsigned index=cutoff>>8;
+        cfx_sweep.fg=CFX_G[index]+((CFX_G[index+1]-CFX_G[index])*(int32_t)(cutoff&255u)>>8);
+        cfx_filter_coefs(&cfx_sweep);
+        cfx_filter_side(&cfx_sweep,c,radio,out,n);
+        wet=cfx_sweep_wet;
+        for(unsigned i=0;i<n;i++){
+            wet+=clamp(target-wet,-180,attack);
+            int32_t dry=cfx_dry[c][i];
+            out[i]=dry+CFX_MUL(out[i]-dry,wet,15);
+        }
+    }
+    cfx_sweep_wet=wet;
+    if(!wet){
+        cfx_sweep_phase=0;
+        memset(cfx_sweep.fs,0,sizeof cfx_sweep.fs);
+    }
 }
 
 static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n)
@@ -955,8 +1039,15 @@ static void cf_fx_chain(int32_t *l, int32_t *r, uint32_t n)
     if (cfx_studio) cfx_studio_mix(l, r, n, ready);
     else if (ready) cfx_master(l, r, n);
     if(cfx_repeat_request || cfx_repeat_count)cfx_repeat_mix(l,r,n);
-    if(cfx_sweep_step || cfx_sweep_phase)cfx_sweep_mix(l,r,n);
-    if(cfx_echo_listen || cfx_echo_wet || cfx_echo_filled || cfx_echo_sub)cfx_echo_mix(l,r,n);
+    if(cfx_sweep_request || cfx_sweep_wet)cfx_sweep_mix(l,r,n);
+    if(cfx_hype_held || cfx_hype_wet)cfx_hype_render(l,r,n);
+    if(cfx_glo_phase_held || cfx_sweep.wg[CFX_PHASER]){
+        cfx_sweep.wt[CFX_PHASER]=cfx_glo_phase_held?32768:0;
+        cfx_sweep.pinc=4300000u;
+        cfx_sweep.pdep=7800;
+        cfx_phaser(&cfx_sweep,l,r,n);
+    }
+    if(cfx_ambience_held || cfx_ambience_tail)cfx_ambience_render(l,r,n,cfx_studio);
     if(cfx_riser_step || cfx_riser_phase)cfx_riser_mix(l,r,n);
 #if CF_VLOAD
     {

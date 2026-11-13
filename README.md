@@ -18,10 +18,10 @@ The recording cheat sheet below shows the current REC workflow.
 
 ## GLO Live cheat sheet
 
-Press **GLO** while the band plays to mix the four parts, cue fills and drum drops, or hold **C5** for Riser, **D5** for Beat Repeat, **E5** for Echo Out, and **F5** for High-pass Sweep. [Download the one-page PDF](docs/RAKT-FM1-GLO-Live.pdf) · [Full GLO controls](docs/RAKT-STUDIO-CONTROLS.md#glo-live)
+Press **GLO** while the band plays to mix the four parts and cue fills or drum drops. The seven hold effects sit together from **C5** to **G5**, including **D♯5** for Hype and **F♯5** for Phaser. [Download the one-page PDF](docs/RAKT-FM1-GLO-Live.pdf) · [Full GLO controls](docs/RAKT-STUDIO-CONTROLS.md#glo-live)
 
 <p align="center">
-  <a href="docs/RAKT-FM1-GLO-Live.pdf"><img src="docs/images/rakt-glo-live.png" width="760" alt="GLO Live cheat sheet with the FM-1 keyboard map, mixer and transport controls, fills and drops, and all four hold-to-use effects"></a>
+  <a href="docs/RAKT-FM1-GLO-Live.pdf"><img src="docs/images/rakt-glo-live.png" width="760" alt="GLO Live cheat sheet with the FM-1 keyboard map, mixer, fills and drops, and seven hold effects"></a>
 </p>
 
 ## How the band plays together

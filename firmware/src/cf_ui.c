@@ -2358,13 +2358,16 @@ static void cf_leds(void)
         if(cgu_glow.active){
             int black=cf_key_is_upper(k);
             unsigned place=cgu_glow_place(k,black);
-            if(black){
+            if(black && place<CGU_GLO_HYPE){
                 if(place<CGS_NPART){
                     unsigned bit=1u<<cgu_part(place);
                     cf_led(cgs_mute_mask()&bit?faint:lit,(uint32_t)id,1);
-                } else if(place>=6u && place<10u)
-                    cf_led(cgs.drum_mutes&(1u<<(place-6u))?faint:lit,(uint32_t)id,1);
-            } else if(cgu_glow_ready(place))
+                } else {
+                    unsigned drum=cgu_glow_drum(place);
+                    if(drum<NELEM(CGU_GLO_DRUMS))
+                        cf_led(cgs.drum_mutes&(1u<<drum)?faint:lit,(uint32_t)id,1);
+                }
+            } else if(black || cgu_glow_ready(place))
                 cf_led(cgu_glow.keys&(1u<<k)?lit:mid,(uint32_t)id,1);
             continue;
         }
