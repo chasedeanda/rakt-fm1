@@ -157,9 +157,8 @@ static int cgs_pick_custom(cpa_plan_t *plan,cgs_pitches_t *pitch,const cf_song_t
         fm1_irq_off();
         const cpa_plan_t *groove=(cpa_edit.flags&CPA_GROOVE)?&cpa_edit.plan:&cpa.plan;
         if(groove->beats==draft->beats && groove->rhythm<DM_N){rhythm=groove->rhythm;swing=groove->swing;}
-        if(cgs.kit_pinned || cgs.genre==cgs.playing_genre)kit=groove->kit;
         fm1_irq_on();
-    } else if(cgs.kit_pinned)kit=cpa_setup.plan.kit;
+    }
     if(!cfd_prepare_song(plan,draft,cfg,rhythm,CPA_BOTH,0,0))return 0;
     plan->kit=(uint8_t)(kit%SQ_NKIT);
     plan->swing=(uint8_t)swing;
@@ -225,7 +224,6 @@ static int cgs_pick(cpa_plan_t *plan, cgs_pitches_t *pitch, cf_chord_cfg_t cfg, 
         if(!cgs_write_harmony(plan,cfg,kit_rhythm))return 0;
         plan->kit=cgs.feel==0?DMK_AIR:cgs.feel==1?DMK_BRUSH:DMK_TAPE;
         plan->kit%=SQ_NKIT;
-        if(cgs.kit_pinned)plan->kit=cgs_active()?cpa.plan.kit:cpa_setup.plan.kit;
         cgs_fit_meter(plan);
         cgs_voice_plan(plan,pitch);
         return cpa_valid(plan);
@@ -249,11 +247,11 @@ static int cgs_pick(cpa_plan_t *plan, cgs_pitches_t *pitch, cf_chord_cfg_t cfg, 
         if(profile->bank_duration_scale!=1)
             for(unsigned j=0;j<plan->n;j++)plan->slot[j].ticks*=profile->bank_duration_scale;
         if(!profile->preserve_bank_kit)plan->kit=(uint8_t)(profile->kit[0]%SQ_NKIT);
-        if(cgs_active() && (cgs.genre==cgs.playing_genre || cgs.kit_pinned)){
+        if(cgs_active() && cgs.genre==cgs.playing_genre){
             const cpa_plan_t *groove=(cpa_edit.flags&CPA_GROOVE)?&cpa_edit.plan:&cpa.plan;
-            plan->rhythm=groove->rhythm; plan->kit=groove->kit;
+            plan->rhythm=groove->rhythm;
             plan->swing=groove->swing; plan->mode=groove->mode;
-        } else if(cgs.ready && !cgs_active() && (cgs.genre==cgs.queued_genre || cgs.kit_pinned) && cpa_setup.plan.studio)plan->kit=cpa_setup.plan.kit;
+        }
         cgs_fit_meter(plan);
         cgs_voice_plan(plan,pitch);
         if(cpa_valid(plan))return 1;
@@ -494,24 +492,13 @@ static void cgs_prepare_sounds(void)
     }
 #endif
 }
-static void cgs_sound_boundary(unsigned tag)
+static void cgs_start_sounds(void)
 {
-    unsigned ready=0;
     for(unsigned part=0;part<CGS_DRUMS;part++){
-        unsigned staged=cf_stage[part].pat;
-        if(!cf_stage[part].ready || (tag==CGS_PATCH_ROLL?!cgs_rolled_patch(staged):staged!=tag))continue;
-        if(cgs_manual(part) || cu.edited[part]){cf_stage[part].ready=0;continue;}
-        if(tag!=CGS_PATCH_STAGE)cgs_release(part);
-        ready|=1u<<(staged-CGS_PATCH_SOLO);
+        if(cf_stage[part].pat==CGS_PATCH_STAGE && (cgs_manual(part) || cu.edited[part]))
+            cf_stage[part].ready=0;
     }
-    if(ready&1u)cf_stage_in(CGS_PATCH_SOLO);
-    if(ready&2u)cf_stage_in(CGS_PATCH_ROLL);
-    if(ready&4u)cf_stage_in(CGS_PATCH_STAGE);
-}
-static void cgs_cancel_rolled_sounds(void)
-{
-    for(unsigned p=0;p<CGS_DRUMS;p++)
-        if(cgs_rolled_patch(cf_stage[p].pat))cf_stage[p].ready=0;
+    cf_stage_in(CGS_PATCH_STAGE);
 }
 enum { CGS_KEEP_FEEL, CGS_NEW_FEEL, CGS_SHUFFLE_TAKE };
 
@@ -628,6 +615,12 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
         cf_message(draft?"Draft needs 3/4, 4/4 or 6/8":"No compatible Studio progression");
         return 0;
     }
+    fm1_irq_off();
+    if(cgs_active() && !cpa_setup.flags)
+        plan.kit=(cpa_edit.flags&CPA_GROOVE)?cpa_edit.plan.kit:cpa.plan.kit;
+    else if(cgs.ready || cgs.kit_pinned)
+        plan.kit=cpa_setup.plan.kit;
+    fm1_irq_on();
     if(draft && !cgs.custom)cgs.bank_meter=(uint8_t)previous_meter;
     if(draft && draft!=&cgs_custom_harmony)cgs_custom_harmony=*draft;
     cgs.custom=(uint8_t)(draft!=NULL);
@@ -775,13 +768,11 @@ static void cgs_knob_info(int k,cf_knob_t *o,unsigned p,int part_detail)
             unsigned value=k==1?cgs.activity[p]:k==2?cgs.level[p]:p==CGS_CHORDS?cf_env_val(p,2):cgs.touch[p];
             kint(o->val,value,"%");o->bar=(int16_t)(value*255u/100u);
         }
-    } else {
-        kfmt(o->name,12,k==0?"SPACE":k==1?"TEMPO":k==2?"ENERGY":"EVOLVE");
-        if(k==1)cgs_tempo_info(o);
-        else {
-            unsigned value=k==0?cgs.space:k==2?cgs.energy:cgs.evolution;
-            kint(o->val,value,"%");o->bar=(int16_t)(value*255u/100u);
-        }
+    } else if(k==1)cgs_tempo_info(o);
+    else if(k==2 || k==3){
+        kfmt(o->name,12,k==2?"DENSITY":"EVOLVE");
+        unsigned value=k==2?cgs.energy:cgs.evolution;
+        kint(o->val,value,"%");o->bar=(int16_t)(value*255u/100u);
     }
 }
 static void cgs_genre_set(unsigned genre)
@@ -789,24 +780,11 @@ static void cgs_genre_set(unsigned genre)
     unsigned was=cgs.genre;
     if(genre==was)return;
     cgs.genre=(uint8_t)genre;
-    if(cgs_new_take(0)){
-        fm1_irq_off();
-        cgs_cancel_rolled_sounds();
-        fm1_irq_on();
-    } else cgs.genre=(uint8_t)was;
+    if(!cgs_new_take(0))cgs.genre=(uint8_t)was;
 }
 static void cgs_genre_turn(int d)
 {
     cgs_genre_set((unsigned)wrapi((int)cgs.genre+d%CGS_NGENRE,CGS_NGENRE));
-}
-
-static void cgs_family_turn(int d)
-{
-    unsigned family=CGS_PROFILES[cgs.genre].family;
-    unsigned next=(unsigned)wrapi((int)family+d%CGS_NFAMILY,CGS_NFAMILY);
-    if(next==family)return;
-    for(unsigned genre=0;genre<CGS_NGENRE;genre++)
-        if(CGS_PROFILES[genre].family==next){cgs_genre_set(genre);return;}
 }
 
 static void cgs_energy_turn(int d)
@@ -844,18 +822,25 @@ static void cgs_energy_turn(int d)
         fm1_irq_on();
     }
 }
+static void cgs_style_turn(unsigned part,int d)
+{
+    if(cgs.style[part]==(d>0))return;
+    cgs.style[part]=(uint8_t)(d>0);
+    cgs_request(part,CGS_STYLE);
+}
+
 static void cgs_knob_turn(int k,int d,int part_detail)
 {
     if(!d)return;
     if(!part_detail){
-        if(k==0)cgs.space=(uint8_t)clampi(cgs.space+d,0,100);
-        else if(k==1)cpa_tempo(d);
+        if(k==1)cpa_tempo(d);
         else if(k==2)cgs_energy_turn(d);
-        else cgs_evolve_turn(d);
+        else if(k==3)cgs_evolve_turn(d);
         return;
     }
     unsigned p=cgs.focus;
-    if(k==3){
+    if(k==0)cgs_style_turn(p,d);
+    else if(k==3){
         if(p==CGS_CHORDS){
             cf_env_set_val(p,2,clampi((int)cf_env_val(p,2)+d,0,100));
             cf_edited(p);
@@ -863,14 +848,10 @@ static void cgs_knob_turn(int k,int d,int part_detail)
         } else cgs.touch[p]=(uint8_t)clampi(cgs.touch[p]+d,0,100);
     } else if(k==2){
         cgs.level[p]=(uint8_t)clampi(cgs.level[p]+d,0,100);
-    } else {
-        if(k==0 && cgs.style[p]==(d>0))return;
-        if(k==0)cgs.style[p]=(uint8_t)(d>0);
-        if(k==1){
-            unsigned activity=(unsigned)clampi(cgs.activity[p]+d,0,100);
-            if(activity==cgs.activity[p])return;
-            cgs.activity[p]=(uint8_t)activity;
-        }
-        cgs_request(p,k==0?CGS_STYLE:CGS_RESHAPE);
+    } else if(k==1){
+        unsigned activity=(unsigned)clampi(cgs.activity[p]+d,0,100);
+        if(activity==cgs.activity[p])return;
+        cgs.activity[p]=(uint8_t)activity;
+        cgs_request(p,CGS_RESHAPE);
     }
 }

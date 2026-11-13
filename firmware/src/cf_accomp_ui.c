@@ -104,7 +104,6 @@ static void cpa_publish(const cpa_plan_t *p, unsigned flags, int setup)
         cpa_setup.flags=0;
         cgs.queued_bpm=0;
         cgs.meter=cpa.plan.beats;
-        cgs_cancel_rolled_sounds();
     }
     if (!setup && cpa.on && (p->idea == cpa.plan.idea || (((flags|cpa_edit.flags)&CPA_PHRASE) && p->idea==CF_P_DRAFT))) {
         cpa_edit.plan = *p; cpa_edit.flags |= flags;

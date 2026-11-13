@@ -18,10 +18,10 @@ The recording cheat sheet below shows the current REC workflow.
 
 ## GLO Live cheat sheet
 
-Press **GLO** while the band plays to mix the four parts, cue fills and drum drops, or hold **C5** for Riser, **D5** for Beat Repeat, **E5** for Echo Out, and **F5** for High-pass Sweep. [Download the one-page PDF](docs/RAKT-FM1-GLO-Live.pdf) · [Full GLO controls](docs/RAKT-STUDIO-CONTROLS.md#glo-live)
+Press **GLO** while the band plays to mix the four parts and cue fills or drum drops. The seven hold effects sit together from **C5** to **G5**, including **D♯5** for Hype and **F♯5** for Phaser. [Download the one-page PDF](docs/RAKT-FM1-GLO-Live.pdf) · [Full GLO controls](docs/RAKT-STUDIO-CONTROLS.md#glo-live)
 
 <p align="center">
-  <a href="docs/RAKT-FM1-GLO-Live.pdf"><img src="docs/images/rakt-glo-live.png" width="760" alt="GLO Live cheat sheet with the FM-1 keyboard map, mixer and transport controls, fills and drops, and all four hold-to-use effects"></a>
+  <a href="docs/RAKT-FM1-GLO-Live.pdf"><img src="docs/images/rakt-glo-live.png" width="760" alt="GLO Live cheat sheet with the FM-1 keyboard map, mixer, fills and drops, and seven hold effects"></a>
 </p>
 
 ## How the band plays together
@@ -32,16 +32,17 @@ Indie also has an eight-bar form. The Layer and hats sit out in bar 5, return in
 
 ## Shape an arrangement
 
-- **Shuffle the song.** Press **EDIT** on the Studio overview for a new progression, parts, key, scale, meter, and tempo drawn from the selected genre. While playing, the new take starts at the next bar. Zoom into a musician to regenerate just that part. [Studio EDIT](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
-- **Set the pace of change.** In **Studio → Shaping**, **Energy** adjusts how busy the free parts are. At 50%, it leaves each part at its own Activity setting. **Evolve** varies one eligible part over time. Set it to 0% to keep the current phrases, or turn on **Hold** in a musician's Evolve page to keep just that phrase while the rest of the band changes. [Shaping and Hold](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
-- **Change the harmony in time.** The Harmony unit queues key and scale changes for the next chord. Meter changes land at the next bar. Studio supports 3/4, 4/4 and 6/8. [Harmony controls](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-shaping)
+- **Shuffle the song.** Press **EDIT** on the Studio overview for a new progression, parts, key, scale, meter, and tempo drawn from the selected genre. While playing, the new take starts at the next bar. Zoom into a musician to regenerate just that part. [Studio EDIT](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-generator)
+- **Shape what the band plays.** In **Studio → Generator**, **Tempo** sets the pace and **Density** adjusts how busy the free parts are. At 50%, Density uses each part's own Activity setting. **Evolve** varies one eligible part over time. Set it to 0% to stop automatic changes, or turn on **Hold** in a musician's Evolve page to keep that phrase while the rest of the band changes. [Generator controls](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-generator)
+- **Change the groove.** Open **Generator** with **SEL** and turn **SELECT** to **Groove**. Adjust **Swing** or choose the **Drums**, **Bass**, and **Chords** playing styles. [Groove controls](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-generator)
+- **Change the harmony in time.** The Harmony unit queues key and scale changes for the next chord. Meter changes land at the next bar. Studio supports 3/4, 4/4 and 6/8. [Harmony controls](docs/RAKT-STUDIO-CONTROLS.md#harmony-and-generator)
 - **Give the band your own chords.** Open **Studio → Progression → EDIT**. Use **ALGORITHM** to choose a slot and the chord page to set its degree, quality, color and length. On the **Phrase** page, choose **Insert** or **Duplicate** with K1 and press **SEL** to add a slot. Press **PLAY** in the editor to put the draft under all four musicians. The draft keeps its chords, durations and meter when you regenerate a part. [Progression editor](docs/RAKT-STUDIO-CONTROLS.md#custom-progression)
 
 ## Give each part its own sound
 
 **Sound → Sound Library** lets you browse within the current genre or open **All sounds**. In Genre mode, **SEL Apply** loads the featured Chords, Bass, Layer and drum kit together. **EDIT** on the Sound overview shuffles tones, kits, and genre-matched FX. Zoom into a musician’s Tone panel to shuffle just that musician’s sound and FX. [Sound library](docs/RAKT-STUDIO-CONTROLS.md#sound) · [Studio Originals listening pack](docs/RAKT-STUDIO-ORIGINALS.md)
 
-Open a part's **Envelope** page to adjust how a pitched sound swells or fades. On **Sends**, set Drive, Chorus, Delay and Reverb for that part. The Studio **Space** control scales the chorus, delay and reverb you have sent to those effects. For example, raise Reverb on Layer and leave the Bass send low to put more depth behind the upper notes. [Sound and effects controls](docs/RAKT-STUDIO-CONTROLS.md#sound)
+Open a part's **Envelope** page to adjust how a pitched sound swells or fades. On **Sends**, set Drive, Chorus, Delay and Reverb for that part. Open **Sound → Mix** and turn **SELECT** to **FX Space** to scale chorus, delay and reverb across the band. [Sound and effects controls](docs/RAKT-STUDIO-CONTROLS.md#sound)
 
 ## Capture a performance
 

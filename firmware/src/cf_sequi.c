@@ -1452,7 +1452,7 @@ static void sq_snd_poll(void)
                 if(part==CF_PART_LAYER)cs.snd_layer=(uint16_t)cf_snd_pos(part);
                 else cs.snd[part]=(uint16_t)cf_snd_pos(part);
             }
-            follow |= part < 2u && (!CF_STUDIO || s->pat!=CGS_PATCH_SOLO);
+            follow |= part < 2u;
         }
         sq_snd_want(cur, part, &e, &pos);
         diff = cf_snd[part].engine != e || cf_snd[part].pos != pos;
