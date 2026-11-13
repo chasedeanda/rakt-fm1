@@ -23,6 +23,7 @@ SIZE_FILES = ["ui.c", "favorites.c", "icons.c", "ui_graph.c", "ui_draw.c", "ui_m
               "cr_ui.c", "cr_edit.c", "cr_draw.c", "cr_gfx.c", "cr_pages.c", "cr_bank.c", "cr_name.c", "cr_settings.c",
               "cr_anim.c", "cr_shim.c",
               "cf_stage.c", "cf_screens.c", "cf_native_pages.c", "cf_lab_screen.c", "cf_draft_screen.c",
+              "cf_rack_units.c", "cf_arp_ui.c",
               "cf_acc_screen.c", "cf_workspace.c", "cf_workspace_view.c", "cf_studio_ui.c",
               "cf_accomp_ui.c", "cf_home_banks.c", "cf_ui.c", "cf_acc_ui.c",
               "cf_edit.c", "cf_fxui.c", "cf_fx_presets_ui.c", "cf_lab_ui.c",

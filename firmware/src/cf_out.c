@@ -855,7 +855,7 @@ static void cf_snapshot(void)
     cf_sn.studio_keys=CF_STUDIO && cgs.focus<CGS_DRUMS?cf_sounding_panel_keys(cgs.focus):0;
     if(CF_STUDIO){
         cf_sn.ac_beat=(uint8_t)(cpa.t/SQ_PPQN);
-        const cfa_t *arp=(cgs.arp&(1u<<cgs.focus))?&cfa_sq[cgs.focus==CGS_LAYER]:&cfa_k;
+        const cfa_t *arp=cgs_band_arp(cgs.focus)?&cfa_sq[cgs.focus==CGS_LAYER]:&cfa_k;
         cf_sn.studio_arp_step=arp->on && arp->n && arp->seen?(uint8_t)(1u+((arp->count-1u)&15u)):0;
     }
     cf_sn.out = cfc.out;
@@ -881,7 +881,10 @@ static void cf_snapshot(void)
     v->mode=av->mode;v->latched=av->latched;v->strum_n=av->sn;v->strum_i=av->si;
     v->source=av==&cfa_k?0:av==&cfa_sq[1]?3:cpa.on?1:2;
     int pushed=av==&cfa_sq[0]?cge_arp_push():0;
+    cf_arp_t saved;
+    int generated=CF_STUDIO && av!=&cfa_k && cgs_arp_push(av->part,&saved);
     v->oct=cfp_cfg.arp.oct;v->rate=cfp_cfg.arp.rate;v->gate=cfp_cfg.arp.gate;v->swing=cfp_cfg.arp.swing;
+    if(generated)cfp_cfg.arp=saved;
     cge_arp_pop(pushed);
     memcpy(v->trace,av->trace,sizeof v->trace);memcpy(v->note,av->note,sizeof v->note);memcpy(v->order,av->order,sizeof v->order);memcpy(v->strum,av->snote,sizeof v->strum);
     cf_sn.ext_clock = cfx_in.active;

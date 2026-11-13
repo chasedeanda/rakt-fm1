@@ -29,7 +29,8 @@ typedef struct {
     uint8_t feel[2][CGS_STEPS];  /* velocity trim in high bits, onset delay in low bits */
     uint32_t seed;             /* repeat the musical choices when shaping the clip */
     cgs_edits_t edits;           /* operations on the second bar of the seed phrase */
-    uint8_t shape_energy, responds, backbeat[2];
+    uint8_t shape_energy, responds, backbeat[2], arp_pattern; /* zero, or a genre ARP mode/rate/span */
+    int8_t transpose;
     uint8_t response_timing[2][CGS_STEPS]; /* Chord openings or planned kick onsets */
 } cgs_clip_t;
 typedef struct { uint8_t note[CF_P_MAX][7]; } cgs_pitches_t;
@@ -51,7 +52,7 @@ static struct {
     uint8_t held_backbeat[2], punk_fill_step, harmony_root, harmony_changed;
     uint16_t harmony_mask;
     uint8_t held_gaps[2][CGS_STEPS], held_kicks[2][CGS_STEPS];
-    uint8_t generation[CGS_NPART], harmony_generation, arp, held_solo;
+    uint8_t generation[CGS_NPART], harmony_generation, arp, arp_auto, arp_manual, held_solo;
     volatile uint8_t drum_mutes, fill_held;
     uint16_t gain[CGS_NPART];
 } cgs;
@@ -69,6 +70,27 @@ static unsigned cgs_rand(uint32_t *seed, unsigned limit)
     x^=x<<13; x^=x>>17; x^=x<<5;
     *seed=x;
     return x%limit;
+}
+static unsigned cgs_band_arp(unsigned part)
+{
+    unsigned bit=1u<<part;
+    return (cgs.arp&bit) || (!cgs.arp && (cgs.arp_auto&bit) && cgs.active[part].arp_pattern);
+}
+static void cgs_arp_settings(cf_arp_t *arp,unsigned pattern)
+{
+    arp->mode=pattern&15u;
+    arp->rate=(pattern>>4)&7u;
+    arp->oct=1u+(pattern>>7);
+    arp->latch=0;
+}
+/* The scheduled arpeggiator borrows its musician's settings for this call. */
+static int cgs_arp_push(unsigned part,cf_arp_t *saved)
+{
+    unsigned pattern=cgs.active[part].arp_pattern;
+    if(!cgs_active() || !(cgs.arp_auto&(1u<<part)) || !pattern)return 0;
+    *saved=cfp_cfg.arp;
+    cgs_arp_settings(&cfp_cfg.arp,pattern);
+    return 1;
 }
 static void cgs_release(unsigned part)
 {
@@ -124,21 +146,25 @@ static void cgs_start(void)
     cgs.mute_applied=(uint8_t)cgs_mute_mask();
     for(unsigned p=0;p<CGS_NPART;p++)cgs.gain[p]=cgs.level[p]*32768u/100u;
 }
+static int cgs_voicing_shift(const cpa_slot_t *s,int shift)
+{ return s->note[0]+shift>=0 && s->note[s->n-1u]+shift<=127?shift:0; }
+
 static void cgs_common_chord(const cpa_slot_t *s, unsigned velocity)
 {
     uint8_t previous[6], n=sqp.n;
+    int shift=cgs_voicing_shift(s,cgs.active[CGS_CHORDS].transpose);
     memcpy(previous,sqp.note,n);
-    memcpy(sqp.note,s->note,s->n);
+    for(unsigned i=0;i<s->n;i++)sqp.note[i]=(uint8_t)(s->note[i]+shift);
     sqp.n=s->n;
     unsigned released=0;
     cfp_fade_released(CGS_CHORDS);
     for(unsigned i=0;i<n;i++){
-        if(has(s->note,s->n,previous[i]))continue;
+        if(has(sqp.note,sqp.n,previous[i]))continue;
         sqp_off(CGS_CHORDS,previous[i]);
         if(released++)cfp_fade_note(CGS_CHORDS,previous[i]);
     }
     for(unsigned i=0;i<s->n;i++)
-        if(!has(previous,n,s->note[i]))cfp_on(CGS_CHORDS,s->note[i],velocity);
+        if(!has(previous,n,sqp.note[i]))cfp_on(CGS_CHORDS,sqp.note[i],velocity);
 }
 static void cgs_line(unsigned part, unsigned note, unsigned velocity)
 {
@@ -186,8 +212,15 @@ static void cgs_drums(unsigned hit, unsigned step,unsigned steps,unsigned accent
 static void cgs_arp(const cpa_slot_t *s,unsigned part)
 {
     sq_ev_t chord={.n=s->n,.root=s->root,.mask=(uint16_t)s->mask,.btns=cf_harmony_event_buttons(s->mask)};
-    memcpy(chord.note,s->note,s->n);
+    int shift=cgs.active[part].transpose;
+    if(part==CGS_LAYER && cgs.active[part].arp_pattern && (cgs.arp_auto&(1u<<part)))shift+=12;
+    shift=cgs_voicing_shift(s,shift);
+    for(unsigned i=0;i<s->n;i++)chord.note[i]=(uint8_t)(s->note[i]+shift);
+    cf_arp_t saved;
+    int generated=cgs_arp_push(part,&saved);
+    cfa_sq[part==CGS_LAYER].generated=(uint8_t)generated;
     sqp_arp_on(part,&chord);
+    if(generated)cfp_cfg.arp=saved;
 }
 
 static unsigned cgs_steps(unsigned meter)
@@ -205,7 +238,7 @@ static int cgs_chords_pulsed(const cgs_clip_t *clip)
 static const uint8_t *cgs_chord_gaps(unsigned bar)
 {
     unsigned idea=cgs_active()?cpa.plan.idea:cpa_setup.plan.idea;
-    if((cgs.arp&(1u<<CGS_CHORDS)) || idea==CF_P_DRAFT)return 0;
+    if(cgs_band_arp(CGS_CHORDS) || idea==CF_P_DRAFT)return 0;
     const cgs_clip_t *chords=&cgs.active[CGS_CHORDS];
     return cgs_chords_pulsed(chords)?chords->response_timing[bar]:0;
 }
@@ -403,6 +436,8 @@ static void cgs_tick(void)
         if(offset>CGS_MAX_ONSET_DELAY && p!=CGS_BASS)continue;
         unsigned bit=1u<<p, changed=pending&bit, rerolled=0;
         if(changed){
+            if(cgs.active[p].arp_pattern!=cgs.next[p].arp_pattern || cgs.active[p].transpose!=cgs.next[p].transpose)
+                cgs_release(p);
             rerolled=cgs.active[p].seed!=cgs.next[p].seed;
             cgs.active[p]=cgs.next[p];
             if(cgs.hold&bit)cgs_capture_response(p,pending);
@@ -434,13 +469,14 @@ static void cgs_tick(void)
             if(!step && !offset)cgs_release(p);
             continue;
         }
+        int arp=(p==CGS_CHORDS || p==CGS_LAYER) && cgs_band_arp(p);
         if((p==CGS_CHORDS || p==CGS_LAYER) && !offset){
-            if(cgs.arp&bit){
+            if(arp){
                 if(!(sqp.aon&bit)){cgs_release(p);cgs_arp(s,p);}
                 else if(!cpa.elapsed)cgs_arp(s,p);
             } else if(sqp.aon&bit)sqp_arp_off(p);
         }
-        if(cgs.arp&bit)continue;
+        if(arp)continue;
         if(p==CGS_DRUMS && cpa.plan.rhythm>=DM_N)continue;
         unsigned event=clip->event[bar][step], feel=clip->feel[bar][step];
         int pedal=p==CGS_BASS && profile->bass_style==CGS_BASS_PEDAL && !clip->voice;
@@ -509,7 +545,8 @@ static void cgs_tick(void)
                 } else if(p==CGS_LAYER && note<profile->layer_floor)note+=12;
                 if(p==CGS_LAYER && profile->composer==CGS_COMPOSE_DREAM && clip->voice==3 && note<70)note+=12;
                 if(p==CGS_BASS && clip->responds && cgs.bass_attack && sqp.nb)cgs_release(CGS_BASS);
-                cgs_line(p,note,cgs_velocity(p,48u+2u*(feel>>3)));
+                int shifted=(int)note+clip->transpose;
+                cgs_line(p,shifted>=0 && shifted<=127?(unsigned)shifted:note,cgs_velocity(p,48u+2u*(feel>>3)));
                 cgs.gate[p]=pedal?0:(uint8_t)((event>>3)*6u);
             }
         }

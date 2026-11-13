@@ -21,6 +21,7 @@ static const uint8_t CF_ARP_UNITS[] = {96, 48, 24, 16, 12, 8, 6, 4, 3};
 
 typedef struct {
     uint8_t part;                                    /* the part it plays (0xFF: the keys' part, cfp_cp) */
+    uint8_t generated;                               /* keep only the current step's release in generated band ARP */
     uint8_t on;                                      /* the player's view of cfp_cfg.arp_on (cfp_config moves it) */
     uint8_t mode;                                    /* the mode the pattern was started in */
     uint8_t n, note[CF_MAX_NOTES], order[CF_MAX_NOTES];   /* the chord: low to high, and in its tones' order */
@@ -52,6 +53,7 @@ static cfa_t *cfa_at = &cfa_k;
 #define cfa (*cfa_at)
 static void sqp_off(uint32_t part, uint32_t note);   /* (cf_seqp.c: a note of the sequencer's let go, unless the keys
                                                      * sound it) */
+static void cfp_fade_released(uint32_t part);
 static uint32_t cfa_part(void) { return cfa.part == 0xFFu ? cfp_cp : cfa.part; }
 
 static uint32_t cfa_bpm(void) { return cfp_cfg.bpm >= 30u && cfp_cfg.bpm <= 300u ? cfp_cfg.bpm : 120u; }
@@ -122,6 +124,7 @@ static void cfa_play(uint32_t note)
 #ifdef CF_TRACE
     fprintf(stderr, "%6u arp %u\n", (unsigned)cf_now_ms, (unsigned)note);
 #endif
+    if(CF_STUDIO && cfa.generated)cfp_fade_released(cfa_part());
     if (cfa_at == &cfa_k || !cfp_holds(cfa_part(), note))
         cfp_on(cfa_part(), note, cfp_cfg.vel);       /* (the sequencer's: not over a note the keys hold) */
     cfa.steps++;

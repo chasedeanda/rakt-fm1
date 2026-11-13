@@ -338,7 +338,11 @@ static int cf_home_bank_turn(int k, int d);
 static void cf_acc_knob_info(int k,cf_knob_t *o);
 static void cf_arp_controls_info(int k,cf_knob_t *o,int timing,int studio)
 {
-    int strum=CF_ARP_STRUMMING(cs.arp.mode);
+    unsigned owner=studio?cgu_arp_mode():CGU_ARP_OFF;
+    cf_arp_t arp=cs.arp;
+    unsigned pattern=owner==CGU_ARP_AUTO?cgs.active[cgs.focus].arp_pattern:0;
+    if(pattern)cgs_arp_settings(&arp,pattern);
+    int strum=CF_ARP_STRUMMING(arp.mode);
     if(timing){
         switch(k){
         case 0: kfmt(o->name,12,"GATE"); kint(o->val,cs.arp.gate,"%"); o->dis=(uint8_t)strum; o->bar=cs.arp.gate*255/100; break;
@@ -353,24 +357,28 @@ static void cf_arp_controls_info(int k,cf_knob_t *o,int timing,int studio)
     case 0:
         if(studio){
             kfmt(o->name,12,"ARP FOR");
-            kfmt(o->val,14,CGU_ARP_NAMES[cgu_arp_mode()]);
-            o->bar=cgu_arp_mode()*255/CGU_ARP_BAND;
+            kfmt(o->val,14,CGU_ARP_NAMES[owner]);
+            o->bar=owner*255/CGU_ARP_AUTO;
             o->dis=!cgu_arp_available();
         } else {
             kfmt(o->name,12,cge_selected()?(cu.page[SCR_ARP]==0?"PLAY IT":"LIVE KEYS"):"ON/OFF");
             kfmt(o->val,14,cge_selected() && cu.page[SCR_ARP]==0?CGE_ARP_NAMES[cge.arp_request]:cu.arp_on?"On":"Off");
         }
         break;
-    case 1: kfmt(o->name,12,"MODE"); kfmt(o->val,14,CF_ARP_SHORT[cs.arp.mode % CF_ARP_NMODES]);
-        o->bar=cs.arp.mode*255/(CF_ARP_NMODES-1); break;
-    case 2: kfmt(o->name,12,"OCTAVE"); kint(o->val,cs.arp.oct,0); o->bar=(cs.arp.oct-1)*255/3; break;
+    case 1: kfmt(o->name,12,"MODE"); kfmt(o->val,14,CF_ARP_SHORT[arp.mode % CF_ARP_NMODES]);
+        o->bar=arp.mode*255/(CF_ARP_NMODES-1); break;
+    case 2: kfmt(o->name,12,"OCTAVE"); kint(o->val,arp.oct,0); o->bar=(arp.oct-1)*255/3; break;
     default:
         kfmt(o->name,12,"RATE");
         if(strum){
             kint(o->val,cs.arp.strum_ms," ms"); o->bar=(cs.arp.strum_ms-5)*255/245;
         } else {
-            kfmt(o->val,14,CF_ARP_RATE[cs.arp.rate % CF_ARP_NRATES]); o->bar=cs.arp.rate*255/(CF_ARP_NRATES-1);
+            kfmt(o->val,14,CF_ARP_RATE[arp.rate % CF_ARP_NRATES]); o->bar=arp.rate*255/(CF_ARP_NRATES-1);
         }
+    }
+    if(k && owner==CGU_ARP_AUTO){
+        if(!pattern)kfmt(o->val,14,"--");
+        o->dis=1;
     }
 }
 
@@ -643,6 +651,7 @@ static void cf_harmony_turn(int k, int d)
 static void cf_arp_controls_turn(int k,int d,int timing,int studio)
 {
     if (!timing) {
+        if(k && studio && cgu_arp_mode()==CGU_ARP_AUTO)return;
         if (k == 0){
             if(studio)cgu_arp_turn(d);
             else if(cge_selected() && cu.page[SCR_ARP]==0)cge_play_it((unsigned)clampi(cge.arp_request+(d>0?1:-1),0,2));
@@ -667,7 +676,7 @@ static void cf_arp_controls_turn(int k,int d,int timing,int studio)
 
 static void ui_knob_turn(int k, int d)
 {
-    if(cgu_glow.active)return;
+    if(cgu_glow.active){cgu_knob_turn(k,d);return;}
     if(d && cu.scr==SCR_HOME && cf_home_bank==CF_HB_CORE && (k==1 || k==2))cge.key_pin=1;
     if(d && (cu.scr==SCR_ENV || cu.scr==SCR_EDIT || cu.scr==SCR_BASS))cge_direct(CGE_SOUND);
     if(cu.scr==SCR_LAB){cfl_turn(k,d);return;}

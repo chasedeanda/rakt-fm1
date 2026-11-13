@@ -12,6 +12,7 @@ enum { CGS_GUITAR, CGS_ELECTRONIC, CGS_EXPERIMENTAL, CGS_NFAMILY };
 enum { CGS_CAB_WALNUT, CGS_CAB_ALUMINUM, CGS_CAB_TOLEX };
 static const char *const CGS_FAMILIES[]={"Guitar","Electronic","Experimental"};
 enum { CGS_FORM_BARS=8, CGS_FORM_LAYER_REST=1, CGS_FORM_LIGHT_HATS=2, CGS_FORM_FILL=4 };
+#define CGS_ARP_PATTERN(mode,rate,oct) ((mode)|((rate)<<4)|(((oct)-1)<<7))
 
 typedef struct {
     uint16_t chords, kick, kick_answer; /* Optional second-bar variation for style 2. */
@@ -24,6 +25,7 @@ typedef struct {
     uint8_t bpm_min, bpm_max;
     uint8_t keys[6], scales[4], meter_weight[3]; /* Pitch classes, modes, and weights for 3/4, 4/4, 6/8. */
     uint8_t fx[CGS_NPART][4];
+    uint8_t octave_odds[CGS_DRUMS], arp_odds, arp_pattern[2][2];
     const uint8_t *kit;
     uint8_t composer, feel_count;
     uint8_t bank_duration_scale, evolve_period_scale;
@@ -110,6 +112,9 @@ static const cgs_profile_t CGS_PROFILES[]={
         .id="dream-pop", .name="Dream Pop", .bpm=104,
         .bpm_min=86, .bpm_max=118, .keys={0,2,4,5,7,9},
         .scales={CF_SC_MAJOR,CF_SC_MINOR,CF_SC_LYDIAN,CF_SC_DORIAN}, .meter_weight={1,7,4},
+        .octave_odds={2,3,5}, .arp_odds=5,
+        .arp_pattern={{CGS_ARP_PATTERN(CF_ARP_INC,4,1),CGS_ARP_PATTERN(CF_ARP_UP,4,2)},
+                      {CGS_ARP_PATTERN(CF_ARP_DOWN,4,2),CGS_ARP_PATTERN(CF_ARP_INC,2,1)}},
         .fx={{FXP_VELVET,FXP_SLAP,FXP_SILVER_PLATE,FXP_WIDE_DRIFT},
              {FXP_CLEAN,FXP_VELVET,FXP_SLAP,FXP_BITE},
              {FXP_DEEP_SPACE,FXP_PING_PONG,FXP_WIDE_DRIFT,FXP_SLAP},
@@ -129,6 +134,9 @@ static const cgs_profile_t CGS_PROFILES[]={
         .id="indie", .name="Indie", .bpm=116,
         .bpm_min=98, .bpm_max=138, .keys={0,2,4,5,7,9},
         .scales={CF_SC_MAJOR,CF_SC_MINOR,CF_SC_MIXOLYDIAN,CF_SC_DORIAN}, .meter_weight={2,8,2},
+        .octave_odds={2,2,4}, .arp_odds=3,
+        .arp_pattern={{CGS_ARP_PATTERN(CF_ARP_ORDER,4,1),CGS_ARP_PATTERN(CF_ARP_DOWN,4,1)},
+                      {CGS_ARP_PATTERN(CF_ARP_UP,4,2),CGS_ARP_PATTERN(CF_ARP_EXC,6,1)}},
         .fx={{FXP_VELVET,FXP_BITE,FXP_SLAP,FXP_SILVER_PLATE},
              {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SLAP},
              {FXP_SLAP,FXP_PING_PONG,FXP_SILVER_PLATE,FXP_WIDE_DRIFT},
@@ -153,6 +161,9 @@ static const cgs_profile_t CGS_PROFILES[]={
         .id="new-wave", .name="New Wave", .bpm=126,
         .bpm_min=108, .bpm_max=146, .keys={0,2,4,5,7,11},
         .scales={CF_SC_MINOR,CF_SC_DORIAN,CF_SC_MAJOR,CF_SC_MIXOLYDIAN}, .meter_weight={1,10,1},
+        .octave_odds={3,4,4}, .arp_odds=7,
+        .arp_pattern={{CGS_ARP_PATTERN(CF_ARP_UP,6,1),CGS_ARP_PATTERN(CF_ARP_REPEAT,4,2)},
+                      {CGS_ARP_PATTERN(CF_ARP_EXC,6,2),CGS_ARP_PATTERN(CF_ARP_DOWN,4,1)}},
         .fx={{FXP_WIDE_DRIFT,FXP_PHASE_SWEEP,FXP_BITE,FXP_SLAP},
              {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SLAP},
              {FXP_PING_PONG,FXP_ORBIT,FXP_PHASE_SWEEP,FXP_SLAP},
@@ -176,6 +187,9 @@ static const cgs_profile_t CGS_PROFILES[]={
         .id="pop-punk", .name="Pop Punk", .bpm=148,
         .bpm_min=132, .bpm_max=182, .keys={1,2,4,6,7,9},
         .scales={CF_SC_MAJOR,CF_SC_MINOR,CF_SC_MIXOLYDIAN,CF_SC_MAJOR}, .meter_weight={1,10,1},
+        .octave_odds={1,2,5}, .arp_odds=2,
+        .arp_pattern={{CGS_ARP_PATTERN(CF_ARP_ORDER,4,1),CGS_ARP_PATTERN(CF_ARP_DOWN,4,1)},
+                      {CGS_ARP_PATTERN(CF_ARP_UP,4,2),CGS_ARP_PATTERN(CF_ARP_REPEAT,4,1)}},
         .fx={{FXP_BITE,FXP_VELVET,FXP_SLAP,FXP_RADIO},
              {FXP_BITE,FXP_VELVET,FXP_CLEAN,FXP_SLAP},
              {FXP_SLAP,FXP_WIDE_DRIFT,FXP_SILVER_PLATE,FXP_PING_PONG},
@@ -194,6 +208,9 @@ static const cgs_profile_t CGS_PROFILES[]={
         .id="lo-fi", .name="Lo-Fi", .bpm=82,
         .bpm_min=66, .bpm_max=96, .keys={0,2,3,5,7,10},
         .scales={CF_SC_MINOR,CF_SC_DORIAN,CF_SC_MAJOR,CF_SC_MIXOLYDIAN}, .meter_weight={2,8,2},
+        .octave_odds={2,4,3}, .arp_odds=3,
+        .arp_pattern={{CGS_ARP_PATTERN(CF_ARP_ORDER,4,1),CGS_ARP_PATTERN(CF_ARP_DOWN,2,1)},
+                      {CGS_ARP_PATTERN(CF_ARP_CONVERGE,4,1),CGS_ARP_PATTERN(CF_ARP_INC,5,2)}},
         .fx={{FXP_VELVET,FXP_PHONE_LP,FXP_SILVER_PLATE,FXP_SLAP},
              {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SLAP},
              {FXP_SLAP,FXP_SILVER_PLATE,FXP_DEEP_SPACE,FXP_WIDE_DRIFT},
@@ -219,6 +236,9 @@ static const cgs_profile_t CGS_PROFILES[]={
         .id="ambient", .name="Ambient Soundscape", .bpm=64,
         .bpm_min=48, .bpm_max=78, .keys={0,2,4,5,7,9},
         .scales={CF_SC_LYDIAN,CF_SC_DORIAN,CF_SC_MAJOR,CF_SC_MINOR}, .meter_weight={4,3,5},
+        .octave_odds={1,5,5}, .arp_odds=4,
+        .arp_pattern={{CGS_ARP_PATTERN(CF_ARP_INC,2,2),CGS_ARP_PATTERN(CF_ARP_DOWN,2,1)},
+                      {CGS_ARP_PATTERN(CF_ARP_CONVERGE,2,2),CGS_ARP_PATTERN(CF_ARP_UP,3,1)}},
         .fx={{FXP_SILVER_PLATE,FXP_WIDE_DRIFT,FXP_VELVET,FXP_DEEP_SPACE},
              {FXP_CLEAN,FXP_VELVET,FXP_SLAP,FXP_BITE},
              {FXP_DEEP_SPACE,FXP_ORBIT,FXP_WIDE_DRIFT,FXP_SLAP},

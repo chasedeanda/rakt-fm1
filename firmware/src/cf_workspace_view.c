@@ -71,7 +71,7 @@ static void cgu_phrase_model(cf_stage_model_t *m,unsigned parts,int active)
     unsigned meter=active?cpa.plan.beats:cgs.meter;
     for(unsigned i=0;i<CGS_NPART;i++)
         if(parts&(1u<<i))memcpy(cells[i],cgs.active[i].event,sizeof cells[i]);
-    if((parts&(1u<<CGS_LAYER)) && !(cgs.arp&(1u<<CGS_LAYER)) &&
+    if((parts&(1u<<CGS_LAYER)) && !cgs_band_arp(CGS_LAYER) &&
        cgs.active[CGS_LAYER].responds){
         layer=cgs.active[CGS_LAYER];
         layer_gaps=cgs_layer_gaps(0)!=0;

@@ -54,6 +54,8 @@ Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale,
 
 Press **EDIT** on the Studio overview to shuffle the band’s progression, parts, key, scale, meter and tempo within the selected genre. The whole take lands at the next bar, or loads immediately with the band stopped. External MIDI clock supplies the tempo when selected. With a custom draft active, the band plays the draft’s harmony and meter at the current tempo.
 
+Generated takes can move Bass down an octave and raise Chords or Layer. Chords or Layer may also pick up an arpeggio from the genre’s palette. The generator leaves space for the other musician and uses wider, slower patterns for Ambient Soundscape and tighter patterns for New Wave.
+
 Zoom into a musician and press **EDIT** to regenerate that part on the next sixteenth-note grid point, or eighth-note grid point in 6/8. The rest of the band keeps playing the same song. Studio EDIT also rotates eligible sounds in the genre palette. Pitched patches switch at the musical boundary and drum kits switch at the next bar. Saved user patches, edited patches and sounds you are holding stay selected.
 
 ### Custom progression
@@ -95,7 +97,7 @@ On the musician’s **Evolve** page, turn **K1 Hold** right to keep its current 
 
 ### GLO Live
 
-Press **GLO** to open the live keyboard controls. **ALGORITHM** switches between Map and State, and **SELECT** adjusts tempo. Press **GLO** or **HOME** to return to the previous panel, or **SAVE** for Settings.
+Press **GLO** to open the live mixer. **K1–K4** adjust Chords, Bass, Drums and Layer respectively. Each musician's mix level is shown as a percentage in both views. **ALGORITHM** switches between Map and State, and **SELECT** adjusts tempo. Press **GLO** or **HOME** to return to the previous panel, or **SAVE** for Settings.
 
 | Keys | Action |
 | --- | --- |
@@ -128,7 +130,7 @@ Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit.
 
 ## Arpeggiator
 
-Press **ARP** to open the Pattern page directly, or find the ARP unit with **SEQ** and open it with **SEL**. The panel starts on Chords when Bass or Drums was selected. Turn **ALGORITHM** to switch between Chords and Layer. **K1 Arp For** chooses Off, Keys or Band. Keys arpeggiates the notes you hold. Band arpeggiates that musician’s generated chord tones with the transport running. **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
+Press **ARP** to open the Pattern page directly, or find the ARP unit with **SEQ** and open it with **SEL**. The panel starts on Chords when Bass or Drums was selected. Turn **ALGORITHM** to switch between Chords and Layer. **K1 Arp For** chooses Off, Keys, Band or Auto. Keys arpeggiates the notes you hold. Band plays that musician’s chord tones with your ARP settings. Auto shows the mode, octave span and rate chosen by the generator when the musician has an arpeggio. Selecting Off, Keys or Band overrides Auto for that musician. In Keys and Band, **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
 
 Turn **SELECT** to the timing page. **K1 Gate** sets how much of each step a note occupies, **K2 Swing** shifts alternating steps, **K3 Latch** keeps the arpeggio going after key release, and **K4 Glide** sets the Chords glide time.
 
