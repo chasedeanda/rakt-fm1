@@ -19,7 +19,7 @@ The rack shares the startup screen's graphite rails, slotted screws, recessed di
 | Bass | Dark slate face and inset rubber knobs | Style or patch and a green activity display |
 | Drums | Taller steel-grey face with a row of trigger lamps | Style or kit, plus Kick, Snare, Hats and Percussion hits |
 | Layer | Slim plum face with horizontal faders | Style or patch and the part's level |
-| Harmony, Shaping, Genre, ARP and Progression | Separate nickel, green, blue, violet and graphite plates | Beat, output, program, arpeggiator step and chord slot |
+| Harmony, Shaping, ARP and Progression | Separate nickel, green, violet and graphite plates | Beat, output, arpeggiator step and chord slot |
 | Mix | Four-channel fader bank from the startup rack | Set levels and muted channels |
 | Record | Full-width, two-bar lanes and a Saved Takes unit | Notes, hits, playhead and take slots |
 
@@ -27,7 +27,7 @@ The right-side rack index shows which units are visible. Tabs slide into the cab
 
 ### Genre
 
-Highlight the Genre unit with **ALGORITHM** or **SEQ** and turn **K1** or **PRESETS** to choose a genre. **K2** selects a genre family. **PRESETS** also works from the Studio overview. Genre changes the harmonic and rhythmic vocabulary of the whole band, including the two playing styles available for each musician. A genre change queues a new take for the next bar during playback. Your current tempo continues while the band plays. Open **Sound → Sound Library** in Genre mode and press **SEL** to load the curated palette, or press **EDIT** on the Sound overview to cycle through its alternatives.
+On **Shaping** or **Song**, turn **K1** to choose a genre. **PRESETS** also works from the Studio overview. Genre changes the harmonic and rhythmic vocabulary of the whole band, including the two playing styles available for each musician. A genre change queues a new take for the next bar during playback. Your current tempo continues while the band plays. Open **Sound → Sound Library** in Genre mode and press **SEL** to load the curated palette, or press **EDIT** on the Sound overview to cycle through its alternatives.
 
 | Genre | Playing character |
 | --- | --- |
@@ -40,7 +40,7 @@ Highlight the Genre unit with **ALGORITHM** or **SEQ** and turn **K1** or **PRES
 
 ### Harmony and Shaping
 
-Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. Highlight **Shaping** for Space, Tempo, Energy, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
+Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. Highlight **Shaping** for Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
 
 | Page | Knob | What it changes |
 | --- | --- | --- |
@@ -48,16 +48,20 @@ Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale,
 | Harmony | K2 Tempo | Adjusts the internal tempo. When following an external MIDI clock, the source controls the tempo. |
 | Harmony | K3 Scale | Changes the scale used by harmony and the generator. During playback it lands at the next chord. |
 | Harmony | K4 Meter | Chooses 3/4, 4/4 or 6/8. During playback it lands at the next bar. |
-| Shaping | K1 Space | Scales the audible chorus, delay and reverb together. Raise the relevant send on Sound → Sends if a part is dry. |
-| Shaping | K2 Tempo | The same tempo control as on Harmony. |
-| Shaping | K3 Energy | Raises or lowers the effective Activity of free musicians around their current settings. 50% is neutral. A phrase can gain or shed events while keeping the edits Evolve has made. |
+| Shaping | K1 Genre | Chooses the band’s harmonic and rhythmic style. |
+| Shaping | K2 Tempo | Turn up for a faster beat. This is the same tempo control as on Harmony. |
+| Shaping | K3 Density | The former Energy control. At 50%, each musician uses its own Activity. At 60%, each free musician plays as if its Activity were 10 points higher, up to 100%. Held phrases keep their density. |
 | Shaping | K4 Evolve | Sets how often one musician automatically varies its phrase. 0% keeps the current phrases and cancels automatic edits waiting to land. It considers one musician every 8 bars at 1–49%, every 4 bars at 50–79%, and every 2 bars at 80–100%. Ambient doubles those intervals. Held or muted musicians and musicians with Activity below 35% are skipped. |
+
+Open **Shaping** with **SEL** and turn **SELECT** to **Groove**. **K1 Swing** delays alternating sixteenth notes in 3/4 and 4/4. At 0% the timing is straight, 67% gives a triplet feel, and 100% gives the strongest shuffle. It applies to generated drums, bass, layer phrases and rhythmic chord repeats. The ARP timing page controls arpeggiators. Swing is disabled in 6/8, where the beat already divides into three eighth notes.
+
+**K2 Drums**, **K3 Bass**, and **K4 Chords** change the same Style settings you see on the musician panels. For example, in Lo-Fi you can choose **Half-time** drums, **Late pocket** bass, and **Held keys** from the Groove page.
 
 Press **EDIT** on the Studio overview to shuffle the band’s progression, parts, key, scale, meter and tempo within the selected genre. The whole take lands at the next bar, or loads immediately with the band stopped. External MIDI clock supplies the tempo when selected. With a custom draft active, the band plays the draft’s harmony and meter at the current tempo.
 
 Generated takes can move Bass down an octave and raise Chords or Layer. Chords or Layer may also pick up an arpeggio from the genre’s palette. The generator leaves space for the other musician and uses wider, slower patterns for Ambient Soundscape and tighter patterns for New Wave.
 
-Zoom into a musician and press **EDIT** to regenerate that part on the next sixteenth-note grid point, or eighth-note grid point in 6/8. The rest of the band keeps playing the same song. Studio EDIT also rotates eligible sounds in the genre palette. Pitched patches switch at the musical boundary and drum kits switch at the next bar. Saved user patches, edited patches and sounds you are holding stay selected.
+Zoom into a musician and press **EDIT** to regenerate that part on the next sixteenth-note grid point, or eighth-note grid point in 6/8. The rest of the band keeps playing the same song. Use **Sound → Tone** to choose a different instrument or drum kit.
 
 ### Custom progression
 
@@ -94,7 +98,7 @@ In **Pop Punk**, **Layer → Picked hook** plays short root and fifth notes in t
 
 Style and Activity changes take effect on the next playable grid point. Continuous knobs take single steps when turned slowly and five-unit steps when turned quickly.
 
-On the musician’s **Evolve** page, turn **K1 Hold** right to keep its current phrase through Energy and automatic Evolve changes. Turn K1 left to return the musician to **Free** and apply the current Energy setting. The two-bar Phrase display shows the generated pattern and its position in playback. The Studio panel shows **Held** while Hold is on. You can still edit Style or Activity or press **EDIT** to regenerate that musician. Hold then protects the edited phrase. Chord changes, arrangement cues, and live controls continue. Stop and PLAY keep Hold for the same take. A new band take or genre releases the holds when it lands.
+On the musician’s **Evolve** page, turn **K1 Hold** right to keep its current phrase through Density and automatic Evolve changes. Turn K1 left to return the musician to **Free** and apply the current Density setting. The two-bar Phrase display shows the generated pattern and its position in playback. The Studio panel shows **Held** while Hold is on. You can still edit Style or Activity or press **EDIT** to regenerate that musician. Hold then protects the edited phrase. Chord changes, arrangement cues, and live controls continue. Stop and PLAY keep Hold for the same take. A new band take or genre releases the holds when it lands.
 
 ### GLO Live
 
@@ -140,6 +144,8 @@ A highlighted Sound musician shows the Tone controls. Zoom in and turn **SELECT*
 | FX Presets | Browse FX presets for this musician | | | |
 
 Drums has Tone, Sends and FX Presets. **PRESETS** also browses the sound or kit. Sends shows a preview of the selected musician’s drive curve, chorus sweep, delay taps and reverb tail. Each graph responds to that musician’s knob. Press **FX** from any rack tab to open FX Presets. Turn **K1** or **PRESETS** to highlight a preset and press **SEL** to apply it to the highlighted musician. Turn **ALGORITHM** to switch musicians. Each musician keeps its own FX chain through patch changes, new takes, and restarts. Use **SELECT** to turn to Sends or another Sound page. **SAVE** opens preset management. Press **EDIT** on FX Presets to open the EQ and effects editor for the loaded preset. **LFO** from a zoomed pitched musician opens its detailed synth editor.
+
+Highlight **Mix** in Sound and press **SEL**. Use **K1–K4** for part levels, or turn **SELECT** to **FX Space** and use **K1** to scale the band’s chorus, delay and reverb together. Use the individual **Sends** pages to set which parts get each effect.
 
 ## Arpeggiator
 

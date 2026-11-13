@@ -140,7 +140,8 @@ static void cgu_model(cf_stage_model_t *m)
     m->bank=cgu.tab==CGU_STUDIO?cgu.band_panel:cgu.rack_controls;
     m->bank_dx=(int16_t)cf_rack_arrival(cgu.tab_ms,RAKT_W*cgu.tab_dir);
     if(detail)m->control_dx=(int8_t)cf_rack_arrival(cgu.page_ms,16*cgu.page_dir);
-    m->shaping=cgu.band_panel==CGU_BAND_ARP?cgu_arp_page(detail):(detail?cgu.part_page:CGU_PART);
+    m->shaping=cgu.band_panel==CGU_BAND_ARP?cgu_arp_page(detail):
+        cgu.band_panel==CGU_BAND_SHAPING?(detail && cgu.shaping_groove):(detail?cgu.part_page:CGU_PART);
     m->sound_page=cgu_tone_page(detail);
     m->genre=cgs.genre;
     m->held_parts=cgs.hold;
@@ -425,7 +426,8 @@ static void cgu_lamp(int x,int y,int on,unsigned ink)
 static unsigned cgu_module_ink(unsigned module)
 {
     if(module<CGS_NPART)return CGU_INK_BASE+module;
-    return module==CGS_NPART+CGU_BAND_PROGRESSION-1u?CGU_PROGRESSION_INK:CGU_BAND_INK_BASE+module-CGS_NPART;
+    static const uint8_t band_ink[]={CGU_BAND_INK_BASE,CGU_BAND_INK_BASE+1,CGU_BAND_INK_BASE+3,CGU_PROGRESSION_INK};
+    return band_ink[module-CGS_NPART];
 }
 
 static const char *cgu_module_value(const cf_stage_model_t *m,unsigned band,unsigned part,char summary[20])
@@ -437,10 +439,6 @@ static const char *cgu_module_value(const cf_stage_model_t *m,unsigned band,unsi
         cf_stage_append(summary,20,CF_SCALES[cs.chord.scale].shrt);
         return summary;
     case CGU_BAND_SHAPING:
-        str_cpy(summary,"Energy ",20);
-        kint(summary+7,cgs.energy,"%");
-        return summary;
-    case CGU_BAND_GENRE:
         return CGS_PROFILES[m->genre].name;
     case CGU_BAND_ARP:
         return part==CGS_CHORDS || part==CGS_LAYER?CGU_ARP_NAMES[cgu_arp_mode()]:"Chords / Layer";
@@ -594,7 +592,15 @@ static void cgu_mix_rack(const cf_stage_model_t *m,int x,int y,int w,int h)
 {
     cf_rack_plate(x,y,w,h,RAKT_EAR,FL_BG2);
     cfn_text(&CFN_16,x+24,y+25,"Mix",FL_INK);
-    cfn_fit(&CFN_11,x+24,y+42,"Chords / Bass / Drums / Layer",w-48,FL_INK2);
+    if(!m->label[1][0]){
+        cfn_text(&CFN_12,x+24,y+47,"FX Space",FL_INK);
+        cfn_fit(&CFN_11,x+24,y+66,"Chorus / Delay / Reverb",w-48,FL_INK2);
+        int cx=x+40, cy=y+h-43;
+        cgu_dial(cx,cy,15,m->knob[0],m->emphasis[0]?C_ACC(0):FL_INK);
+        cfn_text(&CFN_16,cx+29,cy+5,m->value[0],FL_INK);
+        return;
+    }
+    cfn_fit(&CFN_11,x+24,y+42,"Part levels",w-48,FL_INK2);
     int top=y+h-86;
     fb_hline(x+RAKT_EAR,top,w-2*RAKT_EAR,RAKT_COPPER);
     for(unsigned i=0;i<CGS_NPART;i++){
@@ -746,7 +752,7 @@ static unsigned cgu_rack_ink(unsigned tab,unsigned tile)
 static void cgu_face_controls(const cf_stage_model_t *m,unsigned selected)
 {
     static const uint8_t part[]={66,57,37,52}, tone[]={78,43,49,42},
-        harmony[]={36,60,63,53}, shaping[]={46,60,51,55}, arp[]={59,54,50,49}, genre[]={116,96,0,0};
+        harmony[]={36,60,63,53}, shaping[]={72,50,47,43}, arp[]={59,54,50,49};
     static const uint8_t mix[]={53,53,53,53};
     const uint8_t *width=part;
     if(m->workspace==CGU_SOUND)width=m->bank==CGU_RACK_MIX?mix:tone;
@@ -754,7 +760,6 @@ static void cgu_face_controls(const cf_stage_model_t *m,unsigned selected)
         if(m->bank==CGU_BAND_HARMONY)width=harmony;
         if(m->bank==CGU_BAND_SHAPING)width=shaping;
         if(m->bank==CGU_BAND_ARP)width=arp;
-        if(m->bank==CGU_BAND_GENRE)width=genre;
         if(m->bank==CGU_BAND_SONG)width=CGU_SONG_WIDTH;
     }
     unsigned ink=cgu_rack_ink(m->workspace,selected);
@@ -762,14 +767,14 @@ static void cgu_face_controls(const cf_stage_model_t *m,unsigned selected)
     cf_rack_plate(7,y+1,226,CGU_FACE_CONTROLS_H-1,7,FL_BG2);
     fb_rect(10,y+4,2,CGU_FACE_CONTROLS_H-7,ink);
     int left=14;
-    int single=!m->label[1][0];
+    int single=m->label[0][0] && !m->label[1][0];
     int song=m->workspace==CGU_STUDIO && m->bank==CGU_BAND_SONG;
     const cfn_font_t *font=m->workspace==CGU_STUDIO && m->bank && !song?&CFN_12:&CFN_11;
     for(unsigned k=0;k<4;k++){
         int w=single?212:width[k];
         if(m->label[k][0]){
             unsigned active=m->emphasis[k] && !m->disabled[k];
-            const char *value=k==0 && m->workspace==CGU_STUDIO && (song || m->bank==CGU_BAND_GENRE)?
+            const char *value=k==0 && m->workspace==CGU_STUDIO && (song || m->bank==CGU_BAND_SHAPING)?
                 CGS_PROFILES[m->genre].name:m->value[k];
             if(active)fb_rbox(left,y+2,w-2,20,2,CGU_METAL);
             char label[12];
@@ -831,7 +836,7 @@ static void cgu_unit_bay(const cf_stage_model_t *m)
         if(!m->bank_dx)for(int column=0;column<6;column++)fb_vline(4+column,arrow-5+column,11-2*column,ink);
     }
     fb_clip(0,51,240,218);
-    if(zoom<=38 && m->label[0][0])cgu_face_controls(m,selected);
+    if(zoom<=38 && (m->label[0][0] || m->label[1][0]))cgu_face_controls(m,selected);
 }
 
 static void cgu_workspace_draw(const cf_stage_model_t *m)
@@ -862,10 +867,12 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
         int footer=overview?226:208;
         cfn_text(&CFN_12,10,footer,overview?"ALGO Browse":progression?"EDIT Draft":"SEQ Next",FL_INK);
         cfn_text(&CFN_12,100,footer,progression?"SEL Apply":m->live?"SEL Back":"SEL Zoom",FL_INK);
-        cfn_text(&CFN_11,167,footer,!overview && m->bank==CGU_BAND_ARP?"SELECT Page":"SELECT Tab",FL_INK2);
+        cfn_text(&CFN_11,167,footer,m->live && cgu_has_detail_pages()?"SELECT Page":"SELECT Tab",FL_INK2);
         if(m->pending[0])cfn_fit(&CFN_11,10,237,m->pending,137,FL_INK2);
         else if(progression)cfn_text(&CFN_11,10,237,"SEQ Next unit",FL_INK2);
         else if(!overview && m->bank==CGU_BAND_ARP)cfn_text(&CFN_11,10,237,"ALGO Keys part",FL_INK2);
+        else if(m->live && m->bank==CGU_BAND_SHAPING)
+            cfn_text(&CFN_11,10,237,m->shaping?"SELECT Arrangement":"SELECT Groove",FL_INK2);
         cgu_keys_footer();
         return;
     }
@@ -875,7 +882,8 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
     const char *hint=m->pending[0]?m->pending:
         m->section&CGS_FORM_FILL?"Band turnaround":m->section&CGS_FORM_LAYER_REST?"Band breather":
         studio?(m->live && !m->bank?"EDIT New part":"EDIT Shuffle take"):
-        tab==CGU_SOUND?(!m->live?"EDIT Sound + FX":mix?"K1-4 Levels":m->bank || m->sound_page==CGU_TONE?"EDIT Sound + FX":""):
+        tab==CGU_SOUND?(!m->live?"EDIT Sound + FX":mix?(m->label[1][0]?"K1-4 Levels":"K1 Amount"):
+            m->bank || m->sound_page==CGU_TONE?"EDIT Sound + FX":""):
         tab==CGU_RECORD && !m->bank?(m->rec?"REC Finish & save":"REC Record band"):"";
     if(studio && m->live && !m->bank && m->focus==CGS_DRUMS && (m->moment || m->build || m->bloom))
         hint=cgu_drum_status(m);
@@ -898,6 +906,8 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
         cfn_text(&CFN_11,91,237,page,CGU_INK_BASE+m->focus);
     } else if(tab==CGU_SOUND && m->bank==CGU_RACK_LIBRARY){
         cfn_text(&CFN_11,10,221,"K1 Library   HOME Back",FL_INK2);
+    } else if(mix && m->live){
+        cfn_text(&CFN_11,10,223,m->label[1][0]?"SELECT FX Space":"SELECT Levels",FL_INK2);
     } else if(studio && m->live){
         if(!m->bank){
             char page[12];

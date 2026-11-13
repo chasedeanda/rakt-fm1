@@ -4,7 +4,7 @@
  */
 enum { CGS_CHORDS, CGS_BASS, CGS_LAYER, CGS_DRUMS, CGS_NPART };
 enum { CGS_ANCHOR=1, CGS_THIRD, CGS_FIFTH, CGS_OCTAVE, CGS_PICKUP, CGS_UPPER, CGS_STEP_IN };
-enum { CGS_PATCH_SOLO=250, CGS_PATCH_ROLL, CGS_PATCH_STAGE };
+enum { CGS_PATCH_STAGE=252 };
 enum { CGS_STEPS=16, CGS_TICKS=SQ_PPQN/4, CGS_BAR=4*SQ_PPQN };
 enum { CGS_KICK=1, CGS_SNARE=2, CGS_HAT=4, CGS_OPEN=8, CGS_RIM=16, CGS_LOW_TOM=32, CGS_MID_TOM=64 };
 enum { CGS_KICK_REPLY=10, CGS_FOLLOW, CGS_ANSWER, CGS_FLOAT };
@@ -44,6 +44,7 @@ static struct {
     uint8_t defaults_offered, boot_sound_gen[3];
     uint8_t genre, queued_genre, playing_genre, energy, evolution, solo, kit_pinned, feel, queued_feel, playing_feel, meter;
     uint8_t custom, bank_meter;
+    uint8_t swing, swing_delay;
     uint8_t queued_bpm, shuffled_bpm;
     volatile uint8_t tempo_generation;
     volatile uint8_t pending;
@@ -56,12 +57,9 @@ static struct {
     volatile uint8_t drum_mutes, fill_held;
     uint16_t gain[CGS_NPART];
 } cgs;
-static void cgs_sound_boundary(unsigned tag);
-static void cgs_cancel_rolled_sounds(void);
-static int cgs_rolled_patch(unsigned tag)
-{ return tag==CGS_PATCH_ROLL || tag==CGS_PATCH_SOLO; }
+static void cgs_start_sounds(void);
 static int cgs_studio_patch(unsigned tag)
-{ return cgs_rolled_patch(tag) || tag==CGS_PATCH_STAGE; }
+{ return tag==CGS_PATCH_STAGE; }
 static int cgs_active(void)
 { return CF_STUDIO && cpa.on && cpa.plan.studio; }
 static unsigned cgs_rand(uint32_t *seed, unsigned limit)
@@ -142,6 +140,7 @@ static void cgs_start(void)
     memset(cgs.gate,0,sizeof cgs.gate);
     cgs.developed=cgs.bar=cgs.origin_bar=0;
     cgs.section=0;
+    cgs.swing_delay=0;
     cgs.harmony_mask=0;
     cgs.mute_applied=(uint8_t)cgs_mute_mask();
     for(unsigned p=0;p<CGS_NPART;p++)cgs.gain[p]=cgs.level[p]*32768u/100u;
@@ -418,22 +417,29 @@ static void cgs_tick(void)
     unsigned ticks=cgs_step_ticks(cpa.plan.beats);
     unsigned steps=cgs_steps(cpa.plan.beats);
     unsigned offset=cpa.t%ticks;
+    unsigned step=cpa.t/ticks;
+    /* Latch at the grid boundary so turning Swing cannot play a step twice.
+     * Keep the eighth notes in each compound beat of 6/8 evenly spaced. */
+    if(!offset)cgs.swing_delay=(uint8_t)((step&1u) && cpa.plan.beats!=6u?
+        ticks*cgs.swing/200u:0u);
+    unsigned swing=cgs.swing_delay;
+    int played_offset=(int)offset-(int)swing;
     const cpa_slot_t *s=&cpa.plan.slot[cpa.slot];
     if(!cpa.elapsed){
         cgs.harmony_changed=cgs.harmony_root!=s->root || cgs.harmony_mask!=s->mask;
         cgs.harmony_root=s->root;
         cgs.harmony_mask=s->mask;
     }
-    if(offset>CGS_MAX_ONSET_DELAY &&
-       (offset>CGS_BASS_MAX_DELAY || cgs.active[CGS_BASS].responds!=CGS_BASS_REPLY_LATE))return;
-    if(!offset && !cpa_setup.flags)cgs_sound_boundary(CGS_PATCH_ROLL);
+    if(offset && played_offset<0)return;
+    if(played_offset>CGS_MAX_ONSET_DELAY &&
+       (played_offset>CGS_BASS_MAX_DELAY || cgs.active[CGS_BASS].responds!=CGS_BASS_REPLY_LATE))return;
     unsigned pending=offset?0:cgs.pending;
-    unsigned step=cpa.t/ticks, phrase=cgs.bar-cgs.origin_bar, bar=phrase&1u;
+    unsigned phrase=cgs.bar-cgs.origin_bar, bar=phrase&1u;
     const cgs_profile_t *profile=&CGS_PROFILES[cgs.playing_genre];
     int custom=cpa.plan.idea==CF_P_DRAFT;
     int slot_closed=custom && !s->tie && s->gate<100 && cpa.elapsed>=(uint32_t)s->ticks*s->gate/100u;
     for(unsigned p=0;p<CGS_NPART;p++){
-        if(offset>CGS_MAX_ONSET_DELAY && p!=CGS_BASS)continue;
+        if(played_offset>CGS_MAX_ONSET_DELAY && p!=CGS_BASS)continue;
         unsigned bit=1u<<p, changed=pending&bit, rerolled=0;
         if(changed){
             if(cgs.active[p].arp_pattern!=cgs.next[p].arp_pattern || cgs.active[p].transpose!=cgs.next[p].transpose)
@@ -477,10 +483,11 @@ static void cgs_tick(void)
             } else if(sqp.aon&bit)sqp_arp_off(p);
         }
         if(arp)continue;
+        if(p!=CGS_CHORDS && played_offset<0)continue;
         if(p==CGS_DRUMS && cpa.plan.rhythm>=DM_N)continue;
         unsigned event=clip->event[bar][step], feel=clip->feel[bar][step];
         int pedal=p==CGS_BASS && profile->bass_style==CGS_BASS_PEDAL && !clip->voice;
-        if(pedal && (offset || (step && cpa.elapsed>=ticks)))continue;
+        if(pedal && (played_offset || (step && cpa.elapsed>=ticks)))continue;
         if(pedal){event=clip->event[bar][0];feel=clip->feel[bar][0];}
         if(p==CGS_BASS && clip->responds){
             event=cgs.bass_event;
@@ -490,7 +497,7 @@ static void cgs_tick(void)
             unsigned reply=clip->responds;
             if(reply==CGS_LAYER_REPLY_HARMONY || (reply==CGS_LAYER_REPLY_DREAM && !gaps)){
                 unsigned delay=reply==CGS_LAYER_REPLY_HARMONY?4u*CGS_TICKS:2u*CGS_TICKS;
-                event=cgs_harmony_reply(clip,bar,ticks,offset,delay,s,&feel);
+                event=cgs_harmony_reply(clip,bar,ticks,(unsigned)played_offset,delay,s,&feel);
             } else if(gaps && !(cgs.hold&bit) &&
                       (!gaps[step] || (cgs.gate[CGS_CHORDS] && !cgs_manual(CGS_CHORDS)))){
                 if(sqp.ln)cgs_release(CGS_LAYER);
@@ -518,14 +525,16 @@ static void cgs_tick(void)
             }
         }
         if(p==CGS_CHORDS){
-            if(offset)continue;
             unsigned pulse=clip->event[bar][0]>1;
+            /* Put chord changes on the grid and swing the rhythmic repeats. */
+            unsigned attack=pulse && cpa.elapsed>=ticks && (!rerolled || event)?swing:0;
+            if(offset!=attack)continue;
             if(event==1 || (pulse && event && cpa.elapsed))sqp_chord_off();
             if(rerolled || (!pulse && !sqp.n) || !cpa.elapsed || event){
                 cgs_common_chord(s,feel?feel:79);
                 cgs.gate[p]=(uint8_t)(pulse?(event>1?event:clip->event[bar][0])*6u:0u);
             }
-        } else if(offset==(feel&7u)){
+        } else if((unsigned)played_offset==(feel&7u)){
             if(p==CGS_DRUMS){
                 if(cgs.section&CGS_FORM_LIGHT_HATS)event&=~(CGS_HAT|CGS_OPEN);
                 if(cgs.active[CGS_LAYER].responds==CGS_LAYER_REPLY_HARMONY && cgs.harmony_changed &&

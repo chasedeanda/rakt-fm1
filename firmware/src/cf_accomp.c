@@ -102,7 +102,6 @@ static void cpa_stop(void)
         cgs.take_revision++;
         cgs.pending=cgs.pending_auto=cgs.clear_take_hold=0;
         cgs.queued_bpm=0;
-        cgs_cancel_rolled_sounds();
     }
     cla_cancel(0);
     if (!cpa.on) return;
@@ -238,7 +237,7 @@ static void cpa_start(int capture)
         cgs.playing_genre=cgs.queued_genre;
         cgs.playing_feel=cgs.queued_feel;
         cgs_start();
-        cgs_sound_boundary(CGS_PATCH_STAGE);
+        cgs_start_sounds();
     }
     cpa_commit();
     cpa.clock_wait=cpa.clock_external=cfp_cfg.clock_in; cpa.clock_lost=0; cpa.clock_ms=cf_now_ms;

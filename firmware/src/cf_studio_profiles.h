@@ -8,9 +8,7 @@ enum { CGS_LAYER_SEQUENCE, CGS_LAYER_FRAGMENT, CGS_LAYER_SWELL };
 enum { CGS_BASS_REPLY_NONE, CGS_BASS_REPLY_LOCK, CGS_BASS_REPLY_LATE };
 enum { CGS_LAYER_REPLY_NONE, CGS_LAYER_REPLY_GAPS, CGS_LAYER_REPLY_SNARE, CGS_LAYER_REPLY_HARMONY,
        CGS_LAYER_REPLY_DREAM };
-enum { CGS_GUITAR, CGS_ELECTRONIC, CGS_EXPERIMENTAL, CGS_NFAMILY };
 enum { CGS_CAB_WALNUT, CGS_CAB_ALUMINUM, CGS_CAB_TOLEX };
-static const char *const CGS_FAMILIES[]={"Guitar","Electronic","Experimental"};
 enum { CGS_FORM_BARS=8, CGS_FORM_LAYER_REST=1, CGS_FORM_LIGHT_HATS=2, CGS_FORM_FILL=4 };
 #define CGS_ARP_PATTERN(mode,rate,oct) ((mode)|((rate)<<4)|(((oct)-1)<<7))
 
@@ -21,7 +19,7 @@ typedef struct {
 
 typedef struct {
     const char *id, *name;
-    uint8_t bpm, primary, secondary, family, kit_count, cabinet;
+    uint8_t bpm, primary, secondary, kit_count, cabinet;
     uint8_t bpm_min, bpm_max;
     uint8_t keys[6], scales[4], meter_weight[3]; /* Pitch classes, modes, and weights for 3/4, 4/4, 6/8. */
     uint8_t fx[CGS_NPART][4];
@@ -119,7 +117,7 @@ static const cgs_profile_t CGS_PROFILES[]={
              {FXP_CLEAN,FXP_VELVET,FXP_SLAP,FXP_BITE},
              {FXP_DEEP_SPACE,FXP_PING_PONG,FXP_WIDE_DRIFT,FXP_SLAP},
              {FXP_CLEAN,FXP_VELVET,FXP_SILVER_PLATE,FXP_SLAP}},
-        .primary=CF_P_DREAMY, .secondary=CF_P_EMOTIONAL, .family=CGS_GUITAR,
+        .primary=CF_P_DREAMY, .secondary=CF_P_EMOTIONAL,
         CGS_KITS(DMK_AIR,DMK_ROOM,DMK_XLIVE,DMK_TAPE,DMK_GLASS,DMK_BRUSH)
         CGS_PALETTE(CGS_EXTRA_DREAM,STUDIO_VA_GLIDE_HAZE,STUDIO_VA_VELVET_PICK,STUDIO_VA_SLOW_SPARK)
         .composer=CGS_COMPOSE_DREAM, .feel_count=4,
@@ -141,7 +139,7 @@ static const cgs_profile_t CGS_PROFILES[]={
              {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SLAP},
              {FXP_SLAP,FXP_PING_PONG,FXP_SILVER_PLATE,FXP_WIDE_DRIFT},
              {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SILVER_PLATE}},
-        .primary=CF_P_FAMILIAR, .secondary=CF_P_UPLIFTING, .family=CGS_GUITAR,
+        .primary=CF_P_FAMILIAR, .secondary=CF_P_UPLIFTING,
         CGS_KITS(DMK_XLIVE,DMK_ROOM,DMK_STD,DMK_TIGHT,DMK_WOOD,DMK_TAPE)
         CGS_PALETTE(CGS_EXTRA_INDIE,STUDIO_VA_TWIN_CHOPS,STUDIO_VA_PALM_WIRE,STUDIO_VA_BRIDGE_CHIME)
         .bank_duration_scale=1, .evolve_period_scale=1, .layer_start=3, .layer_floor=60,
@@ -168,7 +166,7 @@ static const cgs_profile_t CGS_PROFILES[]={
              {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SLAP},
              {FXP_PING_PONG,FXP_ORBIT,FXP_PHASE_SWEEP,FXP_SLAP},
              {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SILVER_PLATE}},
-        .primary=CF_P_DARK, .secondary=CF_P_ENERGETIC, .family=CGS_ELECTRONIC,
+        .primary=CF_P_DARK, .secondary=CF_P_ENERGETIC,
         .cabinet=CGS_CAB_ALUMINUM,
         CGS_KITS(DMK_909,DMK_XTECH,DMK_808,DMK_CRUSH,DMK_XCLUB,DMK_MRETRO)
         CGS_PALETTE(CGS_EXTRA_WAVE,STUDIO_VA_AFTERIMAGE,STUDIO_VA_MONO_SHIFT,STUDIO_VA_CHROME_ARP)
@@ -194,7 +192,7 @@ static const cgs_profile_t CGS_PROFILES[]={
              {FXP_BITE,FXP_VELVET,FXP_CLEAN,FXP_SLAP},
              {FXP_SLAP,FXP_WIDE_DRIFT,FXP_SILVER_PLATE,FXP_PING_PONG},
              {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SILVER_PLATE}},
-        .primary=CF_P_DARK, .secondary=CF_P_EMOTIONAL, .family=CGS_GUITAR,
+        .primary=CF_P_DARK, .secondary=CF_P_EMOTIONAL,
         CGS_KITS(DMK_XBREAK,DMK_ROOM,DMK_XLIVE,DMK_CRUSH,DMK_TIGHT,DMK_BOOM)
         CGS_PALETTE(CGS_EXTRA_PUNK,STUDIO_VA_STACK_BITE,STUDIO_VA_BREAK_PICK,STUDIO_VA_CLEAN_OCTAVE)
         .composer=CGS_COMPOSE_PUNK, .feel_count=4,
@@ -215,7 +213,7 @@ static const cgs_profile_t CGS_PROFILES[]={
              {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SLAP},
              {FXP_SLAP,FXP_SILVER_PLATE,FXP_DEEP_SPACE,FXP_WIDE_DRIFT},
              {FXP_CLEAN,FXP_VELVET,FXP_PHONE_LP,FXP_SILVER_PLATE}},
-        .primary=CF_P_JAZZY, .secondary=CF_P_DREAMY, .family=CGS_ELECTRONIC,
+        .primary=CF_P_JAZZY, .secondary=CF_P_DREAMY,
         .cabinet=CGS_CAB_TOLEX,
         CGS_KITS(DMK_DUST,DMK_TAPE,DMK_XLOFI,DMK_BRUSH,DMK_LOFI,DMK_CHILL)
         CGS_PALETTE(CGS_EXTRA_LOFI,STUDIO_VA_WORN_REED,STUDIO_VA_DUST_ROUND,STUDIO_VA_GRAIN_KEYS)
@@ -243,7 +241,7 @@ static const cgs_profile_t CGS_PROFILES[]={
              {FXP_CLEAN,FXP_VELVET,FXP_SLAP,FXP_BITE},
              {FXP_DEEP_SPACE,FXP_ORBIT,FXP_WIDE_DRIFT,FXP_SLAP},
              {FXP_CLEAN,FXP_VELVET,FXP_SILVER_PLATE,FXP_SLAP}},
-        .primary=CF_P_DREAMY, .secondary=CF_P_UPLIFTING, .family=CGS_EXPERIMENTAL,
+        .primary=CF_P_DREAMY, .secondary=CF_P_UPLIFTING,
         .cabinet=CGS_CAB_ALUMINUM,
         CGS_KITS(DMK_CHILL,DMK_GLASS,DMK_AIR,DMK_DUB,DMK_WOOD,DMK_HAND)
         CGS_PALETTE(CGS_EXTRA_AMBIENT,STUDIO_VA_TIDAL_DRONE,STUDIO_VA_DEEP_ANCHOR,STUDIO_VA_AIR_LATTICE)

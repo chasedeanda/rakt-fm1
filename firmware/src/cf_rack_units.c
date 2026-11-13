@@ -6,19 +6,18 @@ static int cgu_unit_blend(int from,int to,int zoom)
 
 static int cgu_unit_controls(unsigned band)
 {
-    if(band==CGU_BAND_PROGRESSION)return 1;
-    return band==CGU_BAND_GENRE?2:4;
+    return band==CGU_BAND_PROGRESSION?1:4;
 }
 
-static int cgu_unit_knob_x(cgu_face_t f,int i,int count)
-{ return f.x+f.w*(1+2*i)/(count==2?4:8); }
+static int cgu_unit_knob_x(cgu_face_t f,int i)
+{ return f.x+f.w*(1+2*i)/8; }
 
 static int cgu_unit_knob_y(cgu_face_t f,int zoom)
 { return f.y+cgu_unit_blend(f.h-15,f.h*64/100,zoom); }
 
-static cgu_face_t cgu_unit_lens(cgu_face_t f,int knob,int count,int scale)
+static cgu_face_t cgu_unit_lens(cgu_face_t f,int knob,int scale)
 {
-    int x=cgu_unit_knob_x(f,knob,count), y=cgu_unit_knob_y(f,100);
+    int x=cgu_unit_knob_x(f,knob), y=cgu_unit_knob_y(f,100);
     return (cgu_face_t){f.x+(f.x-x)*scale/100,f.y+(f.y-y)*scale/100,
         f.w+f.w*scale/100,f.h+f.h*scale/100};
 }
@@ -81,12 +80,11 @@ static void cgu_unit_grille(int x,int y,int w,int h,int metal)
 
 static void cgu_unit_lamps(const cf_stage_model_t *m,unsigned band,int x,int y,int w,int h,int zoom,unsigned ink)
 {
-    static const char *const labels[]={"BEAT","OUTPUT","PROGRAM","STEP","CHORD SLOT"};
+    static const char *const labels[]={"BEAT","OUTPUT","STEP","CHORD SLOT"};
     unsigned cells=8, on=0, fill=0;
     switch(band){
     case CGU_BAND_HARMONY: cells=m->rack_meter;on=m->rack_beat;break;
     case CGU_BAND_SHAPING: fill=m->rack_level;break;
-    case CGU_BAND_GENRE: cells=CGS_NGENRE;on=m->genre+1u;break;
     case CGU_BAND_ARP: cells=16;on=m->rack_arp_step;break;
     case CGU_BAND_PROGRESSION:
         cells=m->count>8?16:8;on=m->slot;break;
@@ -131,11 +129,6 @@ static void cgu_unit_dial(unsigned band,int x,int y,int r,unsigned pos,unsigned 
         cgu_metal_disc(x,y,r-2,3,1,0);
         cfn_circle(x,y,r-1,CGU_METAL+2);
         break;
-    case CGU_BAND_GENRE:
-        cgu_metal_disc(x,y,r,9,7,3);
-        cgu_metal_disc(x,y,r-3,9,8,6);
-        marker=CGU_METAL+10;
-        break;
     default: /* Machined cap with a polished rim and a dark pointer. */
         cgu_metal_disc(x,y,r,9,6,3);
         cgu_metal_disc(x,y,r-2,7,6,5);
@@ -148,6 +141,7 @@ static void cgu_unit_dial(unsigned band,int x,int y,int r,unsigned pos,unsigned 
 static const char *cgu_unit_label(const char *name,char label[12])
 {
     if(cb_streq(name,"ARP FOR"))return "For";
+    if(cb_streq(name,"FX SPACE"))return "FX Space";
     str_cpy(label,name,12);
     for(char *c=label+1;*c;c++)if(*c>='A' && *c<='Z')*c=(char)(*c-'A'+'a');
     return label;
@@ -261,7 +255,7 @@ static void cgu_amp_head(const cf_stage_model_t *m,unsigned part,cgu_face_t f,in
     for(int i=0;i<4;i++){
         unsigned position=selected?m->knob[i]:m->amp_knob[part][i];
         if(selected?!m->label[i][0]:position==255u)continue;
-        int cx=cgu_unit_knob_x(f,i,4)+dx;
+        int cx=cgu_unit_knob_x(f,i)+dx;
         unsigned marker=selected && m->emphasis[i]?ink:FL_INK;
         if(selected && m->disabled[i])marker=CGU_METAL+6;
         if(selected && sends && zoom>90)cgu_send_graph((unsigned)i,position,m->fx_send_shape[i],cx-20,cy-36,40,17,ink);
@@ -282,7 +276,7 @@ static void cgu_amp_head(const cf_stage_model_t *m,unsigned part,cgu_face_t f,in
         cgu_phrase_window(m,part,start,cy-17,x+w-start-10,ink);
     }
     if(selected && zoom>82 && sound && part==CGS_DRUMS && m->sound_page==CGU_TONE)
-        cgu_drum_hit_lights(m,cgu_unit_knob_x(f,2,4),cy,ink);
+        cgu_drum_hit_lights(m,cgu_unit_knob_x(f,2),cy,ink);
     if(selected && presets && zoom>82){
         cgu_unit_readout(x+67+dx,cy-1,w-81,m->value[0],ink);
         char loaded[64]="Loaded ";
@@ -296,11 +290,14 @@ static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,i
 {
     unsigned ink=cgu_module_ink(CGS_NPART+band-1u);
     int count=cgu_unit_controls(band);
-    if(selected && m->rack_lens)f=cgu_unit_lens(f,cgu.turn_knob,count,m->rack_lens);
+    int groove=selected && band==CGU_BAND_SHAPING && m->shaping;
+    int lens=selected && !groove?m->rack_lens:0;
+    if(lens)f=cgu_unit_lens(f,cgu.turn_knob,lens);
     int x=f.x,y=f.y,w=f.w,h=f.h;
-    cf_rack_plate(x,y,w,h,RAKT_EAR,(uint8_t)(RAKT_HARMONY+band-1u));
+    static const uint8_t surfaces[]={RAKT_HARMONY,RAKT_SHAPING,RAKT_ARP,RAKT_PROGRESSION};
+    cf_rack_plate(x,y,w,h,RAKT_EAR,surfaces[band-1u]);
 
-    const char *title=CGU_BAND_NAMES[band-1u];
+    const char *title=groove?"Groove":CGU_BAND_NAMES[band-1u];
     int left=x+16, title_top=y+6;
     int title_w=cfn_width(&CFN_16,title)+11;
     int title_h=21;
@@ -318,13 +315,13 @@ static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,i
     int meter_y=y+cgu_unit_blend(30,42,zoom);
     int meter_h=cgu_unit_blend(8,13,zoom);
     cgu_unit_lamps(m,band,meter_x,meter_y,meter_w,meter_h,zoom,ink);
-    if(zoom<=70 && band==CGU_BAND_GENRE)
-        cgu_unit_vents(left,meter_y,30,meter_h,5);
 
     if(zoom>70){
         if(band==CGU_BAND_ARP){
             const char *page=m->shaping?"Timing":"Pattern";
             cfn_text(&CFN_12,left,meter_y+11,page,FL_INK2);
+        } else if(band==CGU_BAND_SHAPING && selected){
+            cfn_text(&CFN_11,left,meter_y+11,groove?"2/2  Shaping":"1/2  Arrangement",FL_INK2);
         } else {
             int badge=left+1, vent=badge+46;
             fb_rbox(badge,meter_y,36,14,1,CGU_METAL+1);
@@ -338,7 +335,7 @@ static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,i
     }
 
     int detail_radius=count==1?19:15;
-    int radius=cgu_unit_blend(8,detail_radius,zoom)+(selected?m->rack_lens*detail_radius/100:0);
+    int radius=cgu_unit_blend(8,detail_radius,zoom)+lens*detail_radius/100;
     int cy=cgu_unit_knob_y(f,zoom);
     int clearance=meter_y+meter_h+(zoom>68?11:0)+radius+4;
     if(cy<clearance)cy=clearance;
@@ -353,25 +350,46 @@ static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,i
         if(zoom>74)cgu_unit_readout(start,value_y,x+w-start-19,m->applied,FL_INK);
     }
     for(int i=0;i<count;i++){
-        int cx=cgu_unit_knob_x(f,i,count)+(band==CGU_BAND_ARP && selected?m->control_dx:0);
+        int cx=cgu_unit_knob_x(f,i)+(selected && (band==CGU_BAND_ARP || band==CGU_BAND_SHAPING)?m->control_dx:0);
         unsigned pos=selected?m->knob[i]:m->rack_knob[band-1u][i];
         int active=selected && m->emphasis[i] && !m->disabled[i];
         cgu_unit_dial(band,cx,cy,radius,pos,active?ink:selected && m->disabled[i]?CGU_METAL+6:FL_INK);
         if(zoom<74 || !selected || !m->label[i][0] || value_y>y+h-3)continue;
         if(active && band!=CGU_BAND_PROGRESSION)cfn_circle(cx,cy,radius+5,ink);
         int available=(cx-fb_cx0<fb_cx1-cx?cx-fb_cx0:fb_cx1-cx)*2;
-        int cell=w/(count==2?2:4)-4;
+        int cell=w/4-4;
         char label[12];
         const char *name=cgu_unit_label(m->label[i],label);
-        if(cfn_width(&CFN_12,name)<=available)
-            cfn_center(&CFN_12,cx,value_y-16,name,active?ink:FL_INK2);
-        if(band==CGU_BAND_GENRE && i==0)continue; /* The full genre name is on the display. */
+        int label_width=cfn_width(&CFN_12,name);
+        if(label_width<=available)
+            cfn_center(&CFN_12,cx,value_y-(groove?23:16),name,active?ink:FL_INK2);
+        if(band==CGU_BAND_SHAPING && !groove && i==0)continue;
         const cfn_font_t *font=active?&CFN_16:&CFN_14;
+        if(groove)font=&CFN_11;
+        unsigned value_ink=m->disabled[i]?FL_INK2:FL_INK;
+        if(groove && cfn_width(font,m->value[i])>cell){
+            char first[14];
+            str_cpy(first,m->value[i],sizeof first);
+            char *second=first;
+            while(*second && *second!=' ')second++;
+            if(*second){
+                *second++=0;
+                if(cfn_width(font,first)<=cell && cfn_width(font,second)<=cell && cell<=available){
+                    cfn_center(font,cx,value_y-11,first,value_ink);
+                    cfn_center(font,cx,value_y,second,value_ink);
+                    continue;
+                }
+            }
+            if(cell<=available){
+                cfn_squeezed(font,cx-cell/2,value_y,m->value[i],cell,value_ink);
+                continue;
+            }
+        }
         if(cfn_width(font,m->value[i])>cell)font=&CFN_12;
         if(cfn_width(font,m->value[i])>cell)font=&CFN_11;
         int width=cfn_width(font,m->value[i]);
         if(width<=cell && width<=available)
-            cfn_center(font,cx,value_y,m->value[i],m->disabled[i]?FL_INK2:FL_INK);
+            cfn_center(font,cx,value_y,m->value[i],value_ink);
         else if(cell<=available && width>cell)
             cfn_fit(font,cx-cell/2,value_y,m->value[i],cell,FL_INK);
     }
