@@ -1706,11 +1706,11 @@ static void quick_start_shortcuts(void)
     ui_select(-1);
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_CHORDS);
     ui_algo(-1);
-    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_GENRE);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_PROGRESSION);
     ui_algo(1);
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
     ui_algo(1);
-    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_PROGRESSION);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND && cgs.focus==CGS_CHORDS);
     ui_algo(-1);
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
 
@@ -1790,7 +1790,7 @@ static void glow_effects_studio(void)
 {
     unsigned c5=60u+12u-53u, d5=c5+2u;
     uint32_t glo=1u<<panel.btn[B_GLO], riser=1u<<c5, repeat=1u<<d5;
-    uint32_t echo=1u<<(d5+2u), sweep=1u<<(d5+3u);
+    uint32_t ambience=1u<<(d5+2u), sweep=1u<<(d5+3u), low_pass=1u<<(d5+5u);
     int32_t l[CTL],r[CTL];
     studio_start(101);
     blocks(2);
@@ -1838,43 +1838,53 @@ static void glow_effects_studio(void)
     CHECK(!cgu_glow.keys && !cfp.n);
 
     glow_scan(30,glo,0);
+    glow_scan(30,0,ambience);
+    CHECK(cfx_ambience_held);
+    for(unsigned j=0;j<FS/2u/CTL;j++){
+        for(unsigned i=0;i<CTL;i++)l[i]=r[i]=(j*CTL+i)%(FS/8u)<32u?12000:0;
+        cfx_ambience_render(l,r,CTL,0);
+    }
     glow_scan(30,0,0);
-    for(unsigned j=0;j<CFX_ECHO_CAP*CFX_ECHO_DS/CTL;j++){
-        for(unsigned i=0;i<CTL;i++){l[i]=2304;r[i]=1792;}
-        cfx_echo_mix(l,r,CTL);
-    }
-    CHECK(l[CTL-1]==2304 && r[CTL-1]==1792);
-    glow_scan(30,0,echo);
-    CHECK(cfx_echo_request==FS/8u/CFX_ECHO_DS);
-    for(unsigned j=0;j<CFX_ECHO_FADE/CTL;j++){
-        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
-        cfx_echo_mix(l,r,CTL);
-    }
-    int32_t first_echo=l[CTL-1];
-    CHECK(first_echo>0 && r[CTL-1]==first_echo);
+    int64_t tail=0, stereo=0;
     for(unsigned j=0;j<FS/CTL;j++){
-        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
-        cfx_echo_mix(l,r,CTL);
+        memset(l,0,sizeof l);memset(r,0,sizeof r);
+        cfx_ambience_render(l,r,CTL,0);
+        if(j>=FS/2u/CTL)for(unsigned i=0;i<CTL;i++){
+            tail+=abs(l[i])+abs(r[i]);
+            stereo+=abs(l[i]-r[i]);
+        }
     }
-    CHECK(l[CTL-1]>=0 && l[CTL-1]<first_echo);
-    glow_scan(30,0,0);
-    for(unsigned j=0;j<CFX_ECHO_FADE/CTL;j++){
-        for(unsigned i=0;i<CTL;i++){l[i]=-3000;r[i]=1000;}
-        cfx_echo_mix(l,r,CTL);
-    }
-    CHECK(!cfx_echo_request && !cfx_echo_wet && l[CTL-1]==-3000 && r[CTL-1]==1000);
+    CHECK(!cfx_ambience_held && !cfx_ambience_mix && tail>10000 && stereo>10000);
+    blocks(5u*FS/CTL);
+    CHECK(!cfx_ambience_tail && !cfx_ambience_age);
 
     glow_scan(30,0,sweep);
-    CHECK(cfx_sweep_step && !cfp.n);
-    for(unsigned j=0;j<FS/CTL+4u;j++){
-        for(unsigned i=0;i<CTL;i++){l[i]=2000;r[i]=4000;}
+    CHECK((cfx_sweep_request&3u)==2u && !cfp.n);
+    int64_t first_l=0, first_r=0, second_l=0, second_r=0;
+    for(unsigned j=0;j<FS/CTL;j++){
+        for(unsigned i=0;i<CTL;i++){
+            int32_t x=(int32_t)(4000*sin(800*(j*CTL+i)*6.283185307179586/FS));
+            l[i]=r[i]=x;
+        }
         cfx_sweep_mix(l,r,CTL);
+        if(j>=5u*FS/8u/CTL && j<4u*FS/6u/CTL)for(unsigned i=0;i<CTL;i++){
+            first_l+=(int64_t)l[i]*l[i];
+            first_r+=(int64_t)r[i]*r[i];
+        }
+        if(j>=7u*FS/8u/CTL && j<11u*FS/12u/CTL)for(unsigned i=0;i<CTL;i++){
+            second_l+=(int64_t)l[i]*l[i];
+            second_r+=(int64_t)r[i]*r[i];
+        }
     }
-    CHECK(cfx_sweep_phase==CFX_RISER_TOP && abs(l[CTL-1])<8 && abs(r[CTL-1])<8);
-    glow_scan(30,glo,sweep);
-    CHECK(!cgu_glow.active && !cfx_sweep_step && !cfx_echo_listen);
-    blocks(FS/30u/CTL+2u);
-    CHECK(!cfx_sweep_phase && !cfx_echo_filled);
+    CHECK(first_l>first_r*2 && second_r>second_l*2);
+    glow_scan(30,0,low_pass);
+    CHECK(cfx_sweep_request && !(cfx_sweep_request&3u));
+    blocks(FS/5u/CTL);
+    CHECK(cfx_sweep_type==0 && cfx_sweep_wet>0);
+    glow_scan(30,glo,low_pass);
+    CHECK(!cgu_glow.active && !cfx_sweep_request);
+    blocks(FS/10u/CTL);
+    CHECK(!cfx_sweep_wet && !cfx_sweep_phase);
     glow_scan(30,0,0);
     cgu_glow.repeat_rate=1;
     cpa_stop();
@@ -1960,7 +1970,7 @@ static void glow_live_studio(void)
     glow_scan(30,0,solo|fill);
     CHECK(cgs.held_solo==(1u<<CGS_BASS) && cgs.fill_held && !cfp.n);
     cf_leds();
-    CHECK(studio_led(white[1])==4u && !studio_led(white[15]));
+    CHECK(studio_led(white[1])==4u && studio_led(white[CGU_GLO_LOW_PASS])>0u);
     glow_scan(30,0,fill);
     blocks(1);
     CHECK(!cgs.held_solo && !cgs.mute_applied);
@@ -2021,27 +2031,22 @@ static void glow_live_studio(void)
     CHECK(!cgu_glow.keys);
 
     ticks(17);
-    unsigned auto_part=1u<<CGS_LAYER, manual_part=1u<<CGS_BASS;
-    cgs.next[CGS_LAYER]=cgs.active[CGS_LAYER];
-    cgs.next[CGS_BASS]=cgs.active[CGS_BASS];
-    cgs.pending=(uint8_t)(auto_part|manual_part);
-    cgs.pending_auto=(uint8_t)auto_part;
-    uint32_t revision=cgs.take_revision;
-    glow_scan(30,glo,1u<<white[CGU_GLO_PAUSE]);
-    blocks(1);
     unsigned phase=cpa.q2;
-    CHECK(cpa.paused && cpa.on && !cfm.running && !sqp.n && phase>0);
-    CHECK(cgs.pending==manual_part && !cgs.pending_auto && cgs.take_revision==revision+1u);
+    uint32_t hype=1u<<(75u-53u), phaser=1u<<(78u-53u);
+    unsigned drum_mutes=cgs.drum_mutes;
+    glow_scan(30,glo,hype|phaser);
     blocks(16);
-    CHECK(cpa.q2==phase);
+    CHECK(cfx_hype_wet && cfx_sweep.wg[CFX_PHASER] && cpa.on && !cpa.paused && cpa.q2>phase);
+    CHECK(cgs.drum_mutes==drum_mutes);
     glow_scan(30,0,0);
-    glow_scan(30,0,1u<<white[CGU_GLO_PAUSE]);
-    blocks(1);
-    CHECK(!cpa.paused && cfm.running && cpa.q2>=phase);
+    blocks(FS/10u/CTL);
+    CHECK(!cfx_hype_wet && !cfx_sweep.wg[CFX_PHASER] && cpa.on);
+    glow_scan(30,0,1u<<(63u-53u));
+    CHECK(cgs.drum_mutes==(drum_mutes^8u));
     glow_scan(30,0,0);
-    glow_scan(30,0,1u<<white[CGU_GLO_RESTART]);
-    blocks(1);
-    CHECK(cpa.on && cpa.q2==0 && cpa.slot==0);
+    glow_scan(30,0,1u<<(63u-53u));
+    CHECK(cgs.drum_mutes==drum_mutes);
+    glow_scan(30,0,0);
     glow_scan(30,0,1u<<white[CGU_GLO_FILL_BAR]);
     blocks(1);
     CHECK(cf_moment.pending==CFPERF_FILL && !cf_moment.fill);

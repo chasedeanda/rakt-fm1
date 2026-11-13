@@ -31,11 +31,17 @@ static struct {
 
 enum { CGU_GLO_MAP, CGU_GLO_STATE, CGU_GLO_VIEWS };
 enum {
-    CGU_GLO_PAUSE=4, CGU_GLO_RESTART, CGU_GLO_UNMUTE, CGU_GLO_TAP,
+    CGU_GLO_UNMUTE=6, CGU_GLO_TAP,
     CGU_GLO_FILL, CGU_GLO_FILL_BAR, CGU_GLO_DROP,
-    CGU_GLO_RISER, CGU_GLO_REPEAT, CGU_GLO_ECHO, CGU_GLO_SWEEP
+    CGU_GLO_RISER, CGU_GLO_REPEAT, CGU_GLO_AMBIENCE, CGU_GLO_SWEEP, CGU_GLO_LOW_PASS
 };
+enum { CGU_GLO_PERC=4, CGU_GLO_HYPE=9, CGU_GLO_PHASER };
 static const char *const CGU_GLO_DRUMS[]={"KICK","SNARE","HATS","PERC"};
+static __attribute__((noinline)) unsigned cgu_glow_drum(unsigned place)
+{
+    static const uint8_t drums[]={4,4,4,4,3,4,0,1,2,4,4};
+    return drums[place];
+}
 static struct {
     uint32_t keys, taps[4];
     uint16_t repeat_bpm;
@@ -723,9 +729,8 @@ static void cgu_glow_open(int on)
     cgs.held_solo=cgs.fill_held=0;
     cfx_riser_step=0;
     cfx_repeat_request=0;
-    cfx_echo_request=0;
-    cfx_echo_listen=(uint8_t)on;
-    cfx_sweep_step=0;
+    cfx_ambience_held=cfx_hype_held=cfx_glo_phase_held=0;
+    cfx_sweep_request=0;
     cgu.turn_ms=0;
     cu.pop=POP_NONE;
     if(on)cgu_glow.view=CGU_GLO_MAP;
@@ -753,19 +758,11 @@ static void cgu_glow_tap(void)
     if(n>=3 && now!=cgu_glow.taps[0])cpa_tempo((int)(60000u*(n-1u)/(now-cgu_glow.taps[0]))-cs.bpm);
 }
 
-static void cgu_glow_transport(unsigned action)
-{
-    if(cs.clock_in==1u){cf_message("Transport follows MIDI clock");return;}
-    if(!cgs_active()){cf_message("PLAY a Studio groove first");return;}
-    if(!cf_post(CFE_ACCOMP,action,0,0))cf_message("Busy: try again");
-}
-
 static int cgu_glow_ready(unsigned place)
 {
-    if(place<CGS_NPART || place==CGU_GLO_UNMUTE || (place>=CGU_GLO_RISER && place<=CGU_GLO_SWEEP))return 1;
+    if(place<CGS_NPART || place==CGU_GLO_UNMUTE || (place>=CGU_GLO_RISER && place<=CGU_GLO_LOW_PASS))return 1;
     if(place==CGU_GLO_TAP)return cs.clock_in!=1u;
-    if(place==CGU_GLO_PAUSE || place==CGU_GLO_RESTART)return cgs_active() && cs.clock_in!=1u;
-    return place<=CGU_GLO_DROP && cgu_perform_ready() &&
+    return place>=CGU_GLO_FILL && place<=CGU_GLO_DROP && cgu_perform_ready() &&
         (place==CGU_GLO_DROP || !cf_sn.perf_dropped);
 }
 
@@ -783,18 +780,26 @@ static int cgu_glow_key(unsigned key,int down)
         if(!black && place==CGU_GLO_FILL)cgs.fill_held=0;
         if(!black && place==CGU_GLO_RISER)cfx_riser_step=0;
         if(!black && place==CGU_GLO_REPEAT)cfx_repeat_request=0;
-        if(!black && place==CGU_GLO_ECHO)cfx_echo_request=0;
-        if(!black && place==CGU_GLO_SWEEP)cfx_sweep_step=0;
+        if(!black && place==CGU_GLO_AMBIENCE)cfx_ambience_held=0;
+        if(black && place==CGU_GLO_HYPE)cfx_hype_held=0;
+        if(black && place==CGU_GLO_PHASER)cfx_glo_phase_held=0;
+        if(!black && (place==CGU_GLO_SWEEP || place==CGU_GLO_LOW_PASS)){
+            unsigned other=place==CGU_GLO_SWEEP?79u:77u;
+            if(cgu_glow.keys&(1u<<(other-53u)))cfx_sweep_request=(cfx_sweep_request&~3u)|
+                (cfx_sweep_request && other==77u?2u:0u);
+            else cfx_sweep_request=0;
+        }
         return 1;
     }
     cgu_glow.keys|=bit;
     if(black){
+        unsigned drum=cgu_glow_drum(place);
         if(place<CGS_NPART)cgs.muted^=(uint8_t)(1u<<cgu_part(place));
-        else if(place>=6u && place<10u)cgs.drum_mutes^=(uint8_t)(1u<<(place-6u));
+        else if(drum<NELEM(CGU_GLO_DRUMS))cgs.drum_mutes^=(uint8_t)(1u<<drum);
+        else if(place==CGU_GLO_HYPE)cfx_hype_held=1;
+        else if(place==CGU_GLO_PHASER)cfx_glo_phase_held=1;
     } else if(place<CGS_NPART)cgs.held_solo|=(uint8_t)(1u<<cgu_part(place));
     else switch(place){
-    case CGU_GLO_PAUSE:cgu_glow_transport(CGS_PLAY_PAUSE);break;
-    case CGU_GLO_RESTART:cgu_glow_transport(CGS_PLAY_RESTART);break;
     case CGU_GLO_UNMUTE:cgs.muted=cgs.solo=cgs.drum_mutes=0;break;
     case CGU_GLO_TAP:cgu_glow_tap();break;
     case CGU_GLO_FILL:
@@ -812,15 +817,12 @@ static int cgu_glow_key(unsigned key,int down)
         cgu_glow.repeat_bpm=(uint16_t)cgu_glow_bpm();
         cgu_glow_repeat(0);
         break;
-    case CGU_GLO_ECHO:{
-        unsigned frames=FS*15u/CFX_ECHO_DS/cgu_glow_bpm();
-        while(frames>CFX_ECHO_CAP)frames>>=1;
-        cfx_echo_request=(uint16_t)frames;
-        break;
-    }
-    case CGU_GLO_SWEEP:{
+    case CGU_GLO_AMBIENCE:cfx_ambience_held=1;break;
+    case CGU_GLO_SWEEP:
+    case CGU_GLO_LOW_PASS:{
         unsigned bpm=cgu_glow_bpm();
-        cfx_sweep_step=(uint16_t)(((CFX_RISER_TOP/2u)*bpm+FS*30u)/(FS*60u));
+        unsigned step=(UINT32_MAX/(FS*60u))*bpm;
+        cfx_sweep_request=(step&~3u)|(place==CGU_GLO_SWEEP?2u:0u);
         break;
     }
     }

@@ -108,25 +108,28 @@ Press **GLO** to open the live mixer. **K1–K4** adjust Chords, Bass, Drums and
 | --- | --- |
 | First four black keys | Toggle mute for Chords, Bass, Drums and Layer |
 | First four white keys | Solo those musicians while held |
-| Black keys 7–10 | Toggle kick, snare, hats and percussion |
-| C4 / D4 | Pause or resume / restart |
+| D♯4 | Toggle percussion mute |
+| Black keys 7–9 | Toggle kick, snare and hats |
 | E4 / F4 | Unmute all / tap tempo |
 | G4 / A4 | Fill while held / queue a one-bar fill |
 | B4 | Drop or bring back drums at the next bar |
 | C5 | Hold for a filtered noise riser, then release to fade it out |
 | D5 | Hold to loop a slice of the mix. Turn **PRESETS** to change the repeat rate. |
-| E5 | Hold to cut the live mix into a fading echo. Release to return to the mix. |
-| F5 | Hold to sweep out the low end. Release to bring it back. |
+| D♯5 | Hold for Hype distortion. |
+| E5 | Hold for Ambience, a warm room with a stereo tail. Release to bring the mix forward while the room fades. |
+| F5 | Hold for Radio, a thin, bright band-pass that sweeps across stereo. |
+| F♯5 | Hold for a stereo Phaser. |
+| G5 | Hold for Low Pass, a deep, bass-heavy sweep that moves across stereo. |
 
-Pause, restart and tempo follow the external clock when MIDI clock input is active. From the zoomed Studio Drums panel, **PRESETS** left queues a fill and right drops or returns the drums at the next bar.
+Tempo follows the external clock when MIDI clock input is active. From the zoomed Studio Drums panel, **PRESETS** left queues a fill and right drops or returns the drums at the next bar.
 
 The riser gets louder and brighter over four quarter-note beats at the tempo when you press C5. Release it on a fill, drum drop, or section change.
 
 Beat Repeat captures a mono slice of the mix and defaults to 1/16. While holding D5, turn **PRESETS** clockwise for shorter loops or counterclockwise for longer loops. The display shows the selected division. The range is 1/8 to 1/64, with the longest divisions available at higher tempos.
 
-Echo Out repeats the most recent slice and fades it while held. It uses a sixteenth-note delay or a shorter subdivision at slower tempos. Give it a moment after opening GLO to capture the mix. The high-pass sweep rises over two quarter-note beats.
+Radio and Low Pass build over about one beat and return to the mix as soon as you release the key. Ambience sends less of the Studio drums into the reverb so the notes can ring behind the beat.
 
-The song continues underneath all four effects, and the USB master mix captures them.
+The song continues underneath all seven effects, and the USB master mix captures them.
 
 ## Sound
 
