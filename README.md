@@ -4,7 +4,7 @@
 
 Play chords over a generated band of Chords, Bass, Drums and Layer. The four parts share a progression and clock, and each has its own playing style and sound. Studio lets you shape the band while it plays.
 
-[Play in your browser](https://chasedeanda.github.io/rakt-fm1/play/) · [Install on your FM-1](#install-on-your-fm-1) · [Download the quick-start PDF](docs/RAKT-FM1-Quick-Start.pdf) · [Studio controls](docs/RAKT-STUDIO-CONTROLS.md)
+[Play in your browser](https://chasedeanda.github.io/rakt-fm1/play/) · [Install on your FM-1](#install-on-your-fm-1) · [Download the quick-start PDF](docs/RAKT-FM1-Quick-Start.pdf) · [GLO Live cheat sheet](#glo-live-cheat-sheet) · [Studio controls](docs/RAKT-STUDIO-CONTROLS.md)
 
 <p align="center">
   <a href="docs/RAKT-FM1-Quick-Start.pdf"><img src="docs/images/rakt-quick-start.png" width="760" alt="RAKT FM-1 quick start with first jam steps, rack navigation, sound and arp shortcuts, and the GLO keyboard map"></a>
@@ -14,6 +14,14 @@ The recording cheat sheet below shows the current REC workflow.
 
 <p align="center">
   <a href="docs/RECORDINGS.md"><img src="docs/images/rakt-recording.png" width="760" alt="RAKT FM-1 recording cheat sheet for capturing all four parts, replaying and clearing saved takes, and recording the full mix over USB"></a>
+</p>
+
+## GLO Live cheat sheet
+
+Press **GLO** while the band plays to mix the four parts, cue fills and drum drops, or hold **C5** for Riser, **D5** for Beat Repeat, **E5** for Echo Out, and **F5** for High-pass Sweep. [Download the one-page PDF](docs/RAKT-FM1-GLO-Live.pdf) · [Full GLO controls](docs/RAKT-STUDIO-CONTROLS.md#glo-live)
+
+<p align="center">
+  <a href="docs/RAKT-FM1-GLO-Live.pdf"><img src="docs/images/rakt-glo-live.png" width="760" alt="GLO Live cheat sheet with the FM-1 keyboard map, mixer and transport controls, fills and drops, and all four hold-to-use effects"></a>
 </p>
 
 ## How the band plays together
