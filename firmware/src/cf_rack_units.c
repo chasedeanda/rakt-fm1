@@ -321,20 +321,21 @@ static void cgu_band_unit(const cf_stage_model_t *m,unsigned band,cgu_face_t f,i
     if(zoom<=70 && band==CGU_BAND_GENRE)
         cgu_unit_vents(left,meter_y,30,meter_h,5);
 
-    if(zoom>70){
-        if(band==CGU_BAND_ARP){
-            const char *page=m->shaping?"Timing":"Pattern";
-            cfn_text(&CFN_12,left,meter_y+11,page,FL_INK2);
-        } else {
-            int badge=left+1, vent=badge+46;
-            fb_rbox(badge,meter_y,36,14,1,CGU_METAL+1);
-            fb_hline(badge+1,meter_y,34,CGU_METAL+5);
-            fb_hline(badge+1,meter_y+13,34,CGU_METAL+10);
-            cgu_unit_screw(badge+2,meter_y+6,0);
-            cgu_unit_screw(badge+33,meter_y+6,0);
-            cfn_center(&CFN_11,badge+18,meter_y+11,"RAKT",FL_INK);
-            cgu_unit_vents(vent,meter_y,meter_x-vent-10,14,5);
-        }
+    if(band==CGU_BAND_ARP){
+        int tab_height=cgu_unit_blend(12,16,zoom);
+        int tab_y=meter_y-(tab_height-meter_h)/2;
+        int timing=selected && m->shaping;
+        cgu_page_tab(left-2,tab_y,46,tab_height,"Pattern",!timing,ink);
+        cgu_page_tab(left+44,tab_y,46,tab_height,"Timing",timing,ink);
+    } else if(zoom>70){
+        int badge=left+1, vent=badge+46;
+        fb_rbox(badge,meter_y,36,14,1,CGU_METAL+1);
+        fb_hline(badge+1,meter_y,34,CGU_METAL+5);
+        fb_hline(badge+1,meter_y+13,34,CGU_METAL+10);
+        cgu_unit_screw(badge+2,meter_y+6,0);
+        cgu_unit_screw(badge+33,meter_y+6,0);
+        cfn_center(&CFN_11,badge+18,meter_y+11,"RAKT",FL_INK);
+        cgu_unit_vents(vent,meter_y,meter_x-vent-10,14,5);
     }
 
     int detail_radius=count==1?19:15;

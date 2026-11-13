@@ -350,6 +350,15 @@ static void cgu_dial(int x,int y,int r,unsigned value,unsigned ink)
     cgu_dial_mark(x,y,r,value,ink);
 }
 
+static void cgu_page_tab(int x,int y,int cell,int height,const char *name,int selected,unsigned accent)
+{
+    fb_rbox(x,y,cell-3,height,1,selected?RAKT_EDGE:RAKT_GLASS);
+    int label=cfn_width(&CFN_11,name);
+    cfn_fit(&CFN_11,x+clampi((cell-3-label)/2,2,cell-4),y+height-4,name,cell-7,
+        selected?FL_INK:FL_INK2);
+    if(selected)fb_hline(x+1,y+height-1,cell-5,accent);
+}
+
 static void cgu_pages(int x,int y,int w,unsigned tab,unsigned part,unsigned selected)
 {
     static const char *const studio[]={"Part","Harmony","Evolve"};
@@ -361,11 +370,7 @@ static void cgu_pages(int x,int y,int w,unsigned tab,unsigned part,unsigned sele
         int cell=tab==CGU_SOUND?w*width[i]/100:w/(int)NELEM(studio);
         if(!cell)continue;
         const char *name=tab==CGU_SOUND?CGU_SOUND_NAMES[i]:studio[i];
-        fb_rbox(x,y,cell-3,16,1,i==selected?RAKT_EDGE:RAKT_GLASS);
-        int label=cfn_width(&CFN_11,name);
-        cfn_fit(&CFN_11,x+clampi((cell-3-label)/2,2,cell-4),y+12,name,cell-7,
-            i==selected?FL_INK:FL_INK2);
-        if(i==selected)fb_hline(x+1,y+15,cell-5,accent);
+        cgu_page_tab(x,y,cell,16,name,i==selected,accent);
         x+=cell;
     }
 }
@@ -859,13 +864,14 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
     int palette=tab==CGU_SOUND && m->live && m->bank==CGU_RACK_LIBRARY && !m->build;
     if(studio && m->bank && m->bank!=CGU_BAND_SONG){
         int progression=m->live && m->bank==CGU_BAND_PROGRESSION;
+        int arp=m->live && m->bank==CGU_BAND_ARP;
         int footer=overview?226:208;
-        cfn_text(&CFN_12,10,footer,overview?"ALGO Browse":progression?"EDIT Draft":"SEQ Next",FL_INK);
+        cfn_text(&CFN_12,10,footer,progression?"EDIT Draft":"ALGO Browse",FL_INK);
         cfn_text(&CFN_12,100,footer,progression?"SEL Apply":m->live?"SEL Back":"SEL Zoom",FL_INK);
-        cfn_text(&CFN_11,167,footer,!overview && m->bank==CGU_BAND_ARP?"SELECT Page":"SELECT Tab",FL_INK2);
+        cfn_text(&CFN_11,167,footer,arp?"SELECT Part":"SELECT Tab",FL_INK2);
         if(m->pending[0])cfn_fit(&CFN_11,10,237,m->pending,137,FL_INK2);
-        else if(progression)cfn_text(&CFN_11,10,237,"SEQ Next unit",FL_INK2);
-        else if(!overview && m->bank==CGU_BAND_ARP)cfn_text(&CFN_11,10,237,"ALGO Keys part",FL_INK2);
+        else if(progression)cfn_text(&CFN_11,10,237,"ALGO Browse",FL_INK2);
+        else if(arp)cfn_text(&CFN_11,10,237,m->shaping?"ARP Pattern":"ARP Timing",FL_INK2);
         cgu_keys_footer();
         return;
     }

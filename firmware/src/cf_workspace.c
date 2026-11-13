@@ -150,9 +150,14 @@ static void cgu_set_zoom(int detail)
         cgu_focus_part(CGS_CHORDS);
 }
 
-static void cgu_open_arp(void)
+static void cgu_arp_button(void)
 {
-    if(cgu.tab==CGU_STUDIO && cgu.band_panel==CGU_BAND_ARP && cgs.zoom){cgu_set_zoom(0);return;}
+    if(cgu.tab==CGU_STUDIO && cgu.band_panel==CGU_BAND_ARP && cgs.zoom){
+        cgu.arp_timing^=1u;
+        cgu.turn_ms=0;
+        cgu_slide_controls(cgu.arp_timing?1:-1);
+        return;
+    }
     if(cgu.tab!=CGU_STUDIO)cgu_tab_turn(CGU_STUDIO-cgu.tab);
     cgu.band_panel=CGU_BAND_ARP;
     cgu.rack_ms=0;
@@ -311,7 +316,7 @@ static void cgu_studio_page_turn(int d)
 {
     if(cgu.band_panel==CGU_BAND_ARP){
         if(!(d%2))return;
-        cgu.arp_timing^=1u;
+        cgu_focus_part(cgs.focus==CGS_CHORDS?CGS_LAYER:CGS_CHORDS);
     } else {
         if(!(d%CGU_PART_PAGES))return;
         cgu.part_page=(uint8_t)wrapi(cgu.part_page+d%CGU_PART_PAGES,CGU_PART_PAGES);
@@ -391,10 +396,6 @@ static void cgu_focus(int d)
     if(!d)return;
     cgu.turn_ms=cgu.page_ms=0;
     if(!cgs.zoom)cgu.zoom_ms=0;
-    if(cgs.zoom && cgu.tab==CGU_STUDIO && cgu.band_panel==CGU_BAND_ARP){
-        if(d%2)cgu_focus_part(cgs.focus==CGS_CHORDS?CGS_LAYER:CGS_CHORDS);
-        return;
-    }
     int scroll=cgu_rack_scroll(), count=(int)cgu_rack_tiles(cgu.tab);
     unsigned current=cgu_active_rack_tile();
     unsigned tile=(unsigned)wrapi((int)current+d%count,count);
