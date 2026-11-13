@@ -2,7 +2,7 @@
 
 Turn **SELECT** on an overview to switch between Studio, Sound, Record and Help. Turn **ALGORITHM** to move between units. Each tab keeps two neighboring full-width units in view and scrolls when the selection moves past an edge. Switching tabs recalls the rack position. **SEQ** jumps to the outboard gear in Studio and steps through its units.
 
-The arrow and the light strip on the right show the selected unit and its position in the rack. The control strip below the bay shows K1–K4. Press **SEL** to zoom in. In detail, **SELECT** turns pages when a unit has them and switches tabs when it has one page. **ALGORITHM** moves between units. In the zoomed ARP panel, it switches between Chords and Layer. **HOME** backs out to the same unit. Press **HOME** again from the overview to return to Studio. **SEL** applies the shown choice on panels that say **SEL Apply**.
+The arrow and the light strip on the right show the selected unit and its position in the rack. The control strip below the bay shows K1–K4. Press **SEL** to zoom in. **ALGORITHM** moves between units at either zoom level. In detail, **SELECT** turns pages, picks the musician on ARP, or switches tabs on single-page units. **HOME** backs out to the same unit. Press **HOME** again from the overview to return to Studio. **SEL** applies the shown choice on panels that say **SEL Apply**.
 
 ## Studio
 
@@ -149,9 +149,9 @@ Highlight **Mix** in Sound and press **SEL**. Use **K1–K4** for part levels, o
 
 ## Arpeggiator
 
-Press **ARP** to open the Pattern page directly, or find the ARP unit with **SEQ** and open it with **SEL**. The panel starts on Chords when Bass or Drums was selected. Turn **ALGORITHM** to switch between Chords and Layer. **K1 Arp For** chooses Off, Keys, Band or Auto. Keys arpeggiates the notes you hold. Band plays that musician’s chord tones with your ARP settings. Auto shows the mode, octave span and rate chosen by the generator when the musician has an arpeggio. Selecting Off, Keys or Band overrides Auto for that musician. In Keys and Band, **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
+Press **ARP** to open the Pattern page directly, or find the ARP unit with **SEQ** and open it with **SEL**. The panel starts on Chords when Bass or Drums was selected. Turn **SELECT** to switch between Chords and Layer. **K1 Arp For** chooses Off, Keys, Band or Auto. Keys arpeggiates the notes you hold. Band plays that musician’s chord tones with your ARP settings. Auto shows the mode, octave span and rate chosen by the generator when the musician has an arpeggio. Selecting Off, Keys or Band overrides Auto for that musician. In Keys and Band, **K2 Mode** selects the note order or strum mode, **K3 Octave** sets the range, and **K4 Rate** sets the clock division or the spacing in milliseconds for a strum.
 
-Turn **SELECT** to the timing page. **K1 Gate** sets how much of each step a note occupies, **K2 Swing** shifts alternating steps, **K3 Latch** keeps the arpeggio going after key release, and **K4 Glide** sets the Chords glide time.
+Press **ARP** while zoomed in to switch between the **Pattern** and **Timing** tabs. **K1 Gate** sets how much of each step a note occupies, **K2 Swing** shifts alternating steps, **K3 Latch** keeps the arpeggio going after key release, and **K4 Glide** sets the Chords glide time.
 
 ## Record and Help
 

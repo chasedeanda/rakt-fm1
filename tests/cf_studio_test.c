@@ -1617,15 +1617,27 @@ static void play_and_mixer_studio(void)
     unsigned grid=cf_grid.gen;
     ui_button(B_ARP);
     CHECK(cu.scr==SCR_HOME && cgu.band_panel==CGU_BAND_ARP && cgs.zoom && !cfa_k.n);
-    ui_select(1);
+    cu.now+=180;
+    ui_capture("arp-pattern");
+    CHECK(!cf_stage_last.shaping && !strcmp(cf_stage_last.label[0],"ARP FOR"));
+    ui_button(B_ARP);
     cu.now+=180;
     ui_capture("arp-timing");
     CHECK(cgu.arp_timing && !strcmp(cf_stage_last.label[0],"GATE"));
+    ui_select(1);
+    CHECK(cgs.focus==CGS_LAYER && cgu.arp_timing);
     ui_select(-1);
-    CHECK(!cgu.arp_timing);
+    CHECK(cgs.focus==CGS_CHORDS && cgu.arp_timing);
+    ui_button(B_ARP);
+    CHECK(cgs.zoom && !cgu.arp_timing);
     ui_knob_turn(0,1);
     blocks(1);
     CHECK(cgu_arp_mode()==CGU_ARP_KEYS && cfa_k.on && !cfa_k.n);
+    ui_select(1);
+    CHECK(cgs.focus==CGS_LAYER && cgu_arp_mode()==CGU_ARP_OFF);
+    ui_select(-1);
+    blocks(1);
+    CHECK(cgs.focus==CGS_CHORDS && cgu_arp_mode()==CGU_ARP_KEYS && cfa_k.on);
     ui_note_key_aged(7,1,0);
     blocks(2);
     CHECK(cfa_k.n && cfa_k.count && !sqp.n);
@@ -1640,7 +1652,7 @@ static void play_and_mixer_studio(void)
     blocks(1);
     ticks(CGS_TICKS);
     CHECK(!cfa_sq[0].n && sqp.n);
-    ui_algo(-1);
+    ui_select(-1);
     blocks(1);
     CHECK(cgs.focus==CGS_LAYER && cfp_cp==CGS_LAYER);
     ui_note_key_aged(7,1,0);
@@ -1687,12 +1699,20 @@ static void quick_start_shortcuts(void)
     CHECK(cgs.focus==CGS_BASS);
     ui_button(B_ARP);
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_CHORDS);
-    ui_algo(1);
-    CHECK(cgs.focus==CGS_LAYER);
-    ui_algo(2);
-    CHECK(cgs.focus==CGS_LAYER);
+    ui_select(1);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_LAYER);
+    ui_select(2);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_LAYER);
+    ui_select(-1);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && cgs.focus==CGS_CHORDS);
     ui_algo(-1);
-    CHECK(cgs.focus==CGS_CHORDS);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_GENRE);
+    ui_algo(1);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
+    ui_algo(1);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_PROGRESSION);
+    ui_algo(-1);
+    CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP);
 
     ui_button(B_HOME);
     ui_button(B_HOME);
@@ -2507,7 +2527,7 @@ static void rack_units_studio(void)
     CHECK(!cf_stage_last.rack_lens);
     ui_algo((int)cgu_studio_tile(0,CGU_BAND_ARP)-(int)cgu_active_rack_tile());
     CHECK(cgs.zoom && cgu.band_panel==CGU_BAND_ARP && !cgu.arp_timing && cgs.focus==part && cf_grid.gen==grid);
-    ui_select(1);
+    ui_button(B_ARP);
     CHECK(cgu.arp_timing);
     ui_button(B_HOME);
     ui_algo(-1);
@@ -2764,6 +2784,24 @@ static void rack_navigation(void)
     ui_capture("walk-motion-off");
     CHECK(!cf_stage_last.control_dx && !cf_stage_last.bank_dx);
     cpa_stop();
+    cgu_home();
+
+    /* Every unit must allow ALGORITHM to reach its neighbors while zoomed in. */
+    for(unsigned tab=0;tab<CGU_NTAB;tab++){
+        if(tab)ui_select(1);
+        CHECK(cgu.tab==tab && !cgs.zoom);
+        unsigned count=cgu_rack_tiles(tab), start=cgu_active_rack_tile();
+        ui_button(B_SCL);
+        for(unsigned step=1;step<=count;step++){
+            ui_algo(1);
+            CHECK(cgu.tab==tab && cgu_zoom()==100 && cgu_active_rack_tile()==(start+step)%count);
+        }
+        for(unsigned step=1;step<=count;step++){
+            ui_algo(-1);
+            CHECK(cgu.tab==tab && cgu_zoom()==100 && cgu_active_rack_tile()==(start+count-step)%count);
+        }
+        ui_button(B_HOME);
+    }
     cgu_home();
 }
 

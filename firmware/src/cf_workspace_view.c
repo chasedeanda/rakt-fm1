@@ -869,13 +869,14 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
     int palette=tab==CGU_SOUND && m->live && m->bank==CGU_RACK_LIBRARY && !m->build;
     if(studio && m->bank && m->bank!=CGU_BAND_SONG){
         int progression=m->live && m->bank==CGU_BAND_PROGRESSION;
+        int arp=m->live && m->bank==CGU_BAND_ARP;
         int footer=overview?226:208;
-        cfn_text(&CFN_12,10,footer,overview?"ALGO Browse":progression?"EDIT Draft":"SEQ Next",FL_INK);
+        cfn_text(&CFN_12,10,footer,progression?"EDIT Draft":"ALGO Browse",FL_INK);
         cfn_text(&CFN_12,100,footer,progression?"SEL Apply":m->live?"SEL Back":"SEL Zoom",FL_INK);
-        cfn_text(&CFN_11,167,footer,m->live && cgu_has_detail_pages()?"SELECT Page":"SELECT Tab",FL_INK2);
+        cfn_text(&CFN_11,167,footer,arp?"SELECT Part":m->live && cgu_has_detail_pages()?"SELECT Page":"SELECT Tab",FL_INK2);
         if(m->pending[0])cfn_fit(&CFN_11,10,237,m->pending,137,FL_INK2);
-        else if(progression)cfn_text(&CFN_11,10,237,"SEQ Next unit",FL_INK2);
-        else if(!overview && m->bank==CGU_BAND_ARP)cfn_text(&CFN_11,10,237,"ALGO Keys part",FL_INK2);
+        else if(progression)cfn_text(&CFN_11,10,237,"ALGO Browse",FL_INK2);
+        else if(arp)cfn_text(&CFN_11,10,237,m->shaping?"ARP Pattern":"ARP Timing",FL_INK2);
         else if(m->live && m->bank==CGU_BAND_SHAPING)
             cfn_text(&CFN_11,10,237,m->shaping?"SELECT Arrangement":"SELECT Groove",FL_INK2);
         cgu_keys_footer();
