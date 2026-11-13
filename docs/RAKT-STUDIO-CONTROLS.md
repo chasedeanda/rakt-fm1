@@ -6,7 +6,7 @@ The arrow and the light strip on the right show the selected unit and its positi
 
 ## Studio
 
-**PLAY** starts or stops the band. The header shows key, scale, meter, tempo, the current chord and a segmented output meter. The chord readout follows a held manual chord while you play one.
+**PLAY** starts or stops the band. Studio opens on **Song**, which shows the current chord name and Roman numeral above the key, scale, meter and tempo. The progression name is beside the panel title. A held manual chord takes over the readout until you release it. Use **K1** for Genre, **K2** for Key, **K3** for Tempo and **K4** for Meter. Press **SEL** for a larger chord display and knob readouts.
 
 ### Rack design
 
@@ -14,6 +14,7 @@ The rack shares the startup screen's graphite rails, slotted screws, recessed di
 
 | Unit | Hardware | Readout |
 | --- | --- | --- |
+| Song | Recessed display and four knobs | Live chord, progression, key, scale, meter and tempo |
 | Chords | Bronze face, stitched grille, polished rotary caps | Style or patch and an amber signal lamp |
 | Bass | Dark slate face and inset rubber knobs | Style or patch and a green activity display |
 | Drums | Taller steel-grey face with a row of trigger lamps | Style or kit, plus Kick, Snare, Hats and Percussion hits |
@@ -136,6 +137,6 @@ Turn **SELECT** to the timing page. **K1 Gate** sets how much of each step a not
 
 ## Record and Help
 
-**Record** shows four lanes and the playhead. **SEL** opens a two-bar view of the highlighted musician. Press **REC** to record all four parts and press it again to finish. Hold **REC** to discard the current take. Highlight **Saved Takes** at the end of the rack and turn **K1** to select a take. **PLAY** starts or stops playback. Hold **SAVE** for three seconds to clear the selected take. Use USB audio capture to record the full mix as audio.
+**Record** opens on **Saved Takes**. Press **REC** to record all four parts and press **REC** again to finish and save. Hold **REC** to discard the current recording. Turn **K1** to select a saved take and press **PLAY** to replay it. Press **PLAY** again to stop. Hold **SAVE** for three seconds to clear the selected take. Turn **ALGORITHM** to browse the four musician lanes and press **SEL** for a two-bar view. Use USB audio capture to record the full mix as audio.
 
 **Help** contains Start here, Harmony, Playing and Capture. Turn **ALGORITHM** to select a topic and **SEL** to open it. The Harmony lesson shows the role of the note you play. **K1** switches between Auto and Manual harmony. **EDIT** opens Chord Lab.
