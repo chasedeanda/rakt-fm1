@@ -351,6 +351,15 @@ static void cgu_dial(int x,int y,int r,unsigned value,unsigned ink)
     cgu_dial_mark(x,y,r,value,ink);
 }
 
+static void cgu_page_tab(int x,int y,int cell,int height,const char *name,int selected,unsigned accent)
+{
+    fb_rbox(x,y,cell-3,height,1,selected?RAKT_EDGE:RAKT_GLASS);
+    int label=cfn_width(&CFN_11,name);
+    cfn_fit(&CFN_11,x+clampi((cell-3-label)/2,2,cell-4),y+height-4,name,cell-7,
+        selected?FL_INK:FL_INK2);
+    if(selected)fb_hline(x+1,y+height-1,cell-5,accent);
+}
+
 static void cgu_pages(int x,int y,int w,unsigned tab,unsigned part,unsigned selected)
 {
     static const char *const studio[]={"Part","Harmony","Evolve"};
@@ -362,11 +371,7 @@ static void cgu_pages(int x,int y,int w,unsigned tab,unsigned part,unsigned sele
         int cell=tab==CGU_SOUND?w*width[i]/100:w/(int)NELEM(studio);
         if(!cell)continue;
         const char *name=tab==CGU_SOUND?CGU_SOUND_NAMES[i]:studio[i];
-        fb_rbox(x,y,cell-3,16,1,i==selected?RAKT_EDGE:RAKT_GLASS);
-        int label=cfn_width(&CFN_11,name);
-        cfn_fit(&CFN_11,x+clampi((cell-3-label)/2,2,cell-4),y+12,name,cell-7,
-            i==selected?FL_INK:FL_INK2);
-        if(i==selected)fb_hline(x+1,y+15,cell-5,accent);
+        cgu_page_tab(x,y,cell,16,name,i==selected,accent);
         x+=cell;
     }
 }

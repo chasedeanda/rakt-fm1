@@ -19,7 +19,7 @@ The rack shares the startup screen's graphite rails, slotted screws, recessed di
 | Bass | Dark slate face and inset rubber knobs | Style or patch and a green activity display |
 | Drums | Taller steel-grey face with a row of trigger lamps | Style or kit, plus Kick, Snare, Hats and Percussion hits |
 | Layer | Slim plum face with horizontal faders | Style or patch and the part's level |
-| Harmony, Shaping, ARP and Progression | Separate nickel, green, violet and graphite plates | Beat, output, arpeggiator step and chord slot |
+| Harmony, Generator, ARP and Progression | Separate nickel, green, violet and graphite plates | Beat, output, arpeggiator step and chord slot |
 | Mix | Four-channel fader bank from the startup rack | Set levels and muted channels |
 | Record | Full-width, two-bar lanes and a Saved Takes unit | Notes, hits, playhead and take slots |
 
@@ -27,7 +27,7 @@ The right-side rack index shows which units are visible. Tabs slide into the cab
 
 ### Genre
 
-On **Shaping** or **Song**, turn **K1** to choose a genre. **PRESETS** also works from the Studio overview. Genre changes the harmonic and rhythmic vocabulary of the whole band, including the two playing styles available for each musician. A genre change queues a new take for the next bar during playback. Your current tempo continues while the band plays. Open **Sound → Sound Library** in Genre mode and press **SEL** to load the curated palette, or press **EDIT** on the Sound overview to cycle through its alternatives.
+On **Generator** or **Song**, turn **K1** to choose a genre. **PRESETS** also works from the Studio overview. Genre changes the harmonic and rhythmic vocabulary of the whole band, including the two playing styles available for each musician. A genre change queues a new take for the next bar during playback. Your current tempo continues while the band plays. Open **Sound → Sound Library** in Genre mode and press **SEL** to load the curated palette, or press **EDIT** on the Sound overview to cycle through its alternatives.
 
 | Genre | Playing character |
 | --- | --- |
@@ -38,9 +38,9 @@ On **Shaping** or **Song**, turn **K1** to choose a genre. **PRESETS** also work
 | Lo-Fi | Soft keys, a late bass pocket, half-time drums and short melodic fragments |
 | Ambient Soundscape | Slow harmony, pedal bass, sparse percussion and evolving swells |
 
-### Harmony and Shaping
+### Harmony and Generator
 
-Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. Highlight **Shaping** for Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
+Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale, or meter. Highlight **Generator** to change how the band plays. The **Arrangement** tab holds Genre, Tempo, Density, and Evolve. Turn **SELECT** within a zoomed musician to move through Part, Harmony, and Evolve.
 
 | Page | Knob | What it changes |
 | --- | --- | --- |
@@ -48,12 +48,12 @@ Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale,
 | Harmony | K2 Tempo | Adjusts the internal tempo. When following an external MIDI clock, the source controls the tempo. |
 | Harmony | K3 Scale | Changes the scale used by harmony and the generator. During playback it lands at the next chord. |
 | Harmony | K4 Meter | Chooses 3/4, 4/4 or 6/8. During playback it lands at the next bar. |
-| Shaping | K1 Genre | Chooses the band’s harmonic and rhythmic style. |
-| Shaping | K2 Tempo | Turn up for a faster beat. This is the same tempo control as on Harmony. |
-| Shaping | K3 Density | The former Energy control. At 50%, each musician uses its own Activity. At 60%, each free musician plays as if its Activity were 10 points higher, up to 100%. Held phrases keep their density. |
-| Shaping | K4 Evolve | Sets how often one musician automatically varies its phrase. 0% keeps the current phrases and cancels automatic edits waiting to land. It considers one musician every 8 bars at 1–49%, every 4 bars at 50–79%, and every 2 bars at 80–100%. Ambient doubles those intervals. Held or muted musicians and musicians with Activity below 35% are skipped. |
+| Generator | K1 Genre | Chooses the band’s harmonic and rhythmic style. |
+| Generator | K2 Tempo | Turn up for a faster beat. This is the same tempo control as on Harmony. |
+| Generator | K3 Density | The former Energy control. At 50%, each musician uses its own Activity. At 60%, each free musician plays as if its Activity were 10 points higher, up to 100%. Held phrases keep their density. |
+| Generator | K4 Evolve | Sets how often one musician automatically varies its phrase. 0% keeps the current phrases and cancels automatic edits waiting to land. It considers one musician every 8 bars at 1–49%, every 4 bars at 50–79%, and every 2 bars at 80–100%. Ambient doubles those intervals. Held or muted musicians and musicians with Activity below 35% are skipped. |
 
-Open **Shaping** with **SEL** and turn **SELECT** to **Groove**. **K1 Swing** delays alternating sixteenth notes in 3/4 and 4/4. At 0% the timing is straight, 67% gives a triplet feel, and 100% gives the strongest shuffle. It applies to generated drums, bass, layer phrases and rhythmic chord repeats. The ARP timing page controls arpeggiators. Swing is disabled in 6/8, where the beat already divides into three eighth notes.
+Open **Generator** with **SEL** and turn **SELECT** to **Groove**. **K1 Swing** delays alternating sixteenth notes in 3/4 and 4/4. At 0% the timing is straight, 67% gives a triplet feel, and 100% gives the strongest shuffle. It applies to generated drums, bass, layer phrases and rhythmic chord repeats. The ARP timing page controls arpeggiators. Swing is disabled in 6/8, where the beat already divides into three eighth notes.
 
 **K2 Drums**, **K3 Bass**, and **K4 Chords** change the same Style settings you see on the musician panels. For example, in Lo-Fi you can choose **Half-time** drums, **Late pocket** bass, and **Held keys** from the Groove page.
 

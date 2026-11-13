@@ -14,7 +14,7 @@ enum { CGU_KNOB_NONE, CGU_KNOB_PART, CGU_KNOB_HARMONY, CGU_KNOB_SHAPING,
     CGU_KNOB_TAKES, CGU_KNOB_LESSON, CGU_KNOB_MIX, CGU_KNOB_SONG, CGU_KNOB_FX_SPACE, CGU_KNOB_GROOVE };
 enum { CGU_RACK_COUNT=1+CGS_NPART+CGU_BAND_PROGRESSION };
 static const char *const CGU_TABS[]={"Studio","Sound","Record","Help"};
-static const char *const CGU_BAND_NAMES[]={"Harmony","Shaping","ARP","Progression"};
+static const char *const CGU_BAND_NAMES[]={"Harmony","Generator","ARP","Progression"};
 static const char *const CGU_TOPICS[]={"Start here","Harmony","Playing","Capture"};
 static const uint8_t CGU_GROOVE_PARTS[]={CGS_DRUMS,CGS_BASS,CGS_CHORDS};
 static struct {
