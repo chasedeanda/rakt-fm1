@@ -3,6 +3,6 @@
   "author": "Chase DeAnda",
   "kinds": ["groove", "chords"],
   "image": "docs/images/rakt-boot/ready.png",
-  "sounds": "CC0: four DX7 banks from Aquanode Soundscapes (https://github.com/aquanodemusic/aquanode-soundscapes). Own: docs/audio/rakt-boot-chime.wav is rendered by RAKT's synthesizer.",
+  "sounds": "CC0: four DX7 banks from Aquanode Soundscapes by aquanodemusic (CC0-1.0). Own: RAKT boot chime WAV rendered by the firmware synthesizer.",
   "color": "#F5B361"
 }
