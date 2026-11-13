@@ -52,7 +52,9 @@ Highlight **Harmony** with **ALGORITHM** or **SEQ** to change key, tempo, scale,
 | Shaping | K3 Energy | Raises or lowers the effective Activity of free musicians around their current settings. 50% is neutral. A phrase can gain or shed events while keeping the edits Evolve has made. |
 | Shaping | K4 Evolve | Sets how often one musician automatically varies its phrase. 0% keeps the current phrases and cancels automatic edits waiting to land. It considers one musician every 8 bars at 1–49%, every 4 bars at 50–79%, and every 2 bars at 80–100%. Ambient doubles those intervals. Held or muted musicians and musicians with Activity below 35% are skipped. |
 
-Press **EDIT** on the Studio overview to generate a new band take for the next bar. Zoom into a musician and press **EDIT** to regenerate only that part on the next sixteenth-note grid point, or eighth-note grid point in 6/8. EDIT also rotates eligible sounds in the genre palette. Pitched patches switch at the musical boundary and drum kits switch at the next bar. Saved user patches, edited patches and sounds you are holding stay selected.
+Press **EDIT** on the Studio overview to shuffle the band’s progression, parts, key, scale, meter and tempo within the selected genre. The whole take lands at the next bar, or loads immediately with the band stopped. External MIDI clock supplies the tempo when selected. With a custom draft active, the band plays the draft’s harmony and meter at the current tempo.
+
+Zoom into a musician and press **EDIT** to regenerate that part on the next sixteenth-note grid point, or eighth-note grid point in 6/8. The rest of the band keeps playing the same song. Studio EDIT also rotates eligible sounds in the genre palette. Pitched patches switch at the musical boundary and drum kits switch at the next bar. Saved user patches, edited patches and sounds you are holding stay selected.
 
 ### Custom progression
 
@@ -111,7 +113,7 @@ Pause, restart and tempo follow the external clock when MIDI clock input is acti
 
 Open **Mix** for Chords, Bass, Drums and Layer levels on K1–K4.
 
-Open **Sound Library** at the end of the Sound rack. **K1 Library** selects the short Genre list or All sounds. Highlight a musician and use **K1 Preset** to browse its tones or kits. With Genre selected, press **SEL** to load the complete palette. Press **EDIT** on the Sound overview or in Sound Library to choose the next tone or kit for each musician. In a musician’s Tone panel, **EDIT** changes that musician only. While playing, the pitched sounds change immediately and the drum kit changes at the next bar. The palette keeps the current levels, pan, sends and each musician’s FX settings.
+Open **Sound Library** at the end of the Sound rack. **K1 Library** selects the Genre list or All sounds. Highlight a musician and use **K1 Preset** to browse its tones or kits. With Genre selected, press **SEL** to load the featured palette. Press **EDIT** on the Sound overview or in Sound Library to shuffle tones, the drum kit, and FX presets. Each musician draws from its genre’s FX choices. Bass and Drums draw from shorter effects, leaving room for Chords or Layer to carry the longer delay or reverb. In a musician’s Tone panel, **EDIT** shuffles only that musician’s sound and FX, taking the other musicians’ effects and sends into account. While playing, the pitched sounds change immediately, FX crossfade, and the drum kit changes at the next bar. Sound EDIT keeps the song’s harmony and timing along with the current levels, pan and sends.
 
 A highlighted Sound musician shows the Tone controls. Zoom in and turn **SELECT** to reach the other named pages. The page counter shows where you are.
 

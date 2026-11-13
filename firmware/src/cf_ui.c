@@ -83,7 +83,7 @@ static void cf_send_config(void)                 /* the chord settings -> the au
     cfp_cfg.notes_in = cs.notes_in;
     cfp_cfg.in_ch = (uint8_t)(cs.in_ch > CF_INCH_ALL ? cs.in_ch - CF_INCH_ALL : 0u);
     cfp_cfg.arp = cs.arp;
-    cfp_cfg.bpm = cs.bpm;
+    if(!CF_STUDIO || cpg.tempo_generation==cgs.tempo_generation)cfp_cfg.bpm = cs.bpm;
     cfp_cfg.clock_in = cs.clock_in == 1u;
     cfp_cfg.clock_out = cs.clock_in == 2u;
     trk[CF_PART_BASS].p[P_LEVEL] = cs.bass_level;
@@ -101,6 +101,14 @@ static void cf_click_sync(void)
     if(cpg.click_generation==cpa.click_generation)return;
     fm1_irq_off();cs.metro_level=cfm.level;cpg.click_generation=cpa.click_generation;fm1_irq_on();
 }
+static void cgs_tempo_sync(void)
+{
+    if(!CF_STUDIO || cpg.tempo_generation==cgs.tempo_generation)return;
+    fm1_irq_off();
+    cs.bpm=cgs.shuffled_bpm;
+    cpg.tempo_generation=cgs.tempo_generation;
+    fm1_irq_on();
+}
 static void cf_click_cancel_pending(void);
 static void cf_send_metro(void)
 {
@@ -109,7 +117,7 @@ static void cf_send_metro(void)
         cf_click_level=cs.metro_level;cpb_dirty=1;cpb_changed=cu.now;
     }
     if (!cpa_running()) sq_beats = (uint8_t)(cs.beats >= 2u && cs.beats <= 7u ? cs.beats : 4u);   /* (the sequencer's bar: cf_seqd.c) */
-    cf_post(CFE_TEMPO, 0, 0, cs.bpm);
+    cf_post(CFE_TEMPO, cpg.tempo_generation, 0, cs.bpm);
     cf_post(CFE_SIG, 0, 0, cs.beats);
     cf_post(CFE_METRO, 0x80u, cs.metro_level, (int16_t)cpg.click_generation);   /* (the click only while the beat runs, PLAY: the owner, 2026-10-19;
                                                   * it sounded all the time the METRONOME or the SEQUENCER was open) */

@@ -201,8 +201,8 @@ static int cgs_write_harmony(cpa_plan_t *plan,cf_chord_cfg_t cfg,unsigned rhythm
 static void cgs_fit_meter(cpa_plan_t *plan)
 {
     plan->beats=cgs.meter;
-    if(cgs.meter==4u)return;
     plan->rhythm=(uint8_t)cpa_compatible(plan->rhythm,cgs.meter);
+    if(cgs.meter==4u)return;
     for(unsigned i=0;i<plan->n;i++)
         plan->slot[i].ticks=(uint16_t)(plan->slot[i].ticks/4u*cgs.meter);
 }
@@ -256,13 +256,14 @@ static int cgs_pick(cpa_plan_t *plan, cgs_pitches_t *pitch, cf_chord_cfg_t cfg, 
         } else if(cgs.ready && !cgs_active() && (cgs.genre==cgs.queued_genre || cgs.kit_pinned) && cpa_setup.plan.studio)plan->kit=cpa_setup.plan.kit;
         cgs_fit_meter(plan);
         cgs_voice_plan(plan,pitch);
-        return 1;
+        if(cpa_valid(plan))return 1;
     }
     return 0;
 }
 static void cgs_init(uint32_t seed)
 {
     memset(&cgs,0,sizeof cgs);
+    cpg.tempo_generation=0;
     static const uint8_t activity[]={48,66,39,57}, level[]={78,75,30,75};
     memcpy(cgs.activity,activity,sizeof activity);
     memcpy(cgs.level,level,sizeof level);
@@ -460,20 +461,65 @@ static void cgs_prepare_sounds(void)
 }
 static void cgs_sound_boundary(unsigned tag)
 {
-    int ready=0;
+    unsigned ready=0;
     for(unsigned part=0;part<CGS_DRUMS;part++){
-        if(cf_stage[part].pat!=tag || !cf_stage[part].ready)continue;
+        unsigned staged=cf_stage[part].pat;
+        if(!cf_stage[part].ready || (tag==CGS_PATCH_ROLL?!cgs_rolled_patch(staged):staged!=tag))continue;
         if(cgs_manual(part) || cu.edited[part]){cf_stage[part].ready=0;continue;}
-        if(tag==CGS_PATCH_ROLL)cgs_release(part);
-        ready=1;
+        if(tag!=CGS_PATCH_STAGE)cgs_release(part);
+        ready|=1u<<(staged-CGS_PATCH_SOLO);
     }
-    if(ready)cf_stage_in(tag);
+    if(ready&1u)cf_stage_in(CGS_PATCH_SOLO);
+    if(ready&2u)cf_stage_in(CGS_PATCH_ROLL);
+    if(ready&4u)cf_stage_in(CGS_PATCH_STAGE);
 }
 static void cgs_cancel_rolled_sounds(void)
 {
     for(unsigned p=0;p<CGS_DRUMS;p++)
-        if(cf_stage[p].pat==CGS_PATCH_ROLL)cf_stage[p].ready=0;
+        if(cgs_rolled_patch(cf_stage[p].pat))cf_stage[p].ready=0;
 }
+enum { CGS_KEEP_FEEL, CGS_NEW_FEEL, CGS_SHUFFLE_TAKE };
+
+static uint8_t cgs_pick_other(const uint8_t *palette,unsigned count,unsigned current)
+{
+    unsigned n=0;
+    for(unsigned i=0;i<count;i++)n+=palette[i]!=current;
+    unsigned pick=cgs_rand(&cgs.harmony_seed,n);
+    for(unsigned i=0;i<count;i++)if(palette[i]!=current && !pick--)return palette[i];
+    return palette[0];
+}
+
+static uint8_t cgs_shuffle_settings(cf_chord_cfg_t *cfg)
+{
+    const cgs_profile_t *profile=&CGS_PROFILES[cgs.genre];
+    unsigned bpm=cs.bpm;
+    fm1_irq_off();
+    if(cgs_active() && cpa_setup.flags){
+        cfg->tonic=cpa_setup.plan.tonic;
+        cfg->scale=cpa_setup.plan.scale;
+        if(cgs.queued_bpm)bpm=cgs.queued_bpm;
+    } else if(cgs_active()){
+        cfg->tonic=cpa.plan.tonic;
+        cfg->scale=cpa.plan.scale;
+        bpm=cfm.bpm;
+    }
+    fm1_irq_on();
+    cfg->tonic=cgs_pick_other(profile->keys,NELEM(profile->keys),cfg->tonic);
+    cfg->scale=cgs_pick_other(profile->scales,NELEM(profile->scales),cfg->scale);
+
+    const uint8_t *weight=profile->meter_weight;
+    unsigned draw=cgs_rand(&cgs.harmony_seed,weight[0]+weight[1]+weight[2]);
+    cgs.meter=draw<weight[0]?3u:draw<weight[0]+weight[1]?4u:6u;
+
+    if(cs.clock_in==1u)return 0;
+    /* Leave a few BPM between successive draws so the change is audible. */
+    unsigned min=profile->bpm_min,max=profile->bpm_max;
+    unsigned below=(unsigned)clampi((int)bpm-4-(int)min,0,max-min+1);
+    unsigned above=(unsigned)clampi((int)max-(int)bpm-4,0,max-min+1);
+    draw=cgs_rand(&cgs.harmony_seed,below+above);
+    return (uint8_t)(draw<below?min+draw:max-above+1u+draw-below);
+}
+
 static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
 {
     if(cr_safe || cfs_restore_lock || sqk.on || cf_sn.sq_on || cf_sn.sq_rec!=255){
@@ -485,8 +531,12 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
         return 0;
     }
     if(cf_evq_w-cf_evq_r>CF_EVQ-6u)return 0;
+    cgs_tempo_sync();
     cpa_plan_t plan;
     cgs_pitches_t pitch={0};
+    cf_chord_cfg_t cfg=cs.chord;
+    uint8_t bpm=0;
+    int shuffle=reroll==CGS_SHUFFLE_TAKE && !draft;
     int cached=cgs.ready && cpa_setup.plan.studio && cpa_setup.plan.idea!=CF_P_DRAFT;
     unsigned exclude=CF_P_NONE;
     if(reroll && cgs_active())exclude=cpa.plan.idea;
@@ -499,19 +549,19 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
     unsigned feel_count=CGS_PROFILES[cgs.genre].feel_count;
     if(reroll && feel_count>1)
         cgs.feel=(uint8_t)((cgs.feel+1u+cgs_rand(&cgs.harmony_seed,feel_count-1u))%feel_count);
+    if(shuffle)bpm=cgs_shuffle_settings(&cfg);
     int prepared=1;
     if(draft){
-        cf_chord_cfg_t cfg=cs.chord;
         if(draft!=&cgs_custom_harmony){cfg.tonic=draft->tonic;cfg.scale=draft->scale;}
         else if(cpa_setup.flags && cpa_setup.plan.idea==CF_P_DRAFT){
             cfg.tonic=cpa_setup.plan.tonic;cfg.scale=cpa_setup.plan.scale;
         }
         prepared=cgs_pick_custom(&plan,&pitch,draft,cfg);
-    } else if(play && cached && cgs.queued_genre==cgs.genre && cpa_setup.plan.tonic==cs.chord.tonic &&
+    } else if(!shuffle && play && cached && cgs.queued_genre==cgs.genre && cpa_setup.plan.tonic==cs.chord.tonic &&
         cpa_setup.plan.scale==cs.chord.scale && cpa_setup.plan.beats==cgs.meter){
         plan=cpa_setup.plan;
         pitch=cgs.setup_pitch;
-    } else prepared=cgs_pick(&plan,&pitch,cs.chord,exclude);
+    } else prepared=cgs_pick(&plan,&pitch,cfg,exclude);
     if(!prepared){
         cgs.feel=(uint8_t)previous_feel;
         cgs.meter=(uint8_t)previous_meter;
@@ -533,6 +583,7 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
         cgs.setup_pitch=pitch;
         cgs.queued_genre=cgs.genre;
         cgs.queued_feel=cgs.feel;
+        cgs.queued_bpm=bpm;
         cpa_setup.flags=1;
         fm1_irq_on();
         return 1;
@@ -552,10 +603,15 @@ static int cgs_take_from(int play,int reroll,const cf_song_t *draft,int capture)
     if(rebuilt)for(unsigned p=CGS_BASS;p<=CGS_LAYER;p++)
         if(cgs.hold&(1u<<p))cgs_capture_response(p,0);
     fm1_irq_on();
-    if(draft){cs.chord.tonic=plan.tonic;cs.chord.scale=plan.scale;cs.beats=plan.beats;cf_send_config();}
+    if(bpm)cs.bpm=cgs.shuffled_bpm=bpm;
+    if(draft || shuffle){
+        if(shuffle){cpa_explore();cs.chord.quantize=CF_Q_BASIC;}
+        cs.chord.tonic=plan.tonic;cs.chord.scale=plan.scale;cs.beats=plan.beats;
+        cu_spell_update();cf_send_config();
+    }
     if(!play){cs.beats=cgs.meter;cf_send_metro();return 1;}
     cgs_prepare_sounds();
-    if(!draft && !cfs_loaded && !cge.tempo_pin)cs.bpm=CGS_PROFILES[cgs.genre].bpm;
+    if(!draft && !cfs_loaded && !cge.tempo_pin && !cgs.shuffled_bpm)cs.bpm=CGS_PROFILES[cgs.genre].bpm;
     cpa_explore();
     cf_send_metro();
     if(!cf_post(CFE_ACCOMP,1,capture,0))return 0;
@@ -575,7 +631,7 @@ static int cgs_select_progression(int custom,int play)
     return cgs_take_from(play,0,custom?&cfwd.song:NULL,0);
 }
 static int cgs_new_take(int play)
-{ return cgs_new_take_for(play,!play); }
+{ return cgs_new_take_for(play,play?CGS_KEEP_FEEL:CGS_NEW_FEEL); }
 
 static unsigned cgs_evolve_period(unsigned genre)
 {

@@ -63,6 +63,13 @@ static void genre_registry_studio(void)
         CHECK(profile->name && profile->name[0]);
         CHECK(profile->bpm && profile->primary>CF_P_ALL && profile->primary<CF_P_NTAGS &&
               profile->secondary>CF_P_ALL && profile->secondary<CF_P_NTAGS);
+        CHECK(profile->bpm_min<=profile->bpm && profile->bpm<=profile->bpm_max &&
+              profile->bpm_min>=30 && profile->bpm_max-profile->bpm_min>=10);
+        for(unsigned i=0;i<NELEM(profile->keys);i++)CHECK(profile->keys[i]<12);
+        for(unsigned i=0;i<NELEM(profile->scales);i++)CHECK(cf_harmony_supported(profile->scales[i],CF_Q_BASIC));
+        for(unsigned i=0;i<NELEM(profile->meter_weight);i++)CHECK(profile->meter_weight[i]);
+        for(unsigned p=0;p<CGS_NPART;p++)for(unsigned i=0;i<NELEM(profile->fx[p]);i++)
+            CHECK(profile->fx[p][i]<FXP_FACTORY_N);
         CHECK(profile->family<CGS_NFAMILY && profile->kit_count>=2 && profile->cabinet<=CGS_CAB_TOLEX);
         for(unsigned kit=0;kit<profile->kit_count;kit++)CHECK(profile->kit[kit]<SQ_NKIT);
         CHECK(profile->bank_duration_scale && profile->evolve_period_scale);
@@ -118,11 +125,13 @@ static void controls_studio(void)
         memcpy(before,cgs.active,sizeof before);
         memcpy(seeds,cgs.seed,sizeof seeds);
         unsigned grid=cf_grid.gen, chord=cpa.slot, time=cpa.q2;
+        unsigned tonic=cpa.plan.tonic,scale=cpa.plan.scale,beats=cpa.plan.beats,bpm=cfm.bpm;
         cgs.focus=(uint8_t)part;
         ui_button(B_EDIT);
         CHECK(cgs.pending==(1u<<part));
         ticks(CGS_TICKS);
         CHECK(cpa.q2==time+2*CGS_TICKS && cpa.slot==chord && cf_grid.gen==grid);
+        CHECK(!cpa_setup.flags && cpa.plan.tonic==tonic && cpa.plan.scale==scale && cpa.plan.beats==beats && cfm.bpm==bpm);
         CHECK(!cgs.pending && memcmp(&before[part],&cgs.active[part],sizeof before[part]));
         for(unsigned p=0;p<CGS_NPART;p++)if(p!=part){
             CHECK(cgs.seed[p]==seeds[p]);
@@ -1088,7 +1097,7 @@ static void arrangements_studio(void)
     studio_start(100);
     blocks(2);
     CHECK(cgs_active() && cpa.plan.idea==CF_P_COMPOSED);
-    unsigned grid=cf_grid.gen, tonic=cpa.plan.tonic, scale=cpa.plan.scale;
+    unsigned grid=cf_grid.gen;
     unsigned families=1u<<cgs.playing_feel;
     for(unsigned roll=0;roll<12;roll++){
         unsigned previous=cgs.playing_feel;
@@ -1096,13 +1105,15 @@ static void arrangements_studio(void)
         uint32_t now=cpa.q2;
         ui_button(B_EDIT);
         CHECK(cpa_setup.flags && cgs.queued_feel!=previous);
-        ticks(CGS_BAR-cpa.t);
+        ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
         CHECK(cpa.q2>now && cf_grid.gen==grid && cgs.playing_feel!=previous);
-        CHECK(cpa.plan.tonic==tonic && cpa.plan.scale==scale);
         CHECK(memcmp(drums.event,cgs.active[CGS_DRUMS].event,sizeof drums.event));
         families|=1u<<cgs.playing_feel;
     }
     CHECK(families==15u);
+    cgs_harmony_turn(3,(cgs.meter==3?1:cgs.meter==6?-1:0));
+    ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
+    unsigned tonic=cpa.plan.tonic, scale=cpa.plan.scale;
 
     cgs.focus=CGS_BASS;
     ui_button(B_GLO);
@@ -1125,7 +1136,7 @@ static void arrangements_studio(void)
     for(unsigned genre=1;genre<CGS_NGENRE;genre++){
         ui_presets(1);
         CHECK(cgs.genre==genre && cpa_setup.flags);
-        ticks(CGS_BAR-cpa.t);
+        ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
         CHECK(cgs.playing_genre==genre && cf_grid.gen==grid && cpa.plan.tonic==tonic);
         if(!CGS_PROFILES[genre].write_progressions)
             CHECK(cpa.plan.slot[0].ticks==CGS_PROFILES[genre].bank_duration_scale*CGS_BAR);
@@ -1170,6 +1181,127 @@ static void arrangements_studio(void)
     }
     ui_button(B_HOME);
     cpa_stop();
+}
+
+static void song_shuffle_studio(void)
+{
+    cge.tempo_pin=0;
+    for(unsigned genre=0;genre<CGS_NGENRE;genre++){
+        studio_start_profile(100,genre);
+        blocks(2);
+        const cgs_profile_t *profile=&CGS_PROFILES[genre];
+        unsigned meters=0,keys=0,scales=0,grid=cf_grid.gen;
+        for(unsigned i=0;i<24;i++){
+            unsigned bpm=cs.bpm,tonic=cpa.plan.tonic,scale=cpa.plan.scale,beats=cpa.plan.beats;
+            ui_button(B_EDIT);
+            cpa_plan_t next=cpa_setup.plan;
+            unsigned next_bpm=cgs.queued_bpm;
+            CHECK(cpa_setup.flags && cpa_valid(&next));
+            CHECK(next_bpm>=profile->bpm_min && next_bpm<=profile->bpm_max && abs((int)next_bpm-(int)bpm)>=5);
+            CHECK(next.tonic!=tonic && memchr(profile->keys,next.tonic,sizeof profile->keys));
+            CHECK(next.scale!=scale && memchr(profile->scales,next.scale,sizeof profile->scales));
+            ticks(beats*SQ_PPQN-cpa.t-1u);
+            CHECK(cpa.plan.tonic==tonic && cpa.plan.scale==scale && cpa.plan.beats==beats && cfm.bpm==bpm && cs.bpm==bpm);
+            ticks(1);
+            CHECK(!cpa_setup.flags && cpa.t==0 && cf_grid.gen==grid);
+            CHECK(cpa.plan.tonic==next.tonic && cpa.plan.scale==next.scale && cpa.plan.beats==next.beats);
+            CHECK(cs.bpm==next_bpm && cfm.bpm==next_bpm && cfp_cfg.bpm==next_bpm);
+            blocks(1);
+            meters|=1u<<next.beats;keys|=1u<<next.tonic;scales|=1u<<next.scale;
+        }
+        CHECK((meters&(meters-1u)) && (keys&(keys-1u)) && (scales&(scales-1u)));
+
+        ui_button(B_PLAY);
+        blocks(2);
+        ui_button(B_EDIT);
+        unsigned bpm=cs.bpm,tonic=cs.chord.tonic,scale=cs.chord.scale,beats=cs.beats;
+        CHECK(!cpa.on && !cpa_setup.flags && bpm>=profile->bpm_min && bpm<=profile->bpm_max);
+        ui_button(B_PLAY);
+        blocks(2);
+        CHECK(cgs_active() && cfm.bpm==bpm && cpa.plan.tonic==tonic && cpa.plan.scale==scale && cpa.plan.beats==beats);
+        ui_button(B_EDIT);
+        cpa_tempo(3);
+        ticks(beats*SQ_PPQN-cpa.t);
+        blocks(1);
+        CHECK(!cpa_setup.flags && cfm.bpm==bpm+3 && cs.bpm==bpm+3);
+    }
+    unsigned bpm=cs.bpm,tonic=cpa.plan.tonic;
+    cs.clock_in=1;cf_send_config();
+    ui_button(B_EDIT);
+    CHECK(cpa_setup.flags && !cgs.queued_bpm);
+    ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
+    CHECK(cs.bpm==bpm && cfm.bpm==bpm && cpa.plan.tonic!=tonic);
+    cpa_stop();
+}
+
+static void sound_shuffle_fx_studio(void)
+{
+    unsigned env_link=cs.env_link;
+    for(unsigned genre=0;genre<CGS_NGENRE;genre++){
+        studio_start_profile(100,genre);
+        blocks(2);
+        ui_select(1);
+        CHECK(cgu.tab==CGU_SOUND && !cgs.zoom);
+        const cgs_profile_t *profile=&CGS_PROFILES[genre];
+        cf_fx_t master=cs.fx;
+        fxp_bank_t bank=fxp_bank;
+        cpa_plan_t plan=cpa.plan;
+        unsigned bpm=cfm.bpm;
+        for(unsigned i=0;i<8;i++){
+            cf_fx_t before[CGS_NPART];
+            for(unsigned p=0;p<CGS_NPART;p++)before[p]=*fxp_track_chain(p);
+            ui_button(B_EDIT);
+            unsigned tails=0;
+            for(unsigned p=0;p<CGS_NPART;p++){
+                const cf_fx_t *fx=fxp_track_chain(p);
+                CHECK(!cfx_equal(fx,&before[p]) && !fxp_track_bypass(p));
+                CHECK(memchr(profile->fx[p],cfx_identify(fx),sizeof profile->fx[p]));
+                tails+=cgu_fx_long_tail(fx,p);
+            }
+            CHECK(tails<=1 && cfx_equal(&master,&cs.fx) && !memcmp(&bank,&fxp_bank,sizeof bank));
+            CHECK(!cpa_setup.flags && cpa.plan.tonic==plan.tonic && cpa.plan.scale==plan.scale &&
+                cpa.plan.beats==plan.beats && cfm.bpm==bpm);
+            blocks(1);
+        }
+        cgu_focus_part(CGS_CHORDS);
+        ui_button(B_SCL);
+        CHECK(cgs.zoom && cgu.sound_page==CGU_TONE);
+        cfx_studio_save(CGS_LAYER,&FXP_FACTORY[FXP_DEEP_SPACE].fx,1,0);
+        cf_fx_t before[CGS_NPART];
+        cf_snd_t sounds[CGS_DRUMS];
+        memcpy(sounds,cf_snd,sizeof sounds);
+        for(unsigned p=0;p<CGS_NPART;p++)before[p]=*fxp_track_chain(p);
+        unsigned kit=cgu_kit();
+        cs.env_link=1;
+        cf_env_set_val(CGS_BASS,0,42);
+        unsigned bass_attack=cf_env_val(CGS_BASS,0);
+        ui_button(B_EDIT);
+        CHECK(!cfx_equal(&before[CGS_CHORDS],fxp_track_chain(CGS_CHORDS)));
+        CHECK(!cgu_fx_long_tail(fxp_track_chain(CGS_CHORDS),CGS_CHORDS));
+        for(unsigned p=CGS_BASS;p<CGS_NPART;p++)CHECK(cfx_equal(&before[p],fxp_track_chain(p)));
+        for(unsigned p=CGS_BASS;p<CGS_DRUMS;p++)CHECK(!memcmp(&sounds[p],&cf_snd[p],sizeof sounds[p]));
+        CHECK(cf_env_val(CGS_BASS,0)==bass_attack);
+        CHECK(cgu_kit()==kit && !cpa_setup.flags && cfm.bpm==bpm);
+        ui_button(B_FX);
+        CHECK(cgs.focus==CGS_CHORDS && fxpu.previous && cfx_equal(&before[CGS_CHORDS],&fxpu.prev));
+        fxp_previous();
+        CHECK(cfx_equal(&before[CGS_CHORDS],fxp_track_chain(CGS_CHORDS)));
+
+        cgu_focus_part(CGS_LAYER);
+        ui_select(1);
+        CHECK(cgs.zoom && cgs.focus==CGS_LAYER && cgu.sound_page==CGU_TONE);
+        cgs.arp=1u<<CGS_CHORDS;
+        cfx_studio_save(CGS_CHORDS,&FXP_FACTORY[FXP_CLEAN].fx,1,0);
+        for(unsigned i=0;i<8;i++){
+            ui_button(B_EDIT);
+            CHECK(cfx_identify(fxp_track_chain(CGS_LAYER))!=FXP_PING_PONG);
+        }
+    }
+    cs.env_link=(uint8_t)env_link;
+    cpa_stop();
+    memset(&cfx_studio_rec.fx,0,sizeof cfx_studio_rec.fx);
+    cfx_studio_rec.mask=cfx_studio_rec.bypass=cfx_studio_dirty=0;
+    for(unsigned p=0;p<CGS_NPART;p++)cfx_parts[p].own=cfx_parts[p].pending=0;
 }
 
 static void amp_performance_studio(void)
@@ -1915,6 +2047,18 @@ static void punk_takes_studio(void)
     CHECK(cf_snd[CGS_BASS].fk!=bass && cf_snd[CGS_CHORDS].fk==chord &&
         trk[CGS_BASS].p[P_REV]==send && cgu_kit()==kit);
     CHECK(cgs.active[CGS_BASS].voice==cgs.active[CGS_DRUMS].voice);
+    unsigned env_link=cs.env_link;
+    cs.env_link=1;
+    cgs.focus=CGS_CHORDS;
+    cf_env_set_val(CGS_BASS,0,42);
+    unsigned bass_attack=cf_env_val(CGS_BASS,0);
+    ui_button(B_EDIT);
+    CHECK(cf_stage[CGS_CHORDS].pat==CGS_PATCH_SOLO);
+    ticks(CGS_TICKS);
+    sq_snd_poll();
+    CHECK(cf_snd[CGS_CHORDS].fk!=chord && cf_env_val(CGS_BASS,0)==bass_attack);
+    chord=cf_snd[CGS_CHORDS].fk;
+    cs.env_link=(uint8_t)env_link;
     bass=cf_snd[CGS_BASS].fk;
     cu.edited[CGS_BASS]=1;
     ui_button(B_SCL);
@@ -1923,14 +2067,16 @@ static void punk_takes_studio(void)
         ui_button(B_EDIT);
         sq_snd_poll();
         CHECK(cpa_setup.flags && cf_stage[CGS_CHORDS].ready && !cf_stage[CGS_BASS].ready);
-        ticks(CGS_BAR-cpa.t);
+        ticks(cpa.plan.beats*SQ_PPQN-cpa.t);
         sq_snd_poll();
         CHECK(cgs.playing_feel!=pocket && cf_snd[CGS_CHORDS].fk!=chord && cf_snd[CGS_BASS].fk==bass);
         CHECK(cpa.plan.kit!=kit && cf_grid.gen==clock);
         kit=cpa.plan.kit;
         chord=cf_snd[CGS_CHORDS].fk;
-        for(unsigned b=0;b<2;b++)for(unsigned step=0;step<CGS_STEPS;step++){
-            if(!(CGS_PUNK_KICK[cgs.playing_feel][b]&(1u<<step)))continue;
+        unsigned steps=cgs_steps(cpa.plan.beats);
+        for(unsigned b=0;b<2;b++)for(unsigned step=0;step<steps;step++){
+            unsigned source=steps==CGS_STEPS?step:step*4u/3u;
+            if(!(CGS_PUNK_KICK[cgs.playing_feel][b]&(1u<<source)))continue;
             CHECK(cgs.active[CGS_DRUMS].event[b][step]&CGS_KICK);
             CHECK(cgs.active[CGS_BASS].event[b][step]);
         }
@@ -2280,7 +2426,7 @@ static void render_studio(uint32_t seed, unsigned regenerate, const char *path, 
     fprintf(trace,"sample,part,status,note,velocity\n");
     unsigned sample=0, sent=0, clocks=0, progression=0, grid=0, kills=voice_kills, sheds=shed_count;
     uint8_t held[4][128]={{0}};
-    while(cpa.q2<2u*bars*CGS_BAR){
+    while(regenerate==5?cgs.bar<bars:cpa.q2<2u*bars*CGS_BAR){
         audio_block(out,CTL);
         if(!sample){
             CHECK(cgs_active());
@@ -2301,7 +2447,8 @@ static void render_studio(uint32_t seed, unsigned regenerate, const char *path, 
             ui_note_key_aged(7,0,0);
             sent=2;
         }
-        if(regenerate==5 && sent<bars/8u-1u && cpa.q2>=2u*((sent*8u+7u)*CGS_BAR+13u*CGS_TICKS)){
+        if(regenerate==5 && sent+1u<bars/8u && cgs.bar==sent*8u+7u &&
+           cpa.t>=13u*cpa.plan.beats*SQ_PPQN/16u){
             ui_button(B_EDIT);
             sent++;
         }
@@ -2313,7 +2460,7 @@ static void render_studio(uint32_t seed, unsigned regenerate, const char *path, 
     }
     CHECK(cgs_active() && cf_grid.gen==grid);
     CHECK(!regenerate || regenerate>=5 || (sent && cgs.generation[regenerate-1u]));
-    if(regenerate==5)CHECK(cgs.harmony_generation==bars/8u-1u);
+    if(regenerate==5)CHECK(cgs.harmony_generation+1u==bars/8u);
     if(regenerate==6)CHECK(sent==2);
     cpa_stop();
     drain(trace,sample,held,&clocks);
@@ -2450,6 +2597,8 @@ int main(int argc,char **argv)
         hover_controls_studio();
         workspaces_studio();
         arrangements_studio();
+        song_shuffle_studio();
+        sound_shuffle_fx_studio();
         amp_performance_studio();
         indie_form_studio();
         play_and_mixer_studio();

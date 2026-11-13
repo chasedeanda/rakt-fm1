@@ -488,10 +488,10 @@ static unsigned cgu_sound_rank(unsigned part,int all,unsigned count,cf_ent_t cur
     return rank;
 }
 
-static void cgu_load_sound(unsigned part,unsigned engine,unsigned pos)
+static void cgu_load_sound_for(unsigned part,unsigned engine,unsigned pos,int link_env)
 {
     fm1_irq_off();
-    if(cf_stage[part].pat==CGS_PATCH_STAGE || cf_stage[part].pat==CGS_PATCH_ROLL)
+    if(cgs_studio_patch(cf_stage[part].pat))
         cf_stage[part].ready=cf_stage[part].taken=0;
     if(cgs_active())cgs_release(part);
     fm1_irq_on();
@@ -499,14 +499,17 @@ static void cgu_load_sound(unsigned part,unsigned engine,unsigned pos)
     if(part==CGS_LAYER)cs.snd_layer=(uint16_t)cf_snd_pos(part);
     cu.edited[part]=0;
     ui_snd_heard(part);
-    if(part==CGS_CHORDS && cs.env_link)cf_env_follow();
+    if(link_env && part==CGS_CHORDS && cs.env_link)cf_env_follow();
 }
 
-static void cgu_sound_load_choice(unsigned part,int all,unsigned rank)
+static void cgu_load_sound(unsigned part,unsigned engine,unsigned pos)
+{ cgu_load_sound_for(part,engine,pos,1); }
+
+static void cgu_sound_load_choice(unsigned part,int all,unsigned rank,int link_env)
 {
     cf_ent_t choice=cgu_sound_choice(part,all,rank);
     if(part==CGS_DRUMS)cgu_set_kit(choice.pos,1);
-    else cgu_load_sound(part,choice.e,choice.pos);
+    else cgu_load_sound_for(part,choice.e,choice.pos,link_env);
 }
 
 static void cgu_sound_step(unsigned p,int d)
@@ -522,7 +525,7 @@ static void cgu_sound_step(unsigned p,int d)
     unsigned rank=cgu_sound_rank(p,all,count,cgu_sound_current(p));
     int from=rank==count?(d>0?-1:0):(int)rank;
     unsigned pick=(unsigned)wrapi(from+d%(int)count,count);
-    if(pick!=rank)cgu_sound_load_choice(p,all,pick);
+    if(pick!=rank)cgu_sound_load_choice(p,all,pick,1);
 }
 
 /* Each Sound EDIT pass draws without replacement until the role's palette is exhausted. */
@@ -560,6 +563,48 @@ static unsigned cgu_reroll_rank(unsigned part,int all,unsigned count,unsigned cu
         return i;
     }
     return count;
+}
+
+/* Reserve long tails for one musician. Include manual sends, which can feed
+ * delay and reverb even when the corresponding insert is off. */
+static int cgu_fx_long_tail(const cf_fx_t *fx,unsigned part)
+{
+    unsigned delay=fx->on&(1u<<CFX_DELAY)?fx->v[CFX_DELAY][2]:0;
+    unsigned reverb=fx->on&(1u<<CFX_REVERB)?fx->v[CFX_REVERB][2]:0;
+    delay+=(100u-delay)*trk[part].p[P_DLY]/127u;
+    reverb+=(100u-reverb)*trk[part].p[P_REV]/127u;
+    return (delay>=35u && (fx->v[CFX_DELAY][0]>=65u || fx->v[CFX_DELAY][1]>=40u)) ||
+           (reverb>=50u && fx->v[CFX_REVERB][1]>=70u);
+}
+
+static void cgu_shuffle_fx(unsigned first,unsigned end)
+{
+    const cgs_profile_t *profile=&CGS_PROFILES[cgs.genre];
+    static const uint8_t order[]={CGS_LAYER,CGS_CHORDS,CGS_BASS,CGS_DRUMS};
+    unsigned chords=1u<<CGS_CHORDS;
+    int busy_chords=!(cgs_mute_mask()&chords) && ((cgs.arp&chords) ||
+        (cgs_chords_pulsed(cgs_latest(CGS_CHORDS)) && cgs.activity[CGS_CHORDS]>=50u));
+    unsigned tails=0;
+    for(unsigned p=0;p<CGS_NPART;p++)
+        if((p<first || p>=end) && !fxp_track_bypass(p) && cgu_fx_long_tail(fxp_track_chain(p),p))tails++;
+
+    for(unsigned i=0;i<NELEM(order);i++){
+        unsigned p=order[i];
+        if(p<first || p>=end)continue;
+        unsigned current=fxp_track_bypass(p)?FXP_FACTORY_N:cfx_identify(fxp_track_chain(p));
+        uint8_t choices[NELEM(profile->fx[0])];
+        unsigned n=0;
+        for(unsigned j=0;j<NELEM(profile->fx[0]);j++){
+            unsigned pick=profile->fx[p][j];
+            if(pick==current || (busy_chords && p==CGS_LAYER && pick==FXP_PING_PONG))continue;
+            if((tails || (busy_chords && p==CGS_CHORDS)) && cgu_fx_long_tail(&FXP_FACTORY[pick].fx,p))continue;
+            choices[n++]=(uint8_t)pick;
+        }
+        if(!n)continue;
+        unsigned pick=choices[cgs_rand(&cgu.sound_seed,n)];
+        tails+=cgu_fx_long_tail(&FXP_FACTORY[pick].fx,p);
+        fxp_recall_track(p,pick);
+    }
 }
 
 #if CHASE_LIBRARY && FELUCCA_VA
@@ -600,7 +645,7 @@ static void cgu_roll_studio_sounds(unsigned first,unsigned end)
         if(!count)continue;
         const cf_stage_t *stage=&cf_stage[p];
         fm1_irq_off();
-        cf_snd_t sound=stage->pat==CGS_PATCH_ROLL && (stage->ready || stage->taken)?
+        cf_snd_t sound=cgs_rolled_patch(stage->pat) && (stage->ready || stage->taken)?
             stage->meta:cf_snd[p];
         fm1_irq_on();
         unsigned rank=count;
@@ -613,11 +658,11 @@ static void cgu_roll_studio_sounds(unsigned first,unsigned end)
             if(voice==PF_NONE || pick==rank)continue;
             unsigned pos=pool_pos_factory(ENGI_VA,voice);
             if(pool_entry(ENGI_VA,pos).kind!=PK_FACTORY)continue;
-            if(!cgs_active() && !cpa_commanded)cgu_load_sound(p,ENGI_VA,pos);
+            if(!cgs_active() && !cpa_commanded)cgu_load_sound_for(p,ENGI_VA,pos,end-first>1u);
             else {
                 cf_stage_t prepared;
                 cf_snd_build(p,ENGI_VA,pos,&prepared);
-                prepared.pat=CGS_PATCH_ROLL;
+                prepared.pat=end-first>1u?CGS_PATCH_ROLL:CGS_PATCH_SOLO;
                 prepared.own1=prepared.tw=prepared.taken=0;
                 prepared.ready=1;
                 fm1_irq_off();
@@ -743,7 +788,7 @@ static void cgu_edit(void)
             cgu_roll_studio_sounds(cgs.focus,cgs.focus+1u);
             cgu.action=1;
         } else {
-            if(cpa_commanded!=cpa_running() || !cgs_new_take(0))return;
+            if(cpa_commanded!=cpa_running() || !cgs_new_take_for(0,CGS_SHUFFLE_TAKE))return;
             cgu_roll_studio_sounds(0,CGS_NPART);
             cgu.action=2;
         }
@@ -764,8 +809,9 @@ static void cgu_edit(void)
             unsigned count=cgu_sound_count(p,all);
             unsigned rank=cgu_sound_rank(p,all,count,cgu_sound_current(p));
             unsigned pick=cgu_reroll_rank(p,all,count,rank);
-            if(pick<count)cgu_sound_load_choice(p,all,pick);
+            if(pick<count)cgu_sound_load_choice(p,all,pick,!one_part);
         }
+        cgu_shuffle_fx(first,end);
     } else if(cgu.tab==CGU_HELP && cgu.topic==CGU_HARMONY && cgs.zoom){
         cfl_open();
         cgu.return_screen=SCR_LAB;

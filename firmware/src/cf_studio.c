@@ -4,7 +4,8 @@
  */
 enum { CGS_CHORDS, CGS_BASS, CGS_LAYER, CGS_DRUMS, CGS_NPART };
 enum { CGS_ANCHOR=1, CGS_THIRD, CGS_FIFTH, CGS_OCTAVE, CGS_PICKUP, CGS_UPPER, CGS_STEP_IN };
-enum { CGS_PATCH_ROLL=251, CGS_PATCH_STAGE, CGS_STEPS=16, CGS_TICKS=SQ_PPQN/4, CGS_BAR=4*SQ_PPQN };
+enum { CGS_PATCH_SOLO=250, CGS_PATCH_ROLL, CGS_PATCH_STAGE };
+enum { CGS_STEPS=16, CGS_TICKS=SQ_PPQN/4, CGS_BAR=4*SQ_PPQN };
 enum { CGS_KICK=1, CGS_SNARE=2, CGS_HAT=4, CGS_OPEN=8, CGS_RIM=16, CGS_LOW_TOM=32, CGS_MID_TOM=64 };
 enum { CGS_KICK_REPLY=10, CGS_FOLLOW, CGS_ANSWER, CGS_FLOAT };
 typedef struct {
@@ -42,6 +43,8 @@ static struct {
     uint8_t defaults_offered, boot_sound_gen[3];
     uint8_t genre, queued_genre, playing_genre, energy, evolution, solo, kit_pinned, feel, queued_feel, playing_feel, meter;
     uint8_t custom, bank_meter;
+    uint8_t queued_bpm, shuffled_bpm;
+    volatile uint8_t tempo_generation;
     volatile uint8_t pending;
     uint8_t pending_auto, hold, clear_take_hold, held_reply;
     uint8_t bass_pull, bass_event, bass_feel, bass_attack, section;
@@ -54,6 +57,10 @@ static struct {
 } cgs;
 static void cgs_sound_boundary(unsigned tag);
 static void cgs_cancel_rolled_sounds(void);
+static int cgs_rolled_patch(unsigned tag)
+{ return tag==CGS_PATCH_ROLL || tag==CGS_PATCH_SOLO; }
+static int cgs_studio_patch(unsigned tag)
+{ return cgs_rolled_patch(tag) || tag==CGS_PATCH_STAGE; }
 static int cgs_active(void)
 { return CF_STUDIO && cpa.on && cpa.plan.studio; }
 static unsigned cgs_rand(uint32_t *seed, unsigned limit)
@@ -533,6 +540,11 @@ static void cgs_audio_block(uint32_t n)
 }
 static void cgs_commit_take(void)
 {
+    if(cgs.queued_bpm && !cfp_cfg.clock_in){
+        cfm.bpm=cfp_cfg.bpm=cgs.shuffled_bpm=cgs.queued_bpm;
+        cgs.tempo_generation++;
+    }
+    cgs.queued_bpm=0;
     cgs.take_revision++;
     cgs.pending_auto=0;
     if(cgs.clear_take_hold)cgs.hold=0;

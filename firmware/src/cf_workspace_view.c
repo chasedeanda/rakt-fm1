@@ -810,8 +810,8 @@ static void cgu_workspace_draw(const cf_stage_model_t *m)
     if(!overview)fb_hline(10,197,220,RAKT_EDGE);
     const char *hint=m->pending[0]?m->pending:
         m->section&CGS_FORM_FILL?"Band turnaround":m->section&CGS_FORM_LAYER_REST?"Band breather":
-        studio?(m->live && !m->bank?"EDIT New part":"EDIT New take"):
-        tab==CGU_SOUND?(!m->live?"EDIT Reroll sounds":mix?"K1-4 Levels":m->bank?"EDIT Reroll sounds":m->sound_page==CGU_TONE?"EDIT Reroll part":""):
+        studio?(m->live && !m->bank?"EDIT New part":"EDIT Shuffle take"):
+        tab==CGU_SOUND?(!m->live?"EDIT Sound + FX":mix?"K1-4 Levels":m->bank || m->sound_page==CGU_TONE?"EDIT Sound + FX":""):
         tab==CGU_RECORD?(m->rec?"REC Finish take":"REC Record band"):"";
     if(fx_presets)hint="EDIT FX controls";
     int footer=overview?227:207;

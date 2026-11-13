@@ -658,7 +658,11 @@ static void cf_apply(const cf_ev_in_t *e)
         cfm.on = e->a&1u;
         cfm.level = e->b;
         break;
-    case CFE_TEMPO: if (cfp_cfg.clock_in) break; cfm.bpm = (uint16_t)(e->v < 30 ? 30 : e->v > 300 ? 300 : e->v); break;
+    case CFE_TEMPO:
+        if(cfp_cfg.clock_in || (CF_STUDIO && e->a!=cgs.tempo_generation))break;
+        cfm.bpm=(uint16_t)(e->v<30?30:e->v>300?300:e->v);
+        if(CF_STUDIO)cfp_cfg.bpm=cfm.bpm;
+        break;
     case CFE_SIG: if (cpa.on) break; cfm.beats = (uint8_t)(e->v < 1 ? 1 : e->v > 12 ? 12 : e->v); break;
     case CFE_TRANSPORT:
         if (cpa.on) { if (!e->v) cpa_stop(); break; }

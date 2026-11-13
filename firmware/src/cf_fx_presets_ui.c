@@ -21,11 +21,13 @@ static const cf_fx_t *fxp_track_chain(unsigned part)
 static const cf_fx_t *fxp_active_chain(void)
 { return fxp_scope ? fxp_track_chain(fxp_scope - 1u) : &cs.fx; }
 
-static int fxp_active_bypass(void)
+static int fxp_track_bypass(unsigned part)
 {
-    unsigned bit = fxp_scope ? 1u << (fxp_scope - 1u) : 0;
+    unsigned bit = 1u << part;
     return cfx_studio_rec.mask & bit ? (cfx_studio_rec.bypass & bit) != 0 : cfx_bypass;
 }
+static int fxp_active_bypass(void)
+{ return fxp_scope ? fxp_track_bypass(fxp_scope - 1u) : cfx_bypass; }
 
 static void fxp_publish(const cf_fx_t *fx, int recall, int bypass)
 {
@@ -44,6 +46,21 @@ static void fxp_remember(void)
     fxpu.prev = *fxp_active_chain();
     fxpu.previous = 1;
     fxpu.prev_bypass = fxp_active_bypass();
+}
+
+static void fxp_recall_track(unsigned part,unsigned pick)
+{
+    unsigned scope=part+1u;
+    if(scope==fxp_scope){
+        fxp_remember();
+        fxpu.pick=(uint8_t)pick;
+    } else {
+        fxp_context[scope].prev=*fxp_track_chain(part);
+        fxp_context[scope].previous=1;
+        fxp_context[scope].bypass=(uint8_t)fxp_track_bypass(part);
+        fxp_context[scope].pick=(uint8_t)(pick+1u);
+    }
+    cfx_studio_save(part,&FXP_FACTORY[pick].fx,1,0);
 }
 
 static const fxp_preset_t *fxp_pick(void)

@@ -102,6 +102,8 @@ static void cpa_publish(const cpa_plan_t *p, unsigned flags, int setup)
     if(!setup && cgs_active() && (flags&CPA_NOTES) && cpa_setup.flags && cpa_setup.plan.studio &&
         (p->tonic!=cpa.plan.tonic || p->scale!=cpa.plan.scale)){
         cpa_setup.flags=0;
+        cgs.queued_bpm=0;
+        cgs.meter=cpa.plan.beats;
         cgs_cancel_rolled_sounds();
     }
     if (!setup && cpa.on && (p->idea == cpa.plan.idea || (((flags|cpa_edit.flags)&CPA_PHRASE) && p->idea==CF_P_DRAFT))) {
@@ -126,6 +128,7 @@ static void cpa_ui_dirty(void)
 static void cpa_ui_poll(void)
 {
     cf_click_sync();
+    cgs_tempo_sync();
     if (cf_sn.ac_revision != cpg.revision) {
         cpg.revision = cf_sn.ac_revision;
         if (cf_sn.ac_on) {
@@ -191,6 +194,12 @@ static void cpa_tempo(int d)
 {
     if(d)cge.tempo_pin=1;
     if (cs.clock_in == 1u) { cf_message("Tempo follows MIDI clock"); return; }
+    if(CF_STUDIO && d){
+        fm1_irq_off();
+        cgs.queued_bpm=0;
+        fm1_irq_on();
+        cgs_tempo_sync();
+    }
     cs.bpm = clampi(cs.bpm + d, 30, 300); cf_send_metro();
 }
 static void cpa_tempo_info(cf_knob_t *o)

@@ -101,11 +101,15 @@ static void cpa_stop(void)
     if(CF_STUDIO){
         cgs.take_revision++;
         cgs.pending=cgs.pending_auto=cgs.clear_take_hold=0;
+        cgs.queued_bpm=0;
         cgs_cancel_rolled_sounds();
     }
     cla_cancel(0);
     if (!cpa.on) return;
-    if(cgs_active() && cpa_setup.flags)cgs.ready=0;
+    if(cgs_active() && cpa_setup.flags){
+        cgs.ready=0;
+        cgs.meter=cpa.plan.beats;
+    }
     cpa_release(); dmp_stop();
     cpa.on = cpa.paused = cpa.clock_wait = cpa.clock_lost = 0;
     cpa_setup.flags = cpa_edit.flags = 0;
@@ -256,7 +260,8 @@ static void cpa_tick1(void)
     int onset=cpa.elapsed>=cpa.plan.slot[cpa.slot].ticks;
     if(sq_capture.state==SQ_PERF_ACTIVE){
         if(sq_capture.tick+1u>=sq_perf_draft.meta.beats*SQ_PPQN*SQ_BARS ||
-           (bar && cpa_setup.flags && cpa_setup.plan.beats!=cpa.plan.beats)){
+           (bar && cpa_setup.flags && (cpa_setup.plan.beats!=cpa.plan.beats ||
+            (cgs_active() && cgs.queued_bpm && !cfp_cfg.clock_in && cgs.queued_bpm!=cfm.bpm)))){
             sq_perf_finish();
         } else sq_capture.tick++;
     }

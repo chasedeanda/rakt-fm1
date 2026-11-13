@@ -21,6 +21,9 @@ typedef struct {
 typedef struct {
     const char *id, *name;
     uint8_t bpm, primary, secondary, family, kit_count, cabinet;
+    uint8_t bpm_min, bpm_max;
+    uint8_t keys[6], scales[4], meter_weight[3]; /* Pitch classes, modes, and weights for 3/4, 4/4, 6/8. */
+    uint8_t fx[CGS_NPART][4];
     const uint8_t *kit;
     uint8_t composer, feel_count;
     uint8_t bank_duration_scale, evolve_period_scale;
@@ -105,6 +108,12 @@ static const uint8_t CGS_FORM_INDIE[CGS_FORM_BARS]={
 static const cgs_profile_t CGS_PROFILES[]={
     {
         .id="dream-pop", .name="Dream Pop", .bpm=104,
+        .bpm_min=86, .bpm_max=118, .keys={0,2,4,5,7,9},
+        .scales={CF_SC_MAJOR,CF_SC_MINOR,CF_SC_LYDIAN,CF_SC_DORIAN}, .meter_weight={1,7,4},
+        .fx={{FXP_VELVET,FXP_SLAP,FXP_SILVER_PLATE,FXP_WIDE_DRIFT},
+             {FXP_CLEAN,FXP_VELVET,FXP_SLAP,FXP_BITE},
+             {FXP_DEEP_SPACE,FXP_PING_PONG,FXP_WIDE_DRIFT,FXP_SLAP},
+             {FXP_CLEAN,FXP_VELVET,FXP_SILVER_PLATE,FXP_SLAP}},
         .primary=CF_P_DREAMY, .secondary=CF_P_EMOTIONAL, .family=CGS_GUITAR,
         CGS_KITS(DMK_AIR,DMK_ROOM,DMK_XLIVE,DMK_TAPE,DMK_GLASS,DMK_BRUSH)
         CGS_PALETTE(CGS_EXTRA_DREAM,STUDIO_VA_GLIDE_HAZE,STUDIO_VA_VELVET_PICK,STUDIO_VA_SLOW_SPARK)
@@ -118,6 +127,12 @@ static const cgs_profile_t CGS_PROFILES[]={
     },
     {
         .id="indie", .name="Indie", .bpm=116,
+        .bpm_min=98, .bpm_max=138, .keys={0,2,4,5,7,9},
+        .scales={CF_SC_MAJOR,CF_SC_MINOR,CF_SC_MIXOLYDIAN,CF_SC_DORIAN}, .meter_weight={2,8,2},
+        .fx={{FXP_VELVET,FXP_BITE,FXP_SLAP,FXP_SILVER_PLATE},
+             {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SLAP},
+             {FXP_SLAP,FXP_PING_PONG,FXP_SILVER_PLATE,FXP_WIDE_DRIFT},
+             {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SILVER_PLATE}},
         .primary=CF_P_FAMILIAR, .secondary=CF_P_UPLIFTING, .family=CGS_GUITAR,
         CGS_KITS(DMK_XLIVE,DMK_ROOM,DMK_STD,DMK_TIGHT,DMK_WOOD,DMK_TAPE)
         CGS_PALETTE(CGS_EXTRA_INDIE,STUDIO_VA_TWIN_CHOPS,STUDIO_VA_PALM_WIRE,STUDIO_VA_BRIDGE_CHIME)
@@ -136,6 +151,12 @@ static const cgs_profile_t CGS_PROFILES[]={
     },
     {
         .id="new-wave", .name="New Wave", .bpm=126,
+        .bpm_min=108, .bpm_max=146, .keys={0,2,4,5,7,11},
+        .scales={CF_SC_MINOR,CF_SC_DORIAN,CF_SC_MAJOR,CF_SC_MIXOLYDIAN}, .meter_weight={1,10,1},
+        .fx={{FXP_WIDE_DRIFT,FXP_PHASE_SWEEP,FXP_BITE,FXP_SLAP},
+             {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SLAP},
+             {FXP_PING_PONG,FXP_ORBIT,FXP_PHASE_SWEEP,FXP_SLAP},
+             {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SILVER_PLATE}},
         .primary=CF_P_DARK, .secondary=CF_P_ENERGETIC, .family=CGS_ELECTRONIC,
         .cabinet=CGS_CAB_ALUMINUM,
         CGS_KITS(DMK_909,DMK_XTECH,DMK_808,DMK_CRUSH,DMK_XCLUB,DMK_MRETRO)
@@ -153,6 +174,12 @@ static const cgs_profile_t CGS_PROFILES[]={
     },
     {
         .id="pop-punk", .name="Pop Punk", .bpm=148,
+        .bpm_min=132, .bpm_max=182, .keys={1,2,4,6,7,9},
+        .scales={CF_SC_MAJOR,CF_SC_MINOR,CF_SC_MIXOLYDIAN,CF_SC_MAJOR}, .meter_weight={1,10,1},
+        .fx={{FXP_BITE,FXP_VELVET,FXP_SLAP,FXP_RADIO},
+             {FXP_BITE,FXP_VELVET,FXP_CLEAN,FXP_SLAP},
+             {FXP_SLAP,FXP_WIDE_DRIFT,FXP_SILVER_PLATE,FXP_PING_PONG},
+             {FXP_CLEAN,FXP_BITE,FXP_VELVET,FXP_SILVER_PLATE}},
         .primary=CF_P_DARK, .secondary=CF_P_EMOTIONAL, .family=CGS_GUITAR,
         CGS_KITS(DMK_XBREAK,DMK_ROOM,DMK_XLIVE,DMK_CRUSH,DMK_TIGHT,DMK_BOOM)
         CGS_PALETTE(CGS_EXTRA_PUNK,STUDIO_VA_STACK_BITE,STUDIO_VA_BREAK_PICK,STUDIO_VA_CLEAN_OCTAVE)
@@ -165,6 +192,12 @@ static const cgs_profile_t CGS_PROFILES[]={
     },
     {
         .id="lo-fi", .name="Lo-Fi", .bpm=82,
+        .bpm_min=66, .bpm_max=96, .keys={0,2,3,5,7,10},
+        .scales={CF_SC_MINOR,CF_SC_DORIAN,CF_SC_MAJOR,CF_SC_MIXOLYDIAN}, .meter_weight={2,8,2},
+        .fx={{FXP_VELVET,FXP_PHONE_LP,FXP_SILVER_PLATE,FXP_SLAP},
+             {FXP_CLEAN,FXP_VELVET,FXP_BITE,FXP_SLAP},
+             {FXP_SLAP,FXP_SILVER_PLATE,FXP_DEEP_SPACE,FXP_WIDE_DRIFT},
+             {FXP_CLEAN,FXP_VELVET,FXP_PHONE_LP,FXP_SILVER_PLATE}},
         .primary=CF_P_JAZZY, .secondary=CF_P_DREAMY, .family=CGS_ELECTRONIC,
         .cabinet=CGS_CAB_TOLEX,
         CGS_KITS(DMK_DUST,DMK_TAPE,DMK_XLOFI,DMK_BRUSH,DMK_LOFI,DMK_CHILL)
@@ -184,6 +217,12 @@ static const cgs_profile_t CGS_PROFILES[]={
     },
     {
         .id="ambient", .name="Ambient Soundscape", .bpm=64,
+        .bpm_min=48, .bpm_max=78, .keys={0,2,4,5,7,9},
+        .scales={CF_SC_LYDIAN,CF_SC_DORIAN,CF_SC_MAJOR,CF_SC_MINOR}, .meter_weight={4,3,5},
+        .fx={{FXP_SILVER_PLATE,FXP_WIDE_DRIFT,FXP_VELVET,FXP_DEEP_SPACE},
+             {FXP_CLEAN,FXP_VELVET,FXP_SLAP,FXP_BITE},
+             {FXP_DEEP_SPACE,FXP_ORBIT,FXP_WIDE_DRIFT,FXP_SLAP},
+             {FXP_CLEAN,FXP_VELVET,FXP_SILVER_PLATE,FXP_SLAP}},
         .primary=CF_P_DREAMY, .secondary=CF_P_UPLIFTING, .family=CGS_EXPERIMENTAL,
         .cabinet=CGS_CAB_ALUMINUM,
         CGS_KITS(DMK_CHILL,DMK_GLASS,DMK_AIR,DMK_DUB,DMK_WOOD,DMK_HAND)

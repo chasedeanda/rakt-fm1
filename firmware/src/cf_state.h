@@ -126,6 +126,7 @@ static cf_harmony_t ch;                         /* separate versioned record; cf
 static struct {
     uint8_t idea, rhythm, mode, explored, repeat_off;
     uint8_t saved_tonic, saved_scale, saved_quantize, saved_beats;
+    uint8_t tempo_generation;
     uint32_t revision, modifiers, click_generation;
 } cpg;             /* Browser selection only; never persisted */
 

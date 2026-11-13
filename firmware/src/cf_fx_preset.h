@@ -6,6 +6,9 @@
 #define FXP_NAME 21u
 #define FXP_MAGIC 0x31505846u /* FXP1, little endian on FM1 */
 #define FXP_VERSION 1u
+enum { FXP_CLEAN, FXP_VELVET, FXP_BITE, FXP_SLAP, FXP_PING_PONG, FXP_WIDE_DRIFT,
+       FXP_PHASE_SWEEP, FXP_RADIO, FXP_SILVER_PLATE, FXP_DEEP_SPACE, FXP_ORBIT,
+       FXP_PHONE_LP, FXP_PHONE_HP };
 typedef struct { char name[FXP_NAME]; cf_fx_t fx; } fxp_preset_t;
 typedef struct {
     uint32_t magic;
